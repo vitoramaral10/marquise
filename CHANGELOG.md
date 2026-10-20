@@ -3,6 +3,13 @@
 All notable changes to Marquise are listed here. The format follows [Keep a Changelog](https://keepachangelog.com/),
 and versions follow [Semantic Versioning](https://semver.org/).
 
+## [1.4.1] - 2026-10-20
+
+### Fixed
+
+- Sunrise and sunset icons: the arrow now replaces the sun's middle ray at the same weight, and they are drawn larger
+  in the weather panel.
+
 ## [1.4.0] - 2026-10-20
 
 ### Added
