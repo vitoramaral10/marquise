@@ -3,6 +3,16 @@
 All notable changes to Marquise are listed here. The format follows [Keep a Changelog](https://keepachangelog.com/),
 and versions follow [Semantic Versioning](https://semver.org/).
 
+## [1.5.0] - 2026-10-20
+
+### Added
+
+- TMDB as a second source of posters, for whoever has no Jellyfin: what's popular in your country on the streaming
+  apps installed on the TV (Netflix, Prime Video, Disney+, Max, Globoplay and others), with your own TMDB key and the
+  country chosen on the TV. Selecting a poster opens that app, on a search for the title where the app takes one
+  (Netflix, Disney+).
+- Settings → *Titles* picks where the Home posters come from: Jellyfin or TMDB.
+
 ## [1.4.2] - 2026-10-20
 
 ### Fixed
