@@ -35,6 +35,15 @@ jobs:
       - name: Build and unit tests
         run: ./build.sh
 
+      # Marquise has to stay light (README: "under 1 MB"): a change that makes the APK grow past it needs a reason.
+      - name: APK size budget
+        env:
+          MAX_BYTES: "1000000"
+        run: |
+          size=$(stat -c %s marquise.apk)
+          echo "marquise.apk: $size bytes (budget $MAX_BYTES)" | tee -a "$GITHUB_STEP_SUMMARY"
+          [ "$size" -le "$MAX_BYTES" ] || { echo "::error::marquise.apk is $size bytes, over the $MAX_BYTES budget"; exit 1; }
+
       - uses: actions/upload-artifact@v7
         with:
           name: marquise-apk

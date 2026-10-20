@@ -45,8 +45,9 @@ Today a merge goes straight to every TV that accepts the update, and nothing but
   - Still to cover there: the TMDB and Jellyfin parsing, with recorded responses served to the emulator.
 - ~~**A beta channel.**~~ Done: a PR labeled `beta` releases `X.Y.Z-beta.N` as a pre-release. Settings → *Updates*
   lets a TV opt in to betas, and everyone else keeps getting only the latest stable release (`releases/latest`).
-- **Budgets in CI.** The build fails if the APK goes over 1 MB. The emulator check also records Home's memory and
-  fails if it goes over 150 MB.
+- ~~**Budgets in CI.**~~ Done: the `apk` check fails if `marquise.apk` goes over 1 MB (now ~780 KB), and the
+  emulator check fails if Home's process goes over 80 MB with its empty posters (~31 MB measured). Real posters on a
+  TV take ~120 MB, which only a TV can measure, so that number stays a manual check.
 - **What went wrong, without telemetry.** Settings → *This TV* shows the last errors from `AppLog`. The QR report
   carries their summary, within the URL limit. Nothing leaves the TV unless the person scans it.
 
