@@ -137,6 +137,10 @@ Google TV e TCL. Para outra marca, acrescente os apps de propaganda dela em `DEB
 `LIVE_TV_APPS` no [`HomeApps.java`](app/src/br/dev/vitormelo/marquise/HomeApps.java). O [CLAUDE.md](CLAUDE.md) lista
 os comandos `adb` de leitura que mostram o que sua TV tem. Pull requests com outras marcas são muito bem-vindos.
 
+Sem computador por perto? Na TV, *Marquise → Esta TV* mostra um QR code: aponte o celular e ele abre no GitHub um
+relatório da TV já preenchido (marca, modelo, Android, o Início e a tela de descanso de fábrica e os apps que vieram
+nela; nada pessoal).
+
 ## Como funciona
 
 - **Um app Android simples em Java, sem Gradle e sem bibliotecas.** O [`build.sh`](build.sh) roda aapt2 → javac → d8 →
