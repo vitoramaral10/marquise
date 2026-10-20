@@ -12,7 +12,9 @@ jobs:
   apk:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false   # the build never pushes: don't leave the token in .git/config
 
       - uses: actions/setup-java@v6
         with:
