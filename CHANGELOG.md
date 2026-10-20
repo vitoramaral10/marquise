@@ -5,6 +5,12 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.9.0] - 2026-10-20
+
+### Added
+
+- Quiet poster placeholders instead of the marquee card (#10).
+
 ## [1.8.0] - 2026-10-20
 
 ### Added
