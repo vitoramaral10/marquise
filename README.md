@@ -162,6 +162,10 @@ came with it; nothing personal).
 | [`Updater.java`](app/src/br/dev/vitormelo/marquise/Updater.java) | Updates from GitHub releases |
 | [`Watchdog.java`](app/src/br/dev/vitormelo/marquise/Watchdog.java) | The safety net |
 
+## What's next
+
+Where Marquise is going, and in what order: [ROADMAP.md](ROADMAP.md).
+
 ## Privacy
 
 No accounts, no analytics, no tracking. Marquise talks to your Jellyfin server (with the key you set) or TMDB (with
