@@ -1,0 +1,25 @@
+name: PR title
+
+# Pull requests are squash-merged with their title as the commit, and that commit decides the next release
+# (.github/scripts/release.py), so the title must be a Conventional Commit: "type(scope)!: text".
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+
+permissions: {}
+
+jobs:
+  title:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Conventional Commit
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          types='feat|fix|perf|refactor|docs|style|test|build|ci|chore|revert'
+          if printf '%s' "$TITLE" | grep -Eq "^($types)(\([a-z0-9._/-]+\))?!?: [^ ].*"; then
+            echo "ok: $TITLE"
+          else
+            echo "::error::The PR title becomes the commit and decides the release. Write it as a Conventional Commit, e.g. \"feat(home): …\", \"fix(update): …\" or \"docs: …\" (types: ${types//|/, })."
+            exit 1
+          fi
