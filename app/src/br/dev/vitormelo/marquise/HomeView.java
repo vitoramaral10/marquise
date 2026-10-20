@@ -220,7 +220,11 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
     private static final long TAB_FADE_MS = 220;
     private long tabFadeAt;                   // switching tabs: the new posters fade in and rise a little
     private float cardsAlpha = 1;
-    private Paint emptyTitle, emptyBody;
+    private Paint emptyTitle;
+    private android.text.TextPaint emptyBody;
+    /** The empty row's line (null while fetching: the placeholders say it), made off the draw path (prepareEmptyText). */
+    private String emptyTitleText, emptyBodyText;
+    private boolean emptyReady;
     // Until a poster's image is ready: its BlurHash, decoded once (tiny) and drawn stretched, in the poster's colors.
     private final android.graphics.BitmapShader[] cardPreviews = new android.graphics.BitmapShader[Recs.PER_TAB];
     private final int[][] cardPreviewSize = new int[Recs.PER_TAB][2];
@@ -513,6 +517,10 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         lCardMeta = Ui.text(Ui.medium, 25 * k, L_DIM);
         lTip = Ui.text(Ui.semibold, 25 * k, L_INK);
         lTip.setTextAlign(Paint.Align.CENTER);
+        emptyTitle = Ui.text(Ui.displaySemibold, 34 * k, 0xFFFFFFFF);
+        emptyTitle.setTextAlign(Paint.Align.CENTER);
+        emptyBody = new android.text.TextPaint(Ui.text(Ui.regular, 25 * k, 0xFFFFFFFF));
+        emptyBody.setTextAlign(Paint.Align.CENTER);
         lightGradient = null;
         rowTitle = Ui.text(Ui.semibold, 25 * k, 0xB3FFFFFF);
         drawerLabel = Ui.text(Ui.medium, 23 * k, 0xEBFFFFFF);
@@ -1844,6 +1852,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
             cardRects[i].set(l, top, l + cw, top + ch);
         }
         fitCardText();
+        prepareEmptyText();
         heroDirty = statusDirty = true;
     }
 
@@ -1854,10 +1863,13 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
             cards = list;
             fitCardText();
             cardIndex = Math.min(cardIndex, Math.max(0, list.size() - 1));
-            if (zone == Z_CARDS && list.isEmpty() && Recs.hasKey(getContext())) {
-                zone = Z_SHELF;
-                retarget(false);
-            }
+        }
+        prepareEmptyText();
+        // No posters while a source is set: the placeholders aren't focusable, so the focus leaves them (also when the
+        // list was already empty, e.g. a source was just set up from the first placeholder).
+        if (zone == Z_CARDS && cards.isEmpty() && emptyReady) {
+            zone = Z_SHELF;
+            retarget(false);
         }
         for (Recs.Pick p : recs.wanted()) recs.backdrop(p);   // all three tabs preloaded: switching tabs is instant
         Backdrop b = cards.isEmpty() ? null : recs.backdrop(cards.get(Math.min(bgCard, cards.size() - 1)));
@@ -2026,14 +2038,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
      * one short line says so; on an error, that line says what went wrong.
      */
     private void drawEmptyCard(Canvas c) {
-        if (emptyTitle == null) {
-            emptyTitle = Ui.text(Ui.displaySemibold, 34 * k, 0xFFFFFFFF);
-            emptyTitle.setTextAlign(Paint.Align.CENTER);
-            emptyBody = Ui.text(Ui.regular, 25 * k, 0xFFFFFFFF);
-            emptyBody.setTextAlign(Paint.Align.CENTER);
-        }
-        boolean ready = Recs.hasKey(getContext()), tmdb = Recs.tmdb(getContext());
-        String error = ready ? recs.error() : "";
+        boolean ready = emptyReady;
         fill.setShader(null);
         for (int i = 0; i < CARDS; i++) {
             RectF base = cardRects[i];
@@ -2055,19 +2060,32 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
             tmp.set(base.left, t + 36 * k, base.left + bw * 0.46f, t + 52 * k);
             c.drawRoundRect(tmp, 8 * k, 8 * k, fill);
         }
-        if (ready && error.isEmpty()) return;   // fetching: the placeholders say it
-        String title = !error.isEmpty() ? Ui.tr("Nada para mostrar agora", "Nothing to show right now")
-                : Ui.tr("Escolha seus filmes e séries", "Choose your movies and shows");
-        String body = !error.isEmpty() ? error.substring(0, 1).toUpperCase(java.util.Locale.ROOT) + error.substring(1)
-                : tmdb ? Ui.tr("Aperte OK para pôr sua chave do TMDB.", "Press OK to add your TMDB key.")
-                : Ui.tr("Aperte OK para conectar o Jellyfin ou o TMDB.", "Press OK to connect Jellyfin or TMDB.");
+        if (emptyBodyText == null || emptyTitle == null) return;   // fetching: the placeholders say it
         float mid = (MARGIN * k + CONTENT_R * k) / 2, y = (L_CARDS_TOP + L_POSTER_H / 2f) * k;
         emptyTitle.setColor(tone(0xFF1C1C1E, 0xFFFFFFFF));
         emptyBody.setColor(tone(0x991C1C1E, 0xB3FFFFFF));
-        c.drawText(title, mid, y - 4 * k, emptyTitle);
-        body = android.text.TextUtils.ellipsize(body, new android.text.TextPaint(emptyBody), (CONTENT_R - MARGIN) * k - 160 * k,
+        c.drawText(emptyTitleText, mid, y - 4 * k, emptyTitle);
+        c.drawText(emptyBodyText, mid, y + 40 * k, emptyBody);
+    }
+
+    /**
+     * The empty row's line for the current state (no source, an error, or none while fetching), cut to the row's
+     * width: done when the picks update (every 15 s and when Recs notifies) and on a new size, never while drawing.
+     */
+    private void prepareEmptyText() {
+        emptyReady = Recs.hasKey(getContext());
+        String error = emptyReady ? recs.error() : "";
+        if (emptyReady && error.isEmpty() || emptyBody == null) {
+            emptyTitleText = emptyBodyText = null;
+            return;
+        }
+        emptyTitleText = !error.isEmpty() ? Ui.tr("Nada para mostrar agora", "Nothing to show right now")
+                : Ui.tr("Escolha seus filmes e séries", "Choose your movies and shows");
+        String body = !error.isEmpty() ? error.substring(0, 1).toUpperCase(java.util.Locale.ROOT) + error.substring(1)
+                : Recs.tmdb(getContext()) ? Ui.tr("Aperte OK para pôr sua chave do TMDB.", "Press OK to add your TMDB key.")
+                : Ui.tr("Aperte OK para conectar o Jellyfin ou o TMDB.", "Press OK to connect Jellyfin or TMDB.");
+        emptyBodyText = android.text.TextUtils.ellipsize(body, emptyBody, (CONTENT_R - MARGIN) * k - 160 * k,
                 android.text.TextUtils.TruncateAt.END).toString();
-        c.drawText(body, mid, y + 40 * k, emptyBody);
     }
 
     /**
