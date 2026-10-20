@@ -114,4 +114,4 @@ TVs that don't run Google TV or Android TV (Samsung, LG and others): the way is 
 - Keep the way back working: the *Original* mode and the watchdog.
 - Changes go through a pull request, never straight to `main`: a git-flow branch (`feature/`, `bugfix/`, `hotfix/`,
   `release/` + what it does), then a PR to `main`. CodeRabbit reviews it (`.coderabbit.yaml`, in Portuguese); answer
-  or fix its comments, and leave the merge to the maintainer. Release tags go on `main` after the merge.
+  or fix its comments, and leave the merge to the maintainer. The release after the merge is automatic.
