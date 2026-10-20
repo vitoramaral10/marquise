@@ -1,9 +1,13 @@
 #!/usr/bin/env python3
 """Automatic releases: what the commits since the last tag ask for, and the files a release changes.
 
-    release.py plan            -> prints "release=true|false", "version=X.Y.Z" and "code=N" (for $GITHUB_OUTPUT)
+    release.py plan [--beta]   -> prints "release=true|false", "version=X.Y.Z" and "code=N" (for $GITHUB_OUTPUT)
     release.py apply X.Y.Z N   -> bumps the manifest and turns CHANGELOG's [Unreleased] into [X.Y.Z] - today
     release.py notes X.Y.Z     -> prints that version's CHANGELOG section (the release notes)
+
+A beta (a pull request labeled "beta") is the next version with "-beta.N": X.Y.Z-beta.1, then -beta.2… It bumps
+only the manifest; CHANGELOG keeps [Unreleased] for the stable release, which comes from the last stable tag as if
+the betas weren't there, and the beta's notes are what [Unreleased] has so far.
 
 Conventional Commits decide the bump: a breaking change ("type!:" or "BREAKING CHANGE") goes to the next major,
 "feat" to the next minor, "fix" and "perf" to the next patch. Anything else (docs, chore, ci, style, refactor, test,
@@ -26,9 +30,9 @@ def git(*args):
 
 
 def last_tag():
-    """Return the nearest reachable v[0-9]* tag, or an empty string if none is found."""
+    """Return the nearest reachable stable tag (v[0-9]*, betas left out), or an empty string if none is found."""
     try:
-        return git("describe", "--tags", "--abbrev=0", "--match", "v[0-9]*").strip()
+        return git("describe", "--tags", "--abbrev=0", "--match", "v[0-9]*", "--exclude", "v*-*").strip()
     except subprocess.CalledProcessError:
         return ""
 
@@ -74,7 +78,14 @@ def manifest_version():
     return code, name
 
 
-def plan():
+def next_beta(version):
+    """The next "-beta.N" of a version, after the beta tags it already has."""
+    taken = [int(m[1]) for t in git("tag", "--list", f"v{version}-beta.*").split()
+             if (m := re.fullmatch(rf"v{re.escape(version)}-beta\.(\d+)", t))]
+    return f"{version}-beta.{max(taken, default=0) + 1}"
+
+
+def plan(beta=False):
     """Print the release decision, next version and next code for GitHub Actions."""
     tag = last_tag()
     level = bump(commits(tag))
@@ -87,8 +98,9 @@ def plan():
         minor, patch = minor + 1, 0
     elif level == 1:
         patch += 1
+    version = f"{major}.{minor}.{patch}"
     print(f"release={'true' if level else 'false'}")
-    print(f"version={major}.{minor}.{patch}")
+    print(f"version={next_beta(version) if beta else version}")
     print(f"code={code + 1}")
 
 
@@ -114,6 +126,8 @@ def apply(version, code):
     text = re.sub(r'android:versionCode="\d+"', f'android:versionCode="{code}"', text, count=1)
     text = re.sub(r'android:versionName="[^"]+"', f'android:versionName="{version}"', text, count=1)
     open(MANIFEST, "w", encoding="utf-8").write(text)
+    if "-" in version:   # a beta: [Unreleased] stays for the stable release
+        return
 
     log = open(CHANGELOG, encoding="utf-8").read()
     today = datetime.date.today().isoformat()
@@ -135,6 +149,11 @@ def apply(version, code):
 def notes(version):
     """Print the requested version's changelog body, or a blank line if absent."""
     log = open(CHANGELOG, encoding="utf-8").read()
+    if "-" in version:   # a beta: what [Unreleased] has so far, or the commits since the last stable release
+        m = re.search(r"^## \[Unreleased\]\n(?P<body>.*?)(?=^## \[|\Z)", log, flags=re.M | re.S)
+        body = m["body"].strip() if m else ""
+        print(body or generated_section(commits(last_tag())).strip())
+        return
     m = re.search(rf"^## \[{re.escape(version)}\][^\n]*\n(?P<body>.*?)(?=^## \[|\Z)", log, flags=re.M | re.S)
     print((m["body"] if m else "").strip())
 
@@ -142,7 +161,7 @@ def notes(version):
 if __name__ == "__main__":
     cmd = sys.argv[1] if len(sys.argv) > 1 else ""
     if cmd == "plan":
-        plan()
+        plan(beta="--beta" in sys.argv[2:])
     elif cmd == "apply":
         apply(sys.argv[2], int(sys.argv[3]))
     elif cmd == "notes":

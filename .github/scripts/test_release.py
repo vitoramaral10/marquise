@@ -48,15 +48,27 @@ class Bump(unittest.TestCase):
 
 
 class Plan(unittest.TestCase):
-    def plan(self, tag, subjects):
-        """release.plan()'s stdout as a dict, with the given tag and commit subjects mocked in."""
+    def plan(self, tag, subjects, beta=False, tags=""):
+        """release.plan()'s stdout as a dict, with the given tag, commit subjects and existing tags mocked in."""
         with mock.patch.object(release, "last_tag", return_value=tag), \
                 mock.patch.object(release, "commits", return_value=entries(*subjects)), \
-                mock.patch.object(release, "manifest_version", return_value=(19, "1.9.1")):
+                mock.patch.object(release, "manifest_version", return_value=(19, "1.9.1")), \
+                mock.patch.object(release, "git", return_value=tags):
             out = io.StringIO()
             with contextlib.redirect_stdout(out):
-                release.plan()
+                release.plan(beta)
         return dict(line.split("=", 1) for line in out.getvalue().split())
+
+    def test_a_beta_is_the_next_version_with_a_beta_number(self):
+        """A beta counts up from the betas the next version already has."""
+        self.assertEqual(self.plan("v1.9.1", ["feat: x"], beta=True),
+                         {"release": "true", "version": "1.10.0-beta.1", "code": "20"})
+        tags = "v1.10.0-beta.1\nv1.10.0-beta.2\nv1.10.0-beta.10x\n"
+        self.assertEqual(self.plan("v1.9.1", ["feat: x"], beta=True, tags=tags)["version"], "1.10.0-beta.3")
+
+    def test_a_beta_label_on_nothing_releasable_makes_nothing(self):
+        """The label doesn't make a release out of docs or CI changes."""
+        self.assertEqual(self.plan("v1.9.1", ["docs: x"], beta=True)["release"], "false")
 
     def test_versions_go_up_from_the_last_tag(self):
         """The planned version and code bump from the last tag, by the highest commit type found."""
@@ -132,6 +144,23 @@ class Files(unittest.TestCase):
                 mock.patch.object(release, "last_tag", return_value="v1.9.1"):
             release.apply("1.10.0", 20)
         self.assertEqual(self.notes("1.10.0"), "### Added\n\n- A row.\n\n### Fixed\n\n- A crash.")
+
+    def test_a_beta_bumps_only_the_manifest(self):
+        """apply() of a beta leaves [Unreleased] for the stable release; its notes are what [Unreleased] has."""
+        self.write_changelog("\n### Added\n\n- A row.\n\n")
+        before = self.read(release.CHANGELOG)
+        release.apply("1.10.0-beta.1", 20)
+        self.assertEqual(self.read(release.MANIFEST),
+                         '<manifest android:versionCode="20" android:versionName="1.10.0-beta.1">\n')
+        self.assertEqual(self.read(release.CHANGELOG), before)
+        self.assertEqual(self.notes("1.10.0-beta.1"), "### Added\n\n- A row.")
+
+    def test_a_beta_without_unreleased_notes_lists_the_commits(self):
+        """With [Unreleased] empty, a beta's notes come from the commits since the last stable release."""
+        self.write_changelog("\n")
+        with mock.patch.object(release, "commits", return_value=entries("feat(home): a row", "docs: x")), \
+                mock.patch.object(release, "last_tag", return_value="v1.9.1"):
+            self.assertEqual(self.notes("1.10.0-beta.1"), "### Added\n\n- A row.")
 
     def test_notes_of_a_missing_version_are_empty(self):
         """notes() for a version not in the CHANGELOG is empty."""

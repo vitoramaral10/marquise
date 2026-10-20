@@ -112,11 +112,11 @@ public class SettingsActivity extends Activity {
     }
 
     static final class SettingsView extends View implements Choreographer.FrameCallback {
-        private static final int MAIN = 0, HOME_CHOICE = 1, REPORT = 2;
-        /** The "This TV" row: opens the report screen. */
-        private static final int THIS_TV = 4;
+        private static final int MAIN = 0, HOME_CHOICE = 1, REPORT = 2, UPDATES = 3;
+        /** The "This TV" row: opens the report screen. "Updates": the update, if any, and stable or beta releases. */
+        private static final int THIS_TV = 4, UPDATES_ROW = 5;
         private static final float LIST_X = 1000, LIST_R = 1824, LIST_TOP = 150, ROW_H = 70, ROW_GAP = 8, CHOICE_H = 104;
-        private static final int ROWS = 6;
+        private static final int ROWS = 7;
         private static final int AMBER = 0xFFFFC266, INK = 0xFF1C1C1E;
 
         private final SettingsActivity activity;
@@ -135,11 +135,18 @@ public class SettingsActivity extends Activity {
         private Bitmap reportQr;               // made the first time "This TV" opens
         private final Paint qrPaint = new Paint();   // no filtering: the modules stay sharp when scaled up   // the installed streaming apps TMDB titles open in (looked up on resume)
         private int screen = MAIN, focus;
+        /** Whether the Updates screen has had the "Install" row: when it appears, focus moves down with the rows. */
+        private boolean updatesHadInstall;
+        // The Updates screen's choices, built again only when what they say changes (nothing is made per frame).
+        private String[][] updatesCache;
+        private String cachedAvailable = "", cachedError = "";
+        private int cachedProgress = -2;
+        private boolean cachedBetas, cachedEn;
         private boolean running, okDown, backDown;
         private long startedAt, lastNanos, pendingAt;
         private int w, h;
         private float k = 1;
-        private Paint title, subtitle, version, rowLabel, rowValue, rowSub, header, warn, spinner, white, shadow;
+        private Paint title, subtitle, version, rowLabel, rowValue, rowSub, header, warn, spinner, white, shadow, heading, hint;
         private TextPaint notice;
 
         private final Runnable poll = new Runnable() {
@@ -164,7 +171,7 @@ public class SettingsActivity extends Activity {
         }
 
         void resume() {
-            Updater.check();
+            Updater.check(getContext());
             tmdbApps = Tmdb.installedNames(getContext());
             if (running) return;
             running = true;
@@ -209,6 +216,8 @@ public class SettingsActivity extends Activity {
             header = Ui.text(Ui.semibold, 21 * k, 0x73FFFFFF);
             header.setLetterSpacing(0.06f);
             warn = Ui.text(Ui.regular, 23 * k, AMBER);
+            heading = Ui.text(Ui.displaySemibold, 34 * k, 0xFFFFFFFF);
+            hint = Ui.text(Ui.regular, 23 * k, 0x8CFFFFFF);
             notice = new TextPaint(Ui.text(Ui.regular, 23 * k, 0xB3FFFFFF));
             spinner = new Paint(Paint.ANTI_ALIAS_FLAG);
             spinner.setStyle(Paint.Style.STROKE);
@@ -229,12 +238,16 @@ public class SettingsActivity extends Activity {
         }
 
         private int rowCount() {
-            return screen == MAIN ? mainRows() : screen == HOME_CHOICE ? 2 : 0;
+            if (screen == UPDATES) syncUpdatesFocus();
+            return screen == MAIN ? ROWS : screen == HOME_CHOICE ? 2 : screen == UPDATES ? (Updater.available.isEmpty() ? 2 : 3) : 0;   // as updateOptions()
         }
 
-        /** The fixed rows, plus "Update" when a newer release is out. */
-        private int mainRows() {
-            return Updater.available.isEmpty() ? ROWS : ROWS + 1;
+        /** The "Install" row came or went while the screen is open: the rows moved, so focus follows its option. */
+        private void syncUpdatesFocus() {
+            boolean has = !Updater.available.isEmpty();
+            if (has == updatesHadInstall) return;
+            updatesHadInstall = has;
+            focus = Math.max(0, Math.min(has ? 2 : 1, focus + (has ? 1 : -1)));
         }
 
         @Override protected void onDraw(Canvas c) {
@@ -276,7 +289,10 @@ public class SettingsActivity extends Activity {
                         "Uses the TMDB API but is not endorsed or certified by TMDB."), cx, 1050 * k, version);
             }
 
-            if (screen == MAIN) drawMain(c, seconds); else if (screen == HOME_CHOICE) drawChoice(c); else drawReport(c);
+            if (screen == MAIN) drawMain(c, seconds);
+            else if (screen == HOME_CHOICE) drawHomeChoice(c);
+            else if (screen == UPDATES) drawUpdates(c);
+            else drawReport(c);
         }
 
         private void drawMain(Canvas c, float seconds) {
@@ -290,9 +306,9 @@ public class SettingsActivity extends Activity {
             if (Recs.tmdb(ctx)) jellyfin = Prefs.tmdbReady(ctx) ? "TMDB · " + Prefs.regionName(ctx) : Ui.tr("Configurar", "Set up");
             String city = Prefs.city(ctx);
             String[] labels = {Ui.tr("Início", "Home Screen"), Ui.tr("Títulos", "Titles"), Ui.tr("Cidade", "City"), Ui.tr("Tela de Descanso", "Screensaver"),
-                    Ui.tr("Esta TV", "This TV"), Ui.tr("Ajustes da TV", "TV Settings")};
+                    Ui.tr("Esta TV", "This TV"), Ui.tr("Atualizações", "Updates"), Ui.tr("Ajustes da TV", "TV Settings")};
             String[] values = {working ? "" : mode, jellyfin, city.isEmpty() ? Ui.tr("Escolher", "Choose") : city,
-                    Ui.tr("Ver agora", "Preview"), tvName, ""};
+                    Ui.tr("Ver agora", "Preview"), tvName, updateStatus(), ""};
             for (int i = 0; i < ROWS; i++) {
                 float y = (LIST_TOP + i * (ROW_H + ROW_GAP)) * k;
                 rowRect.set(LIST_X * k, y, LIST_R * k, y + ROW_H * k);
@@ -315,13 +331,14 @@ public class SettingsActivity extends Activity {
                     spinner.setColor(blend(0xFFFFFFFF, INK, f));
                     Ui.spinner(c, sx, rowRect.centerY(), 12 * k, seconds * 1.3f, spinner);
                 } else {
-                    rowValue.setColor(blend(0x8CFFFFFF, 0x8C1C1C1E, f));
+                    // A new version, its download or what went wrong, in amber.
+                    boolean news = i == UPDATES_ROW && updateNews();
+                    rowValue.setColor(news ? blend(AMBER, 0xFF8A4B00, f) : blend(0x8CFFFFFF, 0x8C1C1C1E, f));
                     c.drawText(values[i], right, base, rowValue);
                 }
             }
-            if (mainRows() > ROWS) drawUpdateRow(c);
 
-            float y = (LIST_TOP + mainRows() * (ROW_H + ROW_GAP) + 40) * k;
+            float y = (LIST_TOP + ROWS * (ROW_H + ROW_GAP) + 40) * k;
             String error = state.optString("error");
             if (working && (busyText.contains("Permitir") || busyText.contains("Allow"))) {
                 c.drawText(Ui.tr("Na TV: marque “Sempre permitir” e aperte OK.", "On the TV: tick “Always allow” and press OK."),
@@ -336,20 +353,22 @@ public class SettingsActivity extends Activity {
             drawNotices(c, y + 50 * k);
         }
 
-        /** "Update": the new version (in amber), the download's progress, or what went wrong. OK installs it. */
-        private void drawUpdateRow(Canvas c) {
-            float y = (LIST_TOP + ROWS * (ROW_H + ROW_GAP)) * k;
-            rowRect.set(LIST_X * k, y, LIST_R * k, y + ROW_H * k);
-            float f = drawRowBackground(c, ROWS);
-            rowLabel.setColor(blend(0xF2FFFFFF, INK, f));
-            float base = rowRect.centerY() + Ui.halfCap(rowLabel);
-            c.drawText(Ui.tr("Atualização", "Update"), rowRect.left + 30 * k, base, rowLabel);
+        /** Whether "Updates" has news: a new version, its download, or what went wrong. */
+        private static boolean updateNews() {
+            return !Updater.available.isEmpty() || Updater.progress >= 0;
+        }
+
+        /** "Updates": the new version, the download's progress, or what went wrong; otherwise the channel. */
+        private String updateStatus() {
             int progress = Updater.progress;
-            String value = progress >= 0 ? (progress >= 100 ? Ui.tr("Instalando…", "Installing…") : Ui.tr("Baixando ", "Downloading ") + progress + "%")
-                    : !Updater.error.isEmpty() ? Ui.tr("Não deu, tente de novo", "Didn't work, try again")
-                    : Ui.tr("Versão " + Updater.available + " disponível", "Version " + Updater.available + " available");
-            rowValue.setColor(blend(AMBER, 0xFF8A4B00, f));
-            c.drawText(value, rowRect.right - 30 * k, base, rowValue);
+            if (progress >= 0) {
+                return progress >= 100 ? Ui.tr("Instalando…", "Installing…") : Ui.tr("Baixando ", "Downloading ") + progress + "%";
+            }
+            if (!Updater.available.isEmpty()) {
+                return !Updater.error.isEmpty() ? Ui.tr("Não deu, tente de novo", "Didn't work, try again")
+                        : Ui.tr("Versão " + Updater.available + " disponível", "Version " + Updater.available + " available");
+            }
+            return Prefs.betas(getContext()) ? Ui.tr("Estáveis e betas", "Stable and betas") : Ui.tr("Estáveis", "Stable");
         }
 
         /** The posters: how they're doing, from which Jellyfin server (name, version, address) or TMDB country. */
@@ -432,7 +451,6 @@ public class SettingsActivity extends Activity {
          * report (TvReport), so a TV of another brand can be supported with what it really has.
          */
         private void drawReport(Canvas c) {
-            Paint heading = Ui.text(Ui.displaySemibold, 34 * k, 0xFFFFFFFF);
             float x = LIST_X * k + 30 * k;
             c.drawText(Ui.tr("Esta TV", "This TV"), x, (LIST_TOP - 24) * k, heading);
             int off = TvReport.turnedOff(getContext());
@@ -482,13 +500,54 @@ public class SettingsActivity extends Activity {
             return y;
         }
 
-        private void drawChoice(Canvas c) {
-            Paint heading = Ui.text(Ui.displaySemibold, 34 * k, 0xFFFFFFFF);
-            c.drawText(Ui.tr("Início", "Home Screen"), LIST_X * k + 30 * k, (LIST_TOP - 24) * k, heading);
+        private void drawHomeChoice(Canvas c) {
             String[][] options = {{"Marquise", Ui.tr("Seus pôsteres do Jellyfin, sem anúncios", "Your Jellyfin posters, no ads")},
                     {"Original", Ui.tr("O Início de fábrica da TV", "The TV's factory home screen")}};
-            int current = freeActive() ? 0 : 1;
-            for (int i = 0; i < 2; i++) {
+            drawChoice(c, Ui.tr("Início", "Home Screen"), options, freeActive() ? 0 : 1,
+                    Ui.tr("A troca leva alguns segundos.", "Switching takes a few seconds."));
+        }
+
+        /** "Updates": install the new version (when there is one), then stable releases only or betas too. */
+        private String[][] updateOptions() {
+            String available = Updater.available, error = Updater.error;
+            int progress = Updater.progress;
+            boolean betas = Prefs.betas(getContext());
+            if (updatesCache != null && available.equals(cachedAvailable) && error.equals(cachedError)
+                    && progress == cachedProgress && betas == cachedBetas && Ui.en == cachedEn) {
+                return updatesCache;
+            }
+            cachedAvailable = available;
+            cachedError = error;
+            cachedProgress = progress;
+            cachedBetas = betas;
+            cachedEn = Ui.en;
+            updatesCache = buildUpdateOptions();
+            return updatesCache;
+        }
+
+        private String[][] buildUpdateOptions() {
+            String[] stable = {Ui.tr("Só versões estáveis", "Stable releases only"),
+                    Ui.tr("As que todo mundo recebe", "The ones everyone gets")};
+            String[] betas = {Ui.tr("Também versões beta", "Beta releases too"),
+                    Ui.tr("As novidades antes, com chance de defeitos", "What's new sooner, with a chance of bugs")};
+            if (Updater.available.isEmpty()) return new String[][] {stable, betas};
+            String[] install = {Ui.tr("Instalar a versão ", "Install version ") + Updater.available, Updater.progress >= 0
+                    ? updateStatus() : Ui.tr("Baixa e abre o instalador do Android", "Downloads it and opens Android's installer")};
+            return new String[][] {install, stable, betas};
+        }
+
+        private void drawUpdates(Canvas c) {
+            String[][] options = updateOptions();
+            int first = options.length - 2;
+            drawChoice(c, Ui.tr("Atualizações", "Updates"), options, first + (Prefs.betas(getContext()) ? 1 : 0),
+                    Ui.tr("Ao voltar para só estáveis, a beta fica até sair a próxima versão estável.",
+                            "Back on stable only, a beta stays until the next stable release is out."));
+        }
+
+        /** A list of choices under a heading, the current one checked, with a hint below. */
+        private void drawChoice(Canvas c, String title, String[][] options, int current, String note) {
+            c.drawText(title, LIST_X * k + 30 * k, (LIST_TOP - 24) * k, heading);
+            for (int i = 0; i < options.length; i++) {
                 float y = (LIST_TOP + 20 + i * (CHOICE_H + ROW_GAP)) * k;
                 rowRect.set(LIST_X * k, y, LIST_R * k, y + CHOICE_H * k);
                 float f = drawRowBackground(c, i);
@@ -501,9 +560,7 @@ public class SettingsActivity extends Activity {
                     Symbols.draw(getContext(), c, "check", rowRect.right - 30 * k - cw / 2, rowRect.centerY(), 26 * k, blend(0xFFFFFFFF, INK, f));
                 }
             }
-            Paint hint = Ui.text(Ui.regular, 23 * k, 0x8CFFFFFF);
-            c.drawText(Ui.tr("A troca leva alguns segundos.", "Switching takes a few seconds."), LIST_X * k + 30 * k,
-                    (LIST_TOP + 20 + 2 * (CHOICE_H + ROW_GAP) + 40) * k, hint);
+            c.drawText(note, LIST_X * k + 30 * k, (LIST_TOP + 20 + options.length * (CHOICE_H + ROW_GAP) + 40) * k, hint);
         }
 
         private static int blend(int a, int b, float f) {
@@ -559,7 +616,7 @@ public class SettingsActivity extends Activity {
                         if (e.getRepeatCount() == 0) backDown = true;
                     } else {
                         if (backDown && !e.isCanceled()) {
-                            focus = screen == REPORT ? THIS_TV : 0;
+                            focus = screen == REPORT ? THIS_TV : screen == UPDATES ? UPDATES_ROW : 0;
                             screen = MAIN;
                         }
                         backDown = false;
@@ -583,6 +640,17 @@ public class SettingsActivity extends Activity {
                 }
                 screen = MAIN;
                 focus = 0;
+            } else if (screen == UPDATES) {
+                syncUpdatesFocus();
+                int first = updateOptions().length - 2;
+                if (focus < first) {
+                    Updater.install(c);
+                } else if ((focus == first + 1) != Prefs.betas(c)) {
+                    Prefs.setBetas(c, focus == first + 1);
+                    Updater.recheck(c);
+                }
+                screen = MAIN;
+                focus = UPDATES_ROW;
             } else if (focus == 0) {
                 if (busy()) return;
                 screen = HOME_CHOICE;
@@ -590,8 +658,10 @@ public class SettingsActivity extends Activity {
             } else if (focus == 1 || focus == 2) {
                 activity.startActivity(new Intent(c, SetupActivity.class)
                         .putExtra(SetupActivity.EXTRA_STEP, focus == 1 ? SetupActivity.STEP_SOURCE : SetupActivity.STEP_CITY));
-            } else if (focus == ROWS) {
-                Updater.install(c);
+            } else if (focus == UPDATES_ROW) {
+                screen = UPDATES;
+                updatesHadInstall = !Updater.available.isEmpty();
+                focus = Updater.available.isEmpty() ? (Prefs.betas(c) ? 1 : 0) : 0;
             } else if (focus == THIS_TV) {
                 if (reportQr == null) reportQr = TvReport.qr(TvReport.url(c));
                 screen = REPORT;

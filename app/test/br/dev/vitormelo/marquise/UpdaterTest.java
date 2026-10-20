@@ -20,8 +20,16 @@ final class UpdaterTest {
     }
 
     /** A "-beta"-style suffix doesn't change the version comparison. */
-    static void aSuffixIsIgnored() {
+    static void aBetaComesBeforeItsRelease() {
         yes(Updater.newer("2.0.0-beta.1", "1.9.9"), "2.0.0-beta.1 > 1.9.9");
-        yes(!Updater.newer("1.9.1-beta", "1.9.1"), "the suffix doesn't count");
+        yes(Updater.newer("1.10.0", "1.10.0-beta.3"), "the release > its betas");
+        yes(!Updater.newer("1.10.0-beta.3", "1.10.0"), "a beta < its release");
+        yes(!Updater.newer("1.9.2", "1.10.0-beta.1"), "a stable release before the beta isn't an update");
+    }
+
+    static void betasCountUp() {
+        yes(Updater.newer("1.10.0-beta.2", "1.10.0-beta.1"), "beta.2 > beta.1");
+        yes(Updater.newer("1.10.0-beta.10", "1.10.0-beta.9"), "beta.10 > beta.9, by number");
+        yes(!Updater.newer("1.10.0-beta.1", "1.10.0-beta.1"), "equal");
     }
 }

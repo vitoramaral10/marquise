@@ -130,6 +130,17 @@ final class Prefs {
                 .putString("longitude", String.format(Locale.US, "%.4f", longitude)).putString("city", name).apply();
     }
 
+    // MARK: - Updates
+
+    /** Whether this TV also takes beta releases (Settings → Updates); off by default. */
+    static boolean betas(Context c) {
+        return p(c).getBoolean("betas", false);
+    }
+
+    static void setBetas(Context c, boolean on) {
+        p(c).edit().putBoolean("betas", on).apply();
+    }
+
     // MARK: - Setup
 
     /** The wizard ran (or the build already came configured): the app's icon opens the settings, not the wizard. */

@@ -50,6 +50,9 @@ every push and pull request the same way, and also tests the release script
 - If people will notice the change, add a line under `## [Unreleased]` in [CHANGELOG.md](CHANGELOG.md).
 - After the merge everything else is automatic: the version in the manifest, the CHANGELOG, the tag and the signed
   APK on the releases page, which the TVs then offer as an update.
+- A risky change can go out as a **beta** first: label the pull request `beta` before merging. It becomes
+  `X.Y.Z-beta.N`, a pre-release that only TVs set to *Beta releases too* get; CHANGELOG's `[Unreleased]` stays for the
+  stable release, which the next unlabeled merge makes.
 
 ## Reporting a problem
 
