@@ -1,0 +1,83 @@
+name: Emulator
+
+# Every pull request switches Marquise on and back off on a Google TV emulator (tools/emulator_check.sh): the home
+# screen, the screensaver and the apps turned off, then all three back as they were. The screenshots of Home, the
+# memory it uses and the log are kept as the run's artifact.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: emulator-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  IMAGE: system-images;android-34;google-tv;x86
+
+jobs:
+  emulator:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Google TV image (cached)
+        uses: actions/cache@v4
+        with:
+          path: /usr/local/lib/android/sdk/system-images/android-34/google-tv/x86   # $ANDROID_HOME on GitHub's runners
+          key: google-tv-34-x86-r3
+
+      - name: Android SDK packages
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "build-tools;34.0.0" "platforms;android-34" emulator \
+            platform-tools "$IMAGE" > /dev/null
+
+      # A placeholder Jellyfin (nothing answers there): the setup is skipped, and Home shows its empty posters.
+      - name: Build
+        run: |
+          sed -e 's#^jellyfin_url=.*#jellyfin_url=http://127.0.0.1:8096#' -e 's#^jellyfin_key=.*#jellyfin_key=emulator-check#' \
+            config.example.properties > config.properties
+          ./build.sh
+
+      - name: Start the emulator
+        run: |
+          echo no | "$ANDROID_HOME/cmdline-tools/latest/bin/avdmanager" create avd -n check -k "$IMAGE" -d tv_1080p
+          "$ANDROID_HOME/emulator/emulator" -avd check -no-window -no-audio -no-boot-anim -no-snapshot \
+            -gpu swiftshader_indirect -memory 3072 -cores 2 -port 5560 > emulator.log 2>&1 &
+          adb="$ANDROID_HOME/platform-tools/adb"
+          "$adb" wait-for-device
+          for i in $(seq 1 120); do
+            [ "$("$adb" -s emulator-5560 shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = 1 ] && break
+            sleep 3
+          done
+          sleep 30   # Google TV's home and services settle after the boot
+
+      - name: Switch on and back
+        run: PATH="$ANDROID_HOME/platform-tools:$PATH" tools/emulator_check.sh emulator-5560 marquise.apk emulator-check
+
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: emulator-check
+          path: |
+            emulator-check
+            emulator.log
+          retention-days: 14
