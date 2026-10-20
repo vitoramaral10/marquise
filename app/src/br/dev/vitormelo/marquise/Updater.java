@@ -36,15 +36,21 @@ final class Updater {
     private static volatile String apkUrl = "";
     private static volatile long checkedAt;
     private static volatile boolean checking;
+    /** Bumped when the channel changes: a check that started before it is out of date and publishes nothing. */
+    private static int generation;
 
     /**
      * Asks GitHub for the newest release (at most every few hours), in the background: the latest stable one, or,
      * on a TV that takes betas, the newest of the recent releases, betas included.
      */
     static void check(Context c) {
-        long now = System.currentTimeMillis();
-        if (checking || (checkedAt != 0 && now - checkedAt < CHECK_EVERY && now >= checkedAt)) return;
-        checking = true;
+        final int mine;
+        synchronized (Updater.class) {
+            long now = System.currentTimeMillis();
+            if (checking || (checkedAt != 0 && now - checkedAt < CHECK_EVERY && now >= checkedAt)) return;
+            checking = true;
+            mine = generation;
+        }
         final boolean betas = Prefs.betas(c);
         new Thread(() -> {
             try {
@@ -64,20 +70,34 @@ final class Updater {
                         url = apk;
                     }
                 }
-                available = !best.isEmpty() && newer(best, Config.VERSION) ? best : "";
-                apkUrl = url;
-                checkedAt = System.currentTimeMillis();
+                synchronized (Updater.class) {
+                    if (mine != generation) return;   // the channel changed meanwhile: this answer is for the old one
+                    available = !best.isEmpty() && newer(best, Config.VERSION) ? best : "";
+                    apkUrl = url;
+                    checkedAt = System.currentTimeMillis();
+                }
             } catch (Exception e) {
                 AppLog.w("update check: " + e.getMessage());
             } finally {
-                checking = false;
+                synchronized (Updater.class) {
+                    if (mine == generation) checking = false;
+                }
             }
         }, "marquise-update-check").start();
     }
 
-    /** Asks again on the next check (the channel changed). */
+    /**
+     * The channel changed: forgets the answer of the old one (a beta must not stay on offer after going back to
+     * stable, nor wait for the cache to show up), drops a check still running for it, and asks again.
+     */
     static void recheck(Context c) {
-        checkedAt = 0;
+        synchronized (Updater.class) {
+            generation++;
+            checking = false;
+            checkedAt = 0;
+            available = "";
+            apkUrl = "";
+        }
         check(c);
     }
 

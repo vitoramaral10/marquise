@@ -135,11 +135,18 @@ public class SettingsActivity extends Activity {
         private Bitmap reportQr;               // made the first time "This TV" opens
         private final Paint qrPaint = new Paint();   // no filtering: the modules stay sharp when scaled up   // the installed streaming apps TMDB titles open in (looked up on resume)
         private int screen = MAIN, focus;
+        /** Whether the Updates screen has had the "Install" row: when it appears, focus moves down with the rows. */
+        private boolean updatesHadInstall;
+        // The Updates screen's choices, built again only when what they say changes (nothing is made per frame).
+        private String[][] updatesCache;
+        private String cachedAvailable = "", cachedError = "";
+        private int cachedProgress = -2;
+        private boolean cachedBetas, cachedEn;
         private boolean running, okDown, backDown;
         private long startedAt, lastNanos, pendingAt;
         private int w, h;
         private float k = 1;
-        private Paint title, subtitle, version, rowLabel, rowValue, rowSub, header, warn, spinner, white, shadow;
+        private Paint title, subtitle, version, rowLabel, rowValue, rowSub, header, warn, spinner, white, shadow, heading, hint;
         private TextPaint notice;
 
         private final Runnable poll = new Runnable() {
@@ -209,6 +216,8 @@ public class SettingsActivity extends Activity {
             header = Ui.text(Ui.semibold, 21 * k, 0x73FFFFFF);
             header.setLetterSpacing(0.06f);
             warn = Ui.text(Ui.regular, 23 * k, AMBER);
+            heading = Ui.text(Ui.displaySemibold, 34 * k, 0xFFFFFFFF);
+            hint = Ui.text(Ui.regular, 23 * k, 0x8CFFFFFF);
             notice = new TextPaint(Ui.text(Ui.regular, 23 * k, 0xB3FFFFFF));
             spinner = new Paint(Paint.ANTI_ALIAS_FLAG);
             spinner.setStyle(Paint.Style.STROKE);
@@ -229,7 +238,16 @@ public class SettingsActivity extends Activity {
         }
 
         private int rowCount() {
-            return screen == MAIN ? ROWS : screen == HOME_CHOICE ? 2 : screen == UPDATES ? (Updater.available.isEmpty() ? 2 : 3) : 0;   // as updateOptions(), without building it every frame
+            if (screen == UPDATES) syncUpdatesFocus();
+            return screen == MAIN ? ROWS : screen == HOME_CHOICE ? 2 : screen == UPDATES ? (Updater.available.isEmpty() ? 2 : 3) : 0;   // as updateOptions()
+        }
+
+        /** The "Install" row came or went while the screen is open: the rows moved, so focus follows its option. */
+        private void syncUpdatesFocus() {
+            boolean has = !Updater.available.isEmpty();
+            if (has == updatesHadInstall) return;
+            updatesHadInstall = has;
+            focus = Math.max(0, Math.min(has ? 2 : 1, focus + (has ? 1 : -1)));
         }
 
         @Override protected void onDraw(Canvas c) {
@@ -433,7 +451,6 @@ public class SettingsActivity extends Activity {
          * report (TvReport), so a TV of another brand can be supported with what it really has.
          */
         private void drawReport(Canvas c) {
-            Paint heading = Ui.text(Ui.displaySemibold, 34 * k, 0xFFFFFFFF);
             float x = LIST_X * k + 30 * k;
             c.drawText(Ui.tr("Esta TV", "This TV"), x, (LIST_TOP - 24) * k, heading);
             int off = TvReport.turnedOff(getContext());
@@ -492,6 +509,23 @@ public class SettingsActivity extends Activity {
 
         /** "Updates": install the new version (when there is one), then stable releases only or betas too. */
         private String[][] updateOptions() {
+            String available = Updater.available, error = Updater.error;
+            int progress = Updater.progress;
+            boolean betas = Prefs.betas(getContext());
+            if (updatesCache != null && available.equals(cachedAvailable) && error.equals(cachedError)
+                    && progress == cachedProgress && betas == cachedBetas && Ui.en == cachedEn) {
+                return updatesCache;
+            }
+            cachedAvailable = available;
+            cachedError = error;
+            cachedProgress = progress;
+            cachedBetas = betas;
+            cachedEn = Ui.en;
+            updatesCache = buildUpdateOptions();
+            return updatesCache;
+        }
+
+        private String[][] buildUpdateOptions() {
             String[] stable = {Ui.tr("Só versões estáveis", "Stable releases only"),
                     Ui.tr("As que todo mundo recebe", "The ones everyone gets")};
             String[] betas = {Ui.tr("Também versões beta", "Beta releases too"),
@@ -512,7 +546,6 @@ public class SettingsActivity extends Activity {
 
         /** A list of choices under a heading, the current one checked, with a hint below. */
         private void drawChoice(Canvas c, String title, String[][] options, int current, String note) {
-            Paint heading = Ui.text(Ui.displaySemibold, 34 * k, 0xFFFFFFFF);
             c.drawText(title, LIST_X * k + 30 * k, (LIST_TOP - 24) * k, heading);
             for (int i = 0; i < options.length; i++) {
                 float y = (LIST_TOP + 20 + i * (CHOICE_H + ROW_GAP)) * k;
@@ -527,7 +560,6 @@ public class SettingsActivity extends Activity {
                     Symbols.draw(getContext(), c, "check", rowRect.right - 30 * k - cw / 2, rowRect.centerY(), 26 * k, blend(0xFFFFFFFF, INK, f));
                 }
             }
-            Paint hint = Ui.text(Ui.regular, 23 * k, 0x8CFFFFFF);
             c.drawText(note, LIST_X * k + 30 * k, (LIST_TOP + 20 + options.length * (CHOICE_H + ROW_GAP) + 40) * k, hint);
         }
 
@@ -609,6 +641,7 @@ public class SettingsActivity extends Activity {
                 screen = MAIN;
                 focus = 0;
             } else if (screen == UPDATES) {
+                syncUpdatesFocus();
                 int first = updateOptions().length - 2;
                 if (focus < first) {
                     Updater.install(c);
@@ -627,6 +660,7 @@ public class SettingsActivity extends Activity {
                         .putExtra(SetupActivity.EXTRA_STEP, focus == 1 ? SetupActivity.STEP_SOURCE : SetupActivity.STEP_CITY));
             } else if (focus == UPDATES_ROW) {
                 screen = UPDATES;
+                updatesHadInstall = !Updater.available.isEmpty();
                 focus = Updater.available.isEmpty() ? (Prefs.betas(c) ? 1 : 0) : 0;
             } else if (focus == THIS_TV) {
                 if (reportQr == null) reportQr = TvReport.qr(TvReport.url(c));
