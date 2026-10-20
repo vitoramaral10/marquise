@@ -5,6 +5,13 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Settings → *This TV*: brand, model, Android and the factory apps Marquise keeps off, and a QR code that opens a
+  pre-filled GitHub report of the TV on the phone (factory home screen, screensaver, antenna input and the apps that
+  came with it; never the person's own apps, accounts, network or location), so other brands can be supported with
+  what they really have.
+
 ## [1.7.0] - 2026-10-20
 
 ### Added

@@ -159,6 +159,7 @@ final class HomeMode {
         }
     }
 
+    /** Switches to Marquise mode: records the TV's original home/screensaver, swaps them for ours, turns off the listed apps. */
     private static void applyFree(Context c) {
         JSONObject s = state(c);
         try (Adb adb = connect(c, s)) {

@@ -29,6 +29,9 @@ OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 
 -------------------------------------------------------------------------------------------------------------------
 
+QR codes (the settings' "This TV" report): Project Nayuki's QR Code generator, MIT License, Copyright (c) Project
+Nayuki, in app/src/io/nayuki/qrcodegen (each file carries the license).
+
 Third-party assets: Inter font (SIL Open Font License 1.1, app/assets/fonts/OFL.txt) and Material Symbols (Apache
 License 2.0, app/assets/symbols/LICENSE-material-symbols.txt). Screensaver paintings: Art Institute of Chicago, public domain (CC0),
 fetched from artic.edu at run time. App names and logos belong to their owners.
