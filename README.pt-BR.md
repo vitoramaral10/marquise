@@ -23,11 +23,15 @@ O que acabou de chegar no seu servidor, logo na frente. Seus apps, nas cores del
   app de Todos os Apps para adicionar. A TV aberta pode ser um deles.
 - **Hora e clima** no topo, e a previsão das próximas horas com um clique para baixo.
 - **Claro de dia, escuro à noite**, seguindo o pôr do sol de verdade da sua cidade.
-- **Tela de descanso Galeria**: pinturas em domínio público do Art Institute of Chicago, emolduradas, uma por vez, com a hora.
-- **Sem anúncios, sem fileiras patrocinadas, sem rastreamento.** Só conversa com o seu Jellyfin e com o Open-Meteo
-  para o clima.
+- **Tela de descanso Galeria**: pinturas em domínio público do Art Institute of Chicago, emolduradas, uma por vez, com
+  a hora; à noite, ela escurece.
+- **Atualiza pela TV.** Quando sai uma versão nova, as configurações avisam, e o OK instala.
+- **Sem anúncios, sem fileiras patrocinadas, sem rastreamento.** Conversa com o seu Jellyfin, com o Open-Meteo para o
+  clima, com o Art Institute of Chicago para as pinturas e com o GitHub para atualizações, e nada mais.
 - **Seguro.** Sem root. Nada é desinstalado. *Original* traz de volta o Início de fábrica, e um vigia faz isso sozinho
   se o Marquise travar.
+
+<p align="center"><img src=".github/screensaver.jpg" width="680" alt="A tela de descanso Galeria: um Monet emoldurado com passe-partout, sob um spot numa parede escura, com a legenda do museu e a hora"></p>
 
 ## Requisitos
 
@@ -50,8 +54,10 @@ Uns cinco minutos, tudo pelo controle.
    (um código que você aprova no celular, em Jellyfin → seu perfil → Quick Connect) ou com usuário e senha, e pergunta
    sua cidade. Depois é só **Ativar o Marquise** e aceitar o aviso de depuração da TV (marque *Sempre permitir*).
 
-Atualizações: instale o APK novo do mesmo jeito, por cima do antigo. Em algumas TVs TCL, o Marquise também precisa
-rodar em segundo plano: de um computador, `adb shell appops set br.dev.vitormelo.marquise AUTO_START allow`.
+Atualizações: as configurações do Marquise mostram *Atualização — Versão X disponível*; aperte OK e confirme (na
+primeira vez, o Android pede para permitir que o Marquise instale apps). Instalar o APK novo pelo Downloader, por cima
+do antigo, também funciona. Em algumas TVs TCL, o Marquise também precisa rodar em segundo plano: de um computador,
+`adb shell appops set br.dev.vitormelo.marquise AUTO_START allow`.
 
 ### Compilar você mesmo
 
@@ -75,7 +81,7 @@ precisam da mesma chave.
 ## Configurações
 
 **Na TV**, nas configurações do Marquise (o ícone dele, ou a engrenagem no topo do Início): servidor e conta do
-Jellyfin, sua cidade, o Início (Marquise ou Original) e uma prévia da tela de descanso.
+Jellyfin, sua cidade, o Início (Marquise ou Original), uma prévia da tela de descanso e, quando houver, a versão nova.
 
 **A fileira de apps:** segure OK num app da fileira para *Mover* (← → e OK), *Remover do Início* ou *Restaurar fileira
 padrão*, e segure OK em qualquer app de *Todos os Apps* para *Adicionar ao Início* (até 8). Apps que você instalou
@@ -139,11 +145,13 @@ são muito bem-vindos.
 ## Privacidade
 
 Sem contas, sem analytics, sem rastreamento. O Marquise conversa com o seu Jellyfin (com a chave que você definir) e
-com o Open-Meteo (com as coordenadas que você definir). Suas configurações ficam no seu computador e na sua TV.
+com o Open-Meteo (com as coordenadas que você definir); a tela de descanso busca pinturas no artic.edu, e as
+configurações consultam o GitHub atrás de versão nova. Suas configurações ficam no seu computador e na sua TV.
 
 ## Créditos
 
 - Clima por [Open-Meteo.com](https://open-meteo.com/) (CC BY 4.0).
+- Pinturas da tela de descanso: [Art Institute of Chicago](https://www.artic.edu/open-access), domínio público (CC0).
 - Ícones: [Material Symbols](https://fonts.google.com/icons) (Apache 2.0). Fonte: [Inter](https://rsms.me/inter/)
   (SIL OFL 1.1).
 - Sem vínculo com Jellyfin, Google, TCL ou qualquer serviço de streaming. Nomes e logos de apps pertencem aos donos.

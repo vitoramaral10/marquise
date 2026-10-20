@@ -23,10 +23,15 @@ What just arrived on your server, up front. Your apps, in their own colors. One 
   All Apps to add it. Over-the-air TV can be one of them.
 - **The time and the weather** at the top, and the forecast for the next hours one press down.
 - **Light by day, dark by night**, following your city's real sunset.
-- **A gallery screensaver**: framed public-domain paintings from the Art Institute of Chicago, one at a time, with the time.
-- **No ads, no sponsored rows, no tracking.** It only talks to your Jellyfin server and to Open-Meteo for the weather.
+- **A gallery screensaver**: framed public-domain paintings from the Art Institute of Chicago, one at a time, with the
+  time; it dims at night.
+- **Updates from the TV.** When a new version is out, the settings say so, and OK installs it.
+- **No ads, no sponsored rows, no tracking.** It talks to your Jellyfin server, Open-Meteo for the weather, the Art
+  Institute of Chicago for the paintings and GitHub for updates, and nothing else.
 - **Safe.** No root. Nothing is uninstalled. *Original* brings the factory home screen back, and a watchdog does it by
   itself if Marquise ever crashes.
+
+<p align="center"><img src=".github/screensaver.jpg" width="680" alt="The Gallery screensaver: a Monet in a frame with a mat, under a spotlight on a dark wall, with its museum label and the time"></p>
 
 ## Requirements
 
@@ -49,8 +54,10 @@ About five minutes, all with the remote.
    (a code you approve on your phone, in Jellyfin → your profile → Quick Connect) or your user name and password, and
    asks for your city. Then **Switch Marquise on**, and accept the TV's debugging prompt (tick *Always allow*).
 
-Updates: install the new APK the same way, on top of the old one. On some TCL TVs, Marquise also needs to run in the
-background: from a computer, `adb shell appops set br.dev.vitormelo.marquise AUTO_START allow`.
+Updates: Marquise's settings show *Update — version X available*; press OK and confirm (the first time, Android asks
+to allow Marquise to install apps). Installing the new APK with Downloader, on top of the old one, works too. On some
+TCL TVs, Marquise also needs to run in the background: from a computer,
+`adb shell appops set br.dev.vitormelo.marquise AUTO_START allow`.
 
 ### Build it yourself
 
@@ -74,7 +81,7 @@ key.
 ## Settings
 
 **On the TV**, in Marquise's settings (its icon, or the gear at the top of Home): the Jellyfin server and account,
-your city, the Home screen (Marquise or Original) and a screensaver preview.
+your city, the Home screen (Marquise or Original), a screensaver preview and, when there is one, a new version.
 
 **The app row:** hold OK on an app of the row to *Move* it (← →, then OK), *Remove* it or *Restore the default row*,
 and hold OK on any app in *All Apps* to *Add it to Home* (up to 8). Apps you installed also get *Uninstall*, which
@@ -140,17 +147,20 @@ read-only `adb` commands that tell you what your TV has. Pull requests for more 
 | [`HomeMode.java`](app/src/br/dev/vitormelo/marquise/HomeMode.java) | Switching between Marquise and Original |
 | [`Adb.java`](app/src/br/dev/vitormelo/marquise/Adb.java) | The TV's own ADB, from inside the TV |
 | [`HomeData.java`](app/src/br/dev/vitormelo/marquise/HomeData.java) | Weather |
-| [`DreamView.java`](app/src/br/dev/vitormelo/marquise/DreamView.java) | The screensaver (Gallery) |
+| [`DreamView.java`](app/src/br/dev/vitormelo/marquise/DreamView.java) | The screensaver (Gallery); the works are in [`gallery.json`](app/assets/gallery.json) |
+| [`Updater.java`](app/src/br/dev/vitormelo/marquise/Updater.java) | Updates from GitHub releases |
 | [`Watchdog.java`](app/src/br/dev/vitormelo/marquise/Watchdog.java) | The safety net |
 
 ## Privacy
 
 No accounts, no analytics, no tracking. Marquise talks to your Jellyfin server (with the key you set) and to
-Open-Meteo (with the coordinates you set). Your settings stay on your computer and your TV.
+Open-Meteo (with the coordinates you set); the screensaver fetches paintings from artic.edu, and the settings check
+GitHub for a new version. Your settings stay on your computer and your TV.
 
 ## Credits
 
 - Weather by [Open-Meteo.com](https://open-meteo.com/) (CC BY 4.0).
+- Screensaver paintings: [Art Institute of Chicago](https://www.artic.edu/open-access), public domain (CC0).
 - Icons: [Material Symbols](https://fonts.google.com/icons) (Apache 2.0). Font: [Inter](https://rsms.me/inter/)
   (SIL OFL 1.1).
 - Not affiliated with Jellyfin, Google, TCL or any streaming service. App names and logos belong to their owners.

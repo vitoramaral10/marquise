@@ -26,7 +26,7 @@ The quick way needs no computer: USB debugging on, Downloader from the Play Stor
 4. **The Jellyfin API key is theirs and secret.** Ask them to create one (Jellyfin Dashboard → API Keys → +) and paste
    it after `jellyfin_key=` in `config.properties` themselves. Don't ask for it in the chat, never print it, never
    commit it. If they paste it in the chat anyway, put it only in `config.properties`. Without a key everything works
-   except the posters and the screensaver photos. `jellyfin_user` picks whose libraries show (empty = the first user).
+   except the posters. `jellyfin_user` picks whose libraries show (empty = the first user).
 5. **Build:** `./build.sh` → `marquise.apk`. Keep `marquise.keystore`: updates must be signed with the same key.
 6. **Install:** `adb connect <IP>:5555`. The TV asks *Allow USB debugging?*: tell them to accept and tick *Always
    allow*. Then `adb install -r marquise.apk`. On TCL TVs that have `TclAppBoot`, also
@@ -78,8 +78,13 @@ TVs that don't run Google TV or Android TV (Samsung, LG and others): the way is 
 - Java 8 language level, minSdk 31 (Android 12), targetSdk 33. No Gradle, no libraries: only the Android SDK.
 - The home screen is drawn by hand on one Canvas (`HomeView`); the glass and the sky use AGSL shaders (`Shaders`,
   Android 13+, with a flat fallback for 12). Keep it at 60 fps: no allocations in `onDraw`, no work on the UI thread.
-- `Recs` fetches Jellyfin's `/Users/{id}/Items/Latest` and keeps posters (cards) and backdrops (screensaver) on disk.
+- `Recs` fetches Jellyfin's `/Users/{id}/Items/Latest` and keeps the posters on disk.
   "Watch" launches the Jellyfin app with the `ItemId` extra.
+- The screensaver (`Screensaver` → `DreamView`) is a gallery: the curated works in `assets/gallery.json` (Art
+  Institute of Chicago, CC0), fetched through IIIF at screen size and kept in `cache/gallery`. It redraws every 10 s
+  and only animates during the fade; keep it that way.
+- `Updater` asks GitHub for the latest release and installs `marquise.apk` through `PackageInstaller`;
+  `UpdateReceiver` gets the installer's answer. Bump `versionCode` and `versionName` in the manifest for every release.
 - `HomeMode` runs every switch as a background job (`ModeJob`) in the main process; the UI is in the `:home` process.
   `Watchdog` goes back to the stock home screen after 3 crashes in 5 minutes.
 - On-screen text is bilingual, `Ui.tr("pt", "en")`: add both. Comments in English, short, only where the why isn't
@@ -92,6 +97,8 @@ TVs that don't run Google TV or Android TV (Samsung, LG and others): the way is 
 - Settings come from `config.properties` through the generated `out/gen/br/dev/vitormelo/marquise/Config.java` (never
   edit that).
 - Art: `python3 tools/make_art.py` draws the icon, the TV banner and the repository images.
+  `tools/make_symbols.sh` renders `assets/symbols` from the pinned Material Symbols SVGs (sunrise and sunset come
+  from `tools/symbols/`); add an icon to its map, never hand-edit the PNGs.
 - After any change, `./build.sh` must end with `Built marquise.apk`.
 
 ## Always
