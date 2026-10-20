@@ -11,6 +11,8 @@ and versions follow [Semantic Versioning](https://semver.org/).
 - The focused poster shows its whole title, on two lines when it needs them.
 - Switching tabs fades the new posters in.
 - No posters yet: a marquee-style card says so; before Jellyfin is set up, it's focusable and OK opens the setup.
+- Posters show their colors at once (Jellyfin's BlurHash) instead of a gray card while the image loads.
+- The time and weather at the top can be focused; OK opens the drawer with the forecast for the next hours.
 
 ### Changed
 

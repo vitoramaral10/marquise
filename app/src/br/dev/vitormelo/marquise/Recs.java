@@ -41,6 +41,7 @@ final class Recs {
         String kind;            // "movie" or "tv"
         String title, backdrop, meta = "", app, pkg;
         String poster;          // the card image (2:3); the backdrop is only for the screensaver
+        String blurhash;        // the poster's color sketch, shown until the image is ready
         String badge = "";      // the short line under the poster: "2025 · ★ 7,2 · 16", "Novo episódio · ★ 8,8"
     }
 
@@ -50,7 +51,7 @@ final class Recs {
     private static final long LIST_EVERY = 20 * 60_000L;
     private static final long ROTATE_EVERY = 30 * 60_000L;
     /** Bump when what is saved for each title changes (the saved list is discarded and fetched again). */
-    private static final int CACHE_VERSION = 8;
+    private static final int CACHE_VERSION = 9;
     private static final int MAX = 24;
     /** Posters per tab on the home screen. */
     static final int PER_TAB = 6;
@@ -365,6 +366,7 @@ final class Recs {
         p.kind = type.equals("Movie") ? "movie" : "tv";
         p.backdrop = backdropPath(o);
         p.poster = posterPath(o);
+        p.blurhash = posterHash(o);
         if (p.poster == null || p.itemId.isEmpty()) return null;
         List<String> badge = new ArrayList<>();
         List<String> parts = new ArrayList<>();
@@ -419,6 +421,18 @@ final class Recs {
     private static String ageRating(String r) {
         if (r == null || r.isEmpty() || r.equals("null")) return "";
         return r.startsWith("BR-") ? r.substring(3) : r;
+    }
+
+    /** The BlurHash of the poster posterPath picks (Jellyfin sends them per image tag), or null. */
+    private static String posterHash(JSONObject o) {
+        JSONObject hashes = o.optJSONObject("ImageBlurHashes");
+        JSONObject primary = hashes == null ? null : hashes.optJSONObject("Primary");
+        if (primary == null) return null;
+        JSONObject tags = o.optJSONObject("ImageTags");
+        String own = tags == null ? "" : tags.optString("Primary");
+        String tag = !own.isEmpty() && !o.optString("Type").equals("Episode") ? own : o.optString("SeriesPrimaryImageTag");
+        String hash = tag.isEmpty() ? "" : primary.optString(tag);
+        return hash.isEmpty() ? null : hash;
     }
 
     /** The poster: the movie's or the show's (an episode's own image is a 16:9 still). */
@@ -537,7 +551,7 @@ final class Recs {
             for (Pick p : picks) {
                 a.put(new JSONObject().put("itemId", p.itemId).put("kind", p.kind).put("title", p.title)
                         .put("backdrop", p.backdrop == null ? "" : p.backdrop).put("poster", p.poster)
-                        .put("badge", p.badge).put("meta", p.meta).put("app", p.app == null ? "" : p.app)
+                        .put("badge", p.badge).put("blurhash", p.blurhash == null ? "" : p.blurhash).put("meta", p.meta).put("app", p.app == null ? "" : p.app)
                         .put("pkg", p.pkg == null ? "" : p.pkg));
             }
             cache.edit().putString("picks", a.toString()).putLong("listAt", listAt)
@@ -558,6 +572,7 @@ final class Recs {
             p.backdrop = o.optString("backdrop").isEmpty() ? null : o.optString("backdrop");
             p.poster = o.optString("poster").isEmpty() ? null : o.optString("poster");
             p.badge = o.optString("badge");
+            p.blurhash = o.optString("blurhash").isEmpty() ? null : o.optString("blurhash");
             p.meta = o.optString("meta");
             p.app = o.optString("app").isEmpty() ? null : o.optString("app");
             p.pkg = o.optString("pkg").isEmpty() ? null : o.optString("pkg");

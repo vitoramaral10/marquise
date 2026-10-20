@@ -101,8 +101,10 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
     // At the top: tabs (0 to 2) and icon-only buttons (3 to 5); the three cards
     private int tab, topIndex, cardIndex;
     private List<Recs.Pick> cards = new ArrayList<>();
-    private final Spring[] topFocus = new Spring[6];
-    private final RectF[] topRects = new RectF[6];
+    // The top row: tabs 0–2, the corner buttons from 3, and the time and weather (CLOCK), which sits between them.
+    private static final int CLOCK = 6;
+    private final Spring[] topFocus = new Spring[7];
+    private final RectF[] topRects = new RectF[7];
     /** Posters in the row (Recs.PER_TAB per tab). */
     private static final int CARDS = Recs.PER_TAB;
     private static final float L_POSTER_H = 400;
@@ -220,6 +222,11 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
     private float cardsAlpha = 1;
     private final LinearGradient velvet = new LinearGradient(0, 0, 0, 1, 0xFF7A1830, 0xFF280E2E, Shader.TileMode.CLAMP);
     private Paint emptyTitle, emptyBody, bulb;
+    // Until a poster's image is ready: its BlurHash, decoded once (tiny) and drawn stretched, in the poster's colors.
+    private final android.graphics.BitmapShader[] cardPreviews = new android.graphics.BitmapShader[Recs.PER_TAB];
+    private final int[][] cardPreviewSize = new int[Recs.PER_TAB][2];
+    private final Map<String, Bitmap> previewCache = new HashMap<>();
+    private final Paint previewPaint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
     private final Path clip = new Path();
     private final RectF tmp = new RectF(), tmp2 = new RectF(), cell = new RectF(), screen = new RectF();
     private final Map<String, Integer> artColors = new HashMap<>();   // app key → its art's background color
@@ -300,7 +307,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         for (View v : new View[] {sky, heroLayer, status, tiles, drawerLayer, sheetLayer, toastLayer, menuLayer}) addView(v);
         menuLayer.setVisibility(INVISIBLE);
         drawerLayer.setVisibility(INVISIBLE);
-        for (int i = 0; i < 6; i++) {
+        for (int i = 0; i < topFocus.length; i++) {
             topFocus[i] = new Spring(0.26f, 0.85f, 0);
             topRects[i] = new RectF();
         }
@@ -830,7 +837,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         int buttons = lightButtons.size();
         makeLightButtons();
         if (lightButtons.size() != buttons) {   // Live TV moved between the row and the corner
-            topIndex = Math.min(topIndex, 2 + lightButtons.size());
+            if (topIndex != CLOCK) topIndex = Math.min(topIndex, 2 + lightButtons.size());
             layoutLight();
             statusDirty = heroDirty = true;
         }
@@ -1760,6 +1767,10 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
             it = drawerItems.get(drawerIndex);
             r = drawerRects[drawerIndex];
         } else if (zone == Z_TOP) {
+            if (topIndex == CLOCK) {   // the time and weather: the drawer, with the forecast for the next hours
+                openDrawer();
+                return;
+            }
             if (topIndex < 3) {
                 selectTab(topIndex);
                 return;
@@ -1972,6 +1983,13 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         Bitmap img = b == null ? null : b.tall;
         if (img != null) {
             c.drawBitmap(img, null, cell, bitmapPaint);
+        } else if (cardPreviews[i] != null) {
+            // The poster's colors right away (its BlurHash), stretched smooth over the card.
+            unit.setScale(cell.width() / cardPreviewSize[i][0], cell.height() / cardPreviewSize[i][1]);
+            unit.postTranslate(cell.left, cell.top);
+            cardPreviews[i].setLocalMatrix(unit);
+            previewPaint.setShader(cardPreviews[i]);
+            c.drawRoundRect(cell, r, r, previewPaint);
         } else {
             fill.setShader(null);
             fill.setColor(tone(0xFFDADADF, 0xFF2C2C2E));
@@ -2090,8 +2108,23 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         if (lCardTitle == null) return;
         TextPaint tp = new TextPaint(lCardTitle), mp = new TextPaint(lCardMeta);
         cardTitlePaint = new TextPaint(lCardTitle);
+        if (previewCache.size() > 40) previewCache.clear();
         for (int i = 0; i < cardTitles.length; i++) {
             Recs.Pick p = i < cards.size() ? cards.get(i) : null;
+            Bitmap preview = null;
+            if (p != null && p.blurhash != null) {
+                preview = previewCache.get(p.blurhash);
+                if (preview == null) {
+                    preview = BlurHash.decode(p.blurhash, 20, 30);
+                    if (preview != null) previewCache.put(p.blurhash, preview);
+                }
+            }
+            cardPreviews[i] = preview == null ? null
+                    : new android.graphics.BitmapShader(preview, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP);
+            if (preview != null) {
+                cardPreviewSize[i][0] = preview.getWidth();
+                cardPreviewSize[i][1] = preview.getHeight();
+            }
             float bw = cardRects[i].width();
             cardTitles[i] = p == null ? null : TextUtils.ellipsize(p.title, tp, bw, TextUtils.TruncateAt.END).toString();
             cardTitleLayouts[i] = p == null || cardTitles[i].equals(p.title) || bw < 1 ? null
@@ -2112,9 +2145,33 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
 
     /** At the top right, before the buttons: the time, then the weather symbol and temperature. */
     private void drawClockWeather(Canvas c) {
-        float right = topRects[3].left - 40 * k, base = L_BUTTON_CY * k + Ui.halfCap(lTabOn);
+        float edge = lightButtons.isEmpty() ? CONTENT_R * k : topRects[3].left - 40 * k;
+        float right = edge, base = L_BUTTON_CY * k + Ui.halfCap(lTabOn);
         int ink = lTabOn.getColor();
-        lTabOn.setColor(tone(L_INK, WHITE));
+        // Focusable: its extent first (it changes with the time and the temperature), then the white pill under it.
+        HomeData.Weather wx0 = data.weather;
+        String time0 = android.text.format.DateFormat.getTimeFormat(getContext()).format(new java.util.Date());
+        float width = lTabOn.measureText(time0);
+        if (!Double.isNaN(wx0.temp)) {
+            String symbol0 = Symbols.weather(wx0.code, wx0.isDay);
+            width += 34 * k + Symbols.width(getContext(), symbol0, 36 * k) + 12 * k + lTabOn.measureText(HomeData.degrees(wx0.temp));
+        }
+        float pad = 26 * k, cyb = L_BUTTON_CY * k, hh = L_BUTTON * k;
+        topRects[CLOCK].set(edge - width - pad, cyb - hh / 2, edge + pad, cyb + hh / 2);
+        float focus = Ui.clamp(topFocus[CLOCK].value);
+        if (focus > 0.01f) {
+            RectF r = topRects[CLOCK];
+            float s = 1 + 0.05f * focus;
+            cell.set(r.centerX() - r.width() * s / 2, r.centerY() - r.height() * s / 2, r.centerX() + r.width() * s / 2,
+                    r.centerY() + r.height() * s / 2);
+            tmp.set(cell);
+            tmp.offset(0, 8 * k * focus);
+            softShadow(c, r.width(), r.height(), r.height() / 2, 26 * k, tmp, Ui.alpha(0xFF000000, tone(0.22f, 0.4f) * focus));
+            fill.setShader(null);
+            fill.setColor(Ui.alpha(0xFFFFFFFF, focus));
+            c.drawRoundRect(cell, cell.height() / 2, cell.height() / 2, fill);
+        }
+        lTabOn.setColor(blend(tone(L_INK, WHITE), L_INK, focus));   // dark on the white pill
         HomeData.Weather wx = data.weather;
         if (!Double.isNaN(wx.temp)) {
             String temp = HomeData.degrees(wx.temp);
@@ -2168,12 +2225,23 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
      * the tabs, which would switch them); on the left, the selected tab (as on Apple TV).
      */
     private int upFrom(float x) {
-        if (x < w / 2f || lightButtons.isEmpty()) return tab;
-        int best = 3;
+        if (x < w / 2f) return tab;
+        int best = CLOCK;
         for (int i = 3; i < 3 + lightButtons.size(); i++) {
             if (Math.abs(topRects[i].centerX() - x) < Math.abs(topRects[best].centerX() - x)) best = i;
         }
         return best;
+    }
+
+    /** The top row from left to right: the tabs, the time and weather, then the corner buttons. */
+    private int[] topOrder() {
+        int[] order = new int[4 + lightButtons.size()];
+        order[0] = 0;
+        order[1] = 1;
+        order[2] = 2;
+        order[3] = CLOCK;
+        for (int i = 0; i < lightButtons.size(); i++) order[4 + i] = 3 + i;
+        return order;
     }
 
     private boolean moveLight(int dx, int dy) {
@@ -2206,7 +2274,10 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
                 break;
             case Z_TOP:
                 if (dx != 0) {
-                    int next = Math.max(0, Math.min(2 + lightButtons.size(), topIndex + dx));
+                    int[] order = topOrder();
+                    int at = 0;
+                    for (int j = 0; j < order.length; j++) if (order[j] == topIndex) at = j;
+                    int next = order[Math.max(0, Math.min(order.length - 1, at + dx))];
                     if (next == topIndex) return true;
                     topIndex = next;
                     if (topIndex < 3) selectTab(topIndex);   // like Apple TV tabs: focusing a tab selects it
@@ -2219,8 +2290,8 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
                         zone = Z_CARDS;
                         cardIndex = nearest(cardRects, cards.size(), topRects[topIndex].centerX());
                     }
-                } else if (topIndex < 3 && !lightButtons.isEmpty()) {
-                    topIndex = 3;   // ↑ from the tabs: the corner buttons sit above them, at the top right
+                } else if (topIndex < 3) {
+                    topIndex = CLOCK;   // ↑ from the tabs: the top right row, starting with the time and weather
                 } else {
                     return true;
                 }
