@@ -129,11 +129,13 @@ ficam parados enquanto o Marquise estiver ligado.
 
 ## Outras TVs
 
-O Marquise vem com as listas para Google TV e TCL. Para outra marca, acrescente os apps de propaganda dela em `DEBLOAT`
-e as peças de sistema em `PROTECTED` no [`HomeMode.java`](app/src/br/dev/vitormelo/marquise/HomeMode.java), e o app de
-TV ao vivo em `LIVE_TV_APPS` no [`HomeApps.java`](app/src/br/dev/vitormelo/marquise/HomeApps.java). O
-[CLAUDE.md](CLAUDE.md) lista os comandos `adb` de leitura que mostram o que sua TV tem. Pull requests com outras marcas
-são muito bem-vindos.
+O Marquise funciona em qualquer Google TV ou Android TV com Android 12 ou mais novo: o Início e a tela de descanso que
+ele substitui são descobertos na própria TV, seja qual for a marca, e ele nunca desliga um app de sistema do
+fabricante que não tenha sido conferido à mão. O que depende da marca é a limpeza extra: ele vem com as listas para
+Google TV e TCL. Para outra marca, acrescente os apps de propaganda dela em `DEBLOAT` e as peças de sistema em
+`PROTECTED` no [`HomeMode.java`](app/src/br/dev/vitormelo/marquise/HomeMode.java), e o app de TV ao vivo em
+`LIVE_TV_APPS` no [`HomeApps.java`](app/src/br/dev/vitormelo/marquise/HomeApps.java). O [CLAUDE.md](CLAUDE.md) lista
+os comandos `adb` de leitura que mostram o que sua TV tem. Pull requests com outras marcas são muito bem-vindos.
 
 ## Como funciona
 

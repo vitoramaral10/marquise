@@ -42,7 +42,8 @@ final class HomeMode {
 
     /**
      * Turned off in Marquise mode, when the TV has them. Google extras first, then TV-maker extras (TCL here; add
-     * your brand's, see the README). The TV's own home screen and screensaver are added at switch time.
+     * your brand's from a real TV, see the README: anything not listed here, other than the TV's home screen, is left
+     * alone on a maker's package, see MAKER_PREFIXES). The TV's own home screen and screensaver are added at switch time.
      */
     static final String[] DEBLOAT = {
         "com.google.android.play.games", "com.google.android.youtube.tvmusic",        // Play Games, YouTube Music
@@ -71,6 +72,28 @@ final class HomeMode {
         "com.google.android.gms", "com.google.android.gsf", "com.android.vending", "com.google.android.apps.mediashell",
         "com.google.android.tv.remote.service", "com.google.android.inputmethod.latin", "com.google.android.webview",
         "com.android.tv.settings", "com.android.systemui", "android", PKG));
+
+    /**
+     * TV makers' system packages, by prefix (TCL, Sony, Philips/TP Vision, Xiaomi, Hisense, Skyworth, Changhong, the
+     * chip makers' TV apps, AOSP). They can hold picture, sound, inputs or the remote, so Marquise never turns one off
+     * unless it is named in DEBLOAT (checked by hand), is the TV's own home screen (which Marquise replaces), or was
+     * asked for in extra_disable. This is what keeps another brand safe: there, a maker's screensaver can live inside
+     * a package that does much more.
+     */
+    private static final String[] MAKER_PREFIXES = {
+        "com.tcl.", "com.tvos", "com.sony.", "org.droidtv.", "com.tpvision.", "com.philips.", "com.mitv.", "com.xiaomi.",
+        "com.hisense.", "com.skyworth.", "com.changhong.", "com.mediatek.", "com.realtek.", "com.amlogic.",
+        "com.nvidia.", "com.android.",
+    };
+
+    /** Whether Marquise may turn this package off (see PROTECTED and MAKER_PREFIXES). */
+    static boolean mayTurnOff(String pkg, String homePkg) {
+        if (PROTECTED.contains(pkg)) return false;
+        if (pkg.equals(homePkg) || pkg.equals(GOOGLE_SETUP) || Arrays.asList(DEBLOAT).contains(pkg)) return true;
+        for (String extra : Config.EXTRA_DISABLE.split(",")) if (pkg.equals(extra.trim())) return true;
+        for (String prefix : MAKER_PREFIXES) if (pkg.startsWith(prefix)) return false;
+        return true;
+    }
 
     /** One switch at a time (jobs can overlap: a boot check and a button press). */
     private static final Object RUN = new Object();
@@ -152,7 +175,7 @@ final class HomeMode {
             for (String pkg : targets) {
                 done++;
                 busy(c, Ui.tr("Desligando apps (", "Turning off apps (") + done + "/" + targets.size() + ")…");
-                if (PROTECTED.contains(pkg) || !present.contains(pkg)) continue;
+                if (!mayTurnOff(pkg, packageOf(home)) || !present.contains(pkg)) continue;
                 String out = adb.shell("pm disable-user --user 0 " + pkg);
                 if (out.contains("disabled-user")) disabled.add(pkg);
                 else AppLog.w("could not turn off " + pkg + ": " + out.trim());
@@ -278,7 +301,7 @@ final class HomeMode {
                 }
                 Set<String> disabled = new HashSet<>(stringList(s, "disabled"));
                 for (String pkg : sorted(wanted)) {
-                    if (PROTECTED.contains(pkg) || !present.contains(pkg)) continue;
+                    if (!mayTurnOff(pkg, packageOf(home)) || !present.contains(pkg)) continue;
                     if (disabledNow.contains(pkg)) {
                         disabled.add(pkg);
                         continue;

@@ -5,6 +5,17 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Over-the-air TV on more brands: the Live TV apps of Philips, Xiaomi and AOSP's Live Channels (MediaTek's already
+  covered Hisense, Sharp and others).
+
+### Changed
+
+- Safer on brands other than TCL: Marquise never turns off a TV maker's system app unless it was checked by hand,
+  is the TV's own home screen, or was asked for in `extra_disable` (a maker's screensaver can live inside an app that
+  does much more).
+
 ## [1.6.0] - 2026-10-20
 
 ### Changed
