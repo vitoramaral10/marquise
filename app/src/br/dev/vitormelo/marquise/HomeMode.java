@@ -86,11 +86,21 @@ final class HomeMode {
         "com.nvidia.", "com.android.",
     };
 
-    /** Whether Marquise may turn this package off (see PROTECTED and MAKER_PREFIXES). */
-    static boolean mayTurnOff(String pkg, String homePkg) {
+    /** Google's screensaver-only apps: the one factory screensaver Marquise turns off (it replaces it). */
+    private static final Set<String> GOOGLE_DREAMS = new HashSet<>(Arrays.asList(
+        "com.google.android.apps.tv.dreamx", "com.google.android.backdrop"));
+
+    /**
+     * Whether Marquise may turn this package off (see PROTECTED and MAKER_PREFIXES). The TV's own screensaver is left
+     * on unless it's Google's: on an unknown brand it can live inside an app that does much more, and Marquise only
+     * needs to be the chosen screensaver, not to remove the old one.
+     */
+    static boolean mayTurnOff(String pkg, String homePkg, String dreamPkg) {
         if (PROTECTED.contains(pkg)) return false;
         if (pkg.equals(homePkg) || pkg.equals(GOOGLE_SETUP) || Arrays.asList(DEBLOAT).contains(pkg)) return true;
         for (String extra : Config.EXTRA_DISABLE.split(",")) if (pkg.equals(extra.trim())) return true;
+        if (Config.DISABLE_ASSISTANT && Arrays.asList(ASSISTANT).contains(pkg)) return true;
+        if (pkg.equals(dreamPkg) && !GOOGLE_DREAMS.contains(pkg)) return false;
         for (String prefix : MAKER_PREFIXES) if (pkg.startsWith(prefix)) return false;
         return true;
     }
@@ -175,7 +185,7 @@ final class HomeMode {
             for (String pkg : targets) {
                 done++;
                 busy(c, Ui.tr("Desligando apps (", "Turning off apps (") + done + "/" + targets.size() + ")…");
-                if (!mayTurnOff(pkg, packageOf(home)) || !present.contains(pkg)) continue;
+                if (!mayTurnOff(pkg, packageOf(home), packageOf(dream)) || !present.contains(pkg)) continue;
                 String out = adb.shell("pm disable-user --user 0 " + pkg);
                 if (out.contains("disabled-user")) disabled.add(pkg);
                 else AppLog.w("could not turn off " + pkg + ": " + out.trim());
@@ -301,7 +311,7 @@ final class HomeMode {
                 }
                 Set<String> disabled = new HashSet<>(stringList(s, "disabled"));
                 for (String pkg : sorted(wanted)) {
-                    if (!mayTurnOff(pkg, packageOf(home)) || !present.contains(pkg)) continue;
+                    if (!mayTurnOff(pkg, packageOf(home), packageOf(s.optString("originalDream", ""))) || !present.contains(pkg)) continue;
                     if (disabledNow.contains(pkg)) {
                         disabled.add(pkg);
                         continue;
