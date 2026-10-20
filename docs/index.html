@@ -8,7 +8,7 @@
 <link rel="icon" href="img/icon.png">
 <meta property="og:title" content="Marquise · Instalar na sua TV">
 <meta property="og:description" content="Seus filmes e séries no Início da Google TV, sem anúncios. Instale com o controle em poucos minutos.">
-<meta property="og:image" content="https://marquise.vitormelo.dev.br/img/home.jpg">
+<meta property="og:image" content="https://marquise.vitormelo.dev.br/img/og.jpg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -46,6 +46,8 @@
   .brand span { font-size: 30px; font-weight: 700; letter-spacing: -.01em; }
   .hero h1 { font-size: clamp(32px, 6vw, 54px); font-weight: 700; letter-spacing: -.02em; max-width: 16ch; }
   .shot { width: 100%; max-width: 100%; border-radius: 18px; box-shadow: 0 30px 80px rgba(0, 0, 0, .55), 0 0 0 1px var(--line); }
+  /* Screenshots inside a TV (the frame, its shadow and the transparent margin are in the image itself). */
+  .tv { width: 100%; }
   .cta { display: flex; flex-wrap: wrap; gap: 14px; justify-content: center; }
   .btn {
     display: inline-flex; align-items: center; gap: 10px; padding: 16px 28px; border-radius: 16px;
@@ -124,7 +126,7 @@
       <small>No app Downloader da TV, digite o código</small>
       <b id="code-value">9141955</b>
     </div>
-    <img class="shot" src="img/home.jpg" alt="O Início do Marquise: saudação com a hora e o clima, seis pôsteres em alta na Netflix, no Prime Video e no Disney+, e a fileira de apps" width="1600" height="900">
+    <img class="tv" src="img/home.webp" alt="O Início do Marquise: saudação com a hora e o clima, seis pôsteres em alta na Netflix, no Prime Video e no Disney+, e a fileira de apps" width="1798" height="1098">
   </header>
 
   <section id="instalar">
@@ -176,7 +178,7 @@
         instala.</p></div>
     </div>
     <figure>
-      <img class="shot" src="img/galeria.jpg" alt="A tela de descanso Galeria: uma pintura de Monet emoldurada, sob um spot, com a legenda do museu e a hora" width="1600" height="900" loading="lazy">
+      <img class="tv" src="img/galeria.webp" alt="A tela de descanso Galeria: uma pintura de Monet emoldurada, sob um spot, com a legenda do museu e a hora" width="1798" height="1098" loading="lazy">
       <figcaption>A tela de descanso Galeria: pinturas em domínio público do Art Institute of Chicago.</figcaption>
     </figure>
   </section>
