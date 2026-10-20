@@ -52,7 +52,8 @@ About five minutes, all with the remote. A step-by-step page with pictures (in P
    System → Developer options →* turn on **USB debugging**. (Marquise uses it to switch the Home screen and turn off
    the promo apps; Android has no other way.)
 2. **Install Downloader** from the Play Store (by AFTVnews). Open it and allow it to install apps when asked.
-3. **In Downloader, type** `vitoramaral10.github.io/marquise`, press *Baixar o Marquise* (download) and install.
+3. **In Downloader, type the code** `9141955` and install (or type `vitoramaral10.github.io/marquise` and press
+   *Baixar o Marquise*, download).
 4. **Open Marquise.** A short setup asks where the movies and shows come from: **TMDB** (popular on your streaming
    apps, with your own free key) or your **Jellyfin** server, which it finds on the network and signs in to with
    **Quick Connect** (a code you approve on your phone) or a user name and password. Then your city. Then **Switch Marquise on**, and accept the TV's debugging prompt (tick *Always allow*).
