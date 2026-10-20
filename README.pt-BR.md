@@ -58,7 +58,8 @@ Uns cinco minutos, tudo pelo controle. O passo a passo com imagens, para mandar 
    streamings, com a sua chave grátis) ou o seu **Jellyfin**, que ela acha na rede e onde entra por **Quick Connect**
    (um código que você aprova no celular) ou com usuário e senha. Depois, sua cidade. Depois é só **Ativar o Marquise** e aceitar o aviso de depuração da TV (marque *Sempre permitir*).
 
-Atualizações: as configurações do Marquise mostram *Atualização — Versão X disponível*; aperte OK e confirme (na
+Atualizações: as configurações do Marquise mostram *Atualizações — Versão X disponível*; aperte OK, *Instalar a versão
+X* e confirme (na
 primeira vez, o Android pede para permitir que o Marquise instale apps). Instalar o APK novo pelo Downloader, por cima
 do antigo, também funciona.
 
@@ -85,7 +86,8 @@ precisam da mesma chave.
 
 **Na TV**, nas configurações do Marquise (o ícone dele, ou a engrenagem no topo do Início): servidor e conta do
 de onde vêm os pôsteres (*Títulos*: seu servidor e conta do Jellyfin, ou o TMDB com sua chave e país), sua cidade, o
-Início (Marquise ou Original), uma prévia da tela de descanso e, quando houver, a versão nova.
+Início (Marquise ou Original), uma prévia da tela de descanso e *Atualizações*: a versão nova, quando houver, e só
+versões estáveis (o padrão) ou também betas.
 
 **A fileira de apps:** segure OK num app da fileira para *Mover* (← → e OK), *Remover do Início* ou *Restaurar fileira
 padrão*, e segure OK em qualquer app de *Todos os Apps* para *Adicionar ao Início* (até 8). Apps que você instalou

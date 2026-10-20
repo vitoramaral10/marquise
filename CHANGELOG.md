@@ -5,6 +5,16 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Beta releases, for whoever wants what's new sooner: Settings → *Updates* → *Beta releases too*. Everyone else keeps
+  getting only stable releases. Going back to stable only keeps the beta until the next stable release is out.
+
+### Changed
+
+- Settings: *Updates* is always there, with the new version when there is one (OK → *Install version X*) and the
+  choice between stable releases only and betas too.
+
 ## [1.9.2] - 2026-10-20
 
 ### Fixed

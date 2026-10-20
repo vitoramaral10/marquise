@@ -43,9 +43,8 @@ Today a merge goes straight to every TV that accepts the update, and nothing but
   The screenshots of Home, its memory and the log are the run's artifact. *Done when* `emulator` is a required check
   next to `apk` and `title`.
   - Still to cover there: the TMDB and Jellyfin parsing, with recorded responses served to the emulator.
-- **A beta channel.** A label on the PR (`beta`) releases a pre-release instead of a release. Settings → *Updates* lets
-  a TV opt in to betas. Everyone else keeps getting only the latest stable release (`releases/latest`, as today).
-  *Done when* a risky change can run on a couple of TVs for a few days before it reaches everyone.
+- ~~**A beta channel.**~~ Done: a PR labeled `beta` releases `X.Y.Z-beta.N` as a pre-release. Settings → *Updates*
+  lets a TV opt in to betas, and everyone else keeps getting only the latest stable release (`releases/latest`).
 - **Budgets in CI.** The build fails if the APK goes over 1 MB. The emulator check also records Home's memory and
   fails if it goes over 150 MB.
 - **What went wrong, without telemetry.** Settings → *This TV* shows the last errors from `AppLog`. The QR report

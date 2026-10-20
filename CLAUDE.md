@@ -87,7 +87,8 @@ TVs that don't run Google TV or Android TV (Samsung, LG and others): the way is 
 - The screensaver (`Screensaver` → `DreamView`) is a gallery: the curated works in `assets/gallery.json` (Art
   Institute of Chicago, CC0), fetched through IIIF at screen size and kept in `cache/gallery`. It redraws every 10 s
   and only animates during the fade; keep it that way.
-- `Updater` asks GitHub for the latest release and installs `marquise.apk` through `PackageInstaller`;
+- `Updater` asks GitHub for the latest release (or, with Settings → *Updates* → betas, the newest of the recent
+  ones, pre-releases included; `newer` orders `X.Y.Z-beta.N` before `X.Y.Z`) and installs `marquise.apk` through `PackageInstaller`;
   `UpdateReceiver` gets the installer's answer. Bump `versionCode` and `versionName` in the manifest for every release.
 - `HomeMode` runs every switch as a background job (`ModeJob`) in the main process; the UI is in the `:home` process.
   `Watchdog` goes back to the stock home screen after 3 crashes in 5 minutes.
@@ -100,7 +101,8 @@ TVs that don't run Google TV or Android TV (Samsung, LG and others): the way is 
   the last tag (`.github/scripts/release.py`: feat → minor, fix/perf → patch, `!` → major; docs, chore, ci → none),
   bumps `versionCode`/`versionName`, turns CHANGELOG's `[Unreleased]` into the version, commits
   `chore(release): X.Y.Z` with its tag, signs with the repository secrets (`KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`)
-  and publishes the APK. Never bump the version, edit a released CHANGELOG section or push a tag by hand. PRs are
+  and publishes the APK. A PR labeled `beta` makes `X.Y.Z-beta.N` instead: a pre-release, manifest only, CHANGELOG
+  untouched. Never bump the version, edit a released CHANGELOG section or push a tag by hand. PRs are
   squash-merged with the PR title as the commit, so the title is a Conventional Commit in English; user-facing
   changes add their line under `[Unreleased]` (left empty, the PR titles are used).
 - Settings come from `config.properties` through the generated `out/gen/br/dev/vitormelo/marquise/Config.java` (never

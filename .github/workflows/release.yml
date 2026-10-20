@@ -7,6 +7,8 @@ name: Release
 # published with that CHANGELOG section as the notes. Installs on top of earlier releases (same key).
 # main only takes pull requests (the "main" ruleset); this job pushes the release commit and tag with a deploy key
 # (secret RELEASE_DEPLOY_KEY), the one actor the ruleset lets through.
+# A pull request labeled "beta" makes a pre-release instead (X.Y.Z-beta.N, see release.py): only TVs that opted in
+# to betas in the settings get it; releases/latest, the install page and everyone else stay on the stable release.
 # Recovery: if a run tagged a version but didn't publish it, run this workflow by hand with that version; it builds
 # the existing tag and publishes it, without planning, committing or tagging anything.
 on:
@@ -15,12 +17,13 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Republish an existing tag (X.Y.Z) whose release is missing; empty = the normal automatic run"
+        description: "Republish an existing tag (X.Y.Z or X.Y.Z-beta.N) whose release is missing; empty = the normal automatic run"
         required: false
         default: ""
 
 permissions:
   contents: write
+  pull-requests: read   # the merged pull request's labels ("beta")
 
 concurrency:
   group: release
@@ -41,14 +44,17 @@ jobs:
         id: plan
         env:
           RECOVER: ${{ inputs.version }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           if [ -n "$RECOVER" ]; then
-            [[ "$RECOVER" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::version must look like 1.6.0"; exit 1; }
+            [[ "$RECOVER" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-beta\.[0-9]+)?$ ]] || { echo "::error::version must look like 1.6.0 or 1.6.0-beta.1"; exit 1; }
             git rev-parse -q --verify "refs/tags/v$RECOVER" > /dev/null || { echo "::error::tag v$RECOVER doesn't exist"; exit 1; }
             git checkout -q "v$RECOVER"
             printf 'release=true\nversion=%s\nrecover=true\n' "$RECOVER" | tee -a "$GITHUB_OUTPUT"
           else
-            python3 .github/scripts/release.py plan > "$RUNNER_TEMP/plan"
+            beta=$(gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/pulls" \
+              -q '[.[].labels[].name] | if index("beta") then "--beta" else "" end')
+            python3 .github/scripts/release.py plan $beta > "$RUNNER_TEMP/plan"
             # Another merge landed while this run waited: the run for that one (queued behind, from the newest main)
             # makes the release, so this one steps aside instead of failing at the push.
             git fetch -q origin main
@@ -115,4 +121,5 @@ jobs:
         run: |
           python3 .github/scripts/release.py notes "$VERSION" > notes.md
           cp marquise.apk "marquise-$VERSION.apk"
-          gh release create "v$VERSION" marquise.apk "marquise-$VERSION.apk" --title "Marquise $VERSION" --notes-file notes.md
+          pre=""; [[ "$VERSION" == *-* ]] && pre="--prerelease"
+          gh release create "v$VERSION" marquise.apk "marquise-$VERSION.apk" --title "Marquise $VERSION" --notes-file notes.md $pre

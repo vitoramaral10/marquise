@@ -58,8 +58,8 @@ About five minutes, all with the remote. A step-by-step page with pictures (in P
    apps, with your own free key) or your **Jellyfin** server, which it finds on the network and signs in to with
    **Quick Connect** (a code you approve on your phone) or a user name and password. Then your city. Then **Switch Marquise on**, and accept the TV's debugging prompt (tick *Always allow*).
 
-Updates: Marquise's settings show *Update — version X available*; press OK and confirm (the first time, Android asks
-to allow Marquise to install apps). Installing the new APK with Downloader, on top of the old one, works too.
+Updates: Marquise's settings show *Updates — Version X available*; press OK, *Install version X* and confirm (the
+first time, Android asks to allow Marquise to install apps). Installing the new APK with Downloader, on top of the old one, works too.
 
 ### Build it yourself
 
@@ -84,7 +84,8 @@ key.
 
 **On the TV**, in Marquise's settings (its icon, or the gear at the top of Home): the Jellyfin server and account,
 where the posters come from (*Titles*: your Jellyfin server and account, or TMDB with your key and country), your
-city, the Home screen (Marquise or Original), a screensaver preview and, when there is one, a new version.
+city, the Home screen (Marquise or Original), a screensaver preview, and *Updates*: the new version when there is
+one, and stable releases only (the default) or betas too.
 
 **The app row:** hold OK on an app of the row to *Move* it (← →, then OK), *Remove* it or *Restore the default row*,
 and hold OK on any app in *All Apps* to *Add it to Home* (up to 8). Apps you installed also get *Uninstall*, which
