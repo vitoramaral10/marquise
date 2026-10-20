@@ -234,7 +234,8 @@ final class HomeMode {
             boolean homeOk = restoreHome(adb, home);
             String chosen = s.optString("originalDreamSetting", "");
             if (chosen.matches("[A-Za-z0-9._$/,]+") && chosen.contains("/")) {
-                adb.shell("settings put secure screensaver_components " + chosen);
+                // Quoted: a component can be an inner class ("…$Dream"), and the shell would expand the "$".
+                adb.shell("settings put secure screensaver_components '" + chosen + "'");
             } else {
                 adb.shell("settings delete secure screensaver_components");
             }
