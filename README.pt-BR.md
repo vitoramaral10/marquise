@@ -152,6 +152,10 @@ nela; nada pessoal).
 - **Uma rede de segurança**: um vigia num processo separado devolve o Início de fábrica depois de três travamentos em
   cinco minutos, e uma conferência no boot mantém sua escolha depois de atualizações da TV.
 
+## Próximos passos
+
+Para onde o Marquise vai, e em que ordem: [ROADMAP.md](ROADMAP.md) (em inglês).
+
 ## Privacidade
 
 Sem contas, sem analytics, sem rastreamento. O Marquise conversa com o seu Jellyfin (com a chave que você definir) ou
