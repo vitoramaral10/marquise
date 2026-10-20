@@ -3,6 +3,26 @@
 All notable changes to Marquise are listed here. The format follows [Keep a Changelog](https://keepachangelog.com/),
 and versions follow [Semantic Versioning](https://semver.org/).
 
+## [1.1.0] - 2026-10-19
+
+### Added
+
+- Edit the app row on the TV: hold OK on an app to move it, remove it or restore the default row; hold OK on any app
+  in All Apps to add it to Home. Any installed app can go on the row. The order is saved on the TV.
+- *Uninstall* in the same menu, for apps you installed (never the TV's system apps), through Android's own
+  confirmation.
+
+### Changed
+
+- All Apps lists every app that isn't on the row (apps from the catalog left off the row were hidden), and no longer
+  shows Marquise itself (its settings are the gear at the top of Home).
+- Getting to the corner buttons: ↑ from a poster on the right half goes straight to the nearest one, ↑ from the tabs
+  goes to them, and ↓ from them comes back to the tabs (before, you walked across the tabs, switching them on the way).
+- App art on the row is fitted whole, with its own background color around it, instead of stretched.
+- The corner Live TV button hides while Live TV is on the row.
+- A full row of eight: bigger logos, and the Live TV tile's name shrinks to fit.
+- A tab with fewer than six titles shows only those, without empty placeholders.
+
 ## [1.0.0] - 2026-10-19
 
 ### Added

@@ -55,6 +55,8 @@ Then, in the code:
 - `HomeMode.PROTECTED`: add the brand's system pieces: picture, sound, inputs and HDMI-CEC, the tuner and live TV,
   remote and Bluetooth pairing, setup, updates, system UI. When in doubt, protect it.
 - `HomeApps.LIVE_TV_APPS` and `HIDDEN`: the brand's live TV app, apps to hide from All Apps.
+- The row's order lives on the TV (`HomeApps.shelfOrder`, edited by holding OK on the home screen); `shelf` in
+  `config.properties` is only the default, and *Restore the default row* goes back to it.
 - `HomeApps.SHELF` is the catalog of apps the row knows (key, name, package, color...). A new streaming app goes there,
   plus a color in `HomeView.TILE_STYLE` and, if the app's TV art makes a poor logo, a PNG in `app/assets/logos/<key>.png`.
 - Build, install, have them switch on the TV, read `adb logcat -s Marquise`, then have them switch back to *Original*

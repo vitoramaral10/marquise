@@ -95,7 +95,7 @@ final class HomeApps {
         {"spotify", "Spotify", "com.spotify.tv.android", "1DB954", "", "1"},
         {"f1tv", "F1 TV", "com.formulaone.production", "E10600", "", "1"},
     };
-    private static final int MAX_SHELF = 8;
+    static final int MAX_SHELF = 8;
     /** Live TV apps of some brands (the antenna's channels open through the standard Android request first). */
     static final String[] LIVE_TV_APPS = {"com.tcl.tv", "com.google.android.tv", "com.mediatek.wwtv.tvcenter", "com.sony.dtv.tvx"};
     /** Kept out of "All Apps" (only hidden, still installed). Add the ones your TV shows that you never use. */
@@ -118,15 +118,18 @@ final class HomeApps {
     static List<Item> shelf(Context c, boolean extract) {
         List<Item> items = new ArrayList<>();
         PackageManager pm = c.getPackageManager();
-        for (String key : Config.SHELF.split(",")) {
-            key = key.trim().toLowerCase(java.util.Locale.ROOT);
+        for (String key : shelfOrder(c)) {
             if (items.size() >= MAX_SHELF) break;
             if (key.equals("live")) {   // over-the-air TV (the tuner's channels), when the TV has one
                 if (liveTv(c) != null) items.add(shortcut(LIVE_TV, "live", Ui.tr("TV Aberta", "Live TV"), "tv"));
                 continue;
             }
             String[] d = known(key);
-            if (d == null || launchIntent(pm, d[2]) == null) continue;
+            if (d == null) {   // any other installed app, added from All Apps: its own TV art
+                if (key.contains(".") && launchIntent(pm, key) != null) items.add(anyApp(c, pm, key));
+                continue;
+            }
+            if (launchIntent(pm, d[2]) == null) continue;
             Item it = new Item();
             it.kind = APP;
             it.key = d[0];
@@ -145,6 +148,65 @@ final class HomeApps {
     private static String[] known(String key) {
         for (String[] d : SHELF) if (d[0].equals(key)) return d;
         return null;
+    }
+
+    private static Item anyApp(Context c, PackageManager pm, String pkg) {
+        Item it = new Item();
+        it.kind = APP;
+        it.key = pkg;
+        it.pkg = pkg;
+        try {
+            it.label = String.valueOf(pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)));
+        } catch (PackageManager.NameNotFoundException e) {
+            it.label = pkg;
+        }
+        it.tile = appTile(c, null, pkg, 0);
+        return it;
+    }
+
+    // MARK: - The row's order, edited on the TV (hold OK on an app); config.properties "shelf" is the default
+
+    private static final String ORDER_PREFS = "shelf";
+
+    /** The row's keys in order: catalog keys ("jellyfin"), "live", or package names for any other app. */
+    static List<String> shelfOrder(Context c) {
+        String saved = c.getSharedPreferences(ORDER_PREFS, Context.MODE_PRIVATE).getString("order", null);
+        List<String> out = new ArrayList<>();
+        for (String key : (saved != null ? saved : Config.SHELF).split(",")) {
+            key = key.trim();
+            if (!key.contains(".")) key = key.toLowerCase(Locale.ROOT);
+            if (!key.isEmpty() && !out.contains(key)) out.add(key);
+        }
+        return out;
+    }
+
+    static void saveShelfOrder(Context c, List<String> keys) {
+        c.getSharedPreferences(ORDER_PREFS, Context.MODE_PRIVATE).edit().putString("order", String.join(",", keys)).apply();
+    }
+
+    /** An app the person installed (not part of the TV's system, not Marquise): it can be uninstalled from its menu. */
+    static boolean canUninstall(Context c, String pkg) {
+        if (pkg == null || pkg.equals(c.getPackageName())) return false;
+        try {
+            int flags = c.getPackageManager().getApplicationInfo(pkg, 0).flags;
+            return (flags & (android.content.pm.ApplicationInfo.FLAG_SYSTEM | android.content.pm.ApplicationInfo.FLAG_UPDATED_SYSTEM_APP)) == 0;
+        } catch (PackageManager.NameNotFoundException e) {
+            return false;
+        }
+    }
+
+    /** Android's own "Do you want to uninstall this app?"; the home screen reloads its apps when it comes back. */
+    static void uninstall(Activity a, String pkg) {
+        try {
+            a.startActivity(new Intent(Intent.ACTION_DELETE, android.net.Uri.parse("package:" + pkg)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+        } catch (ActivityNotFoundException | SecurityException e) {
+            AppLog.w("couldn't uninstall " + pkg + ": " + e.getMessage());
+        }
+    }
+
+    /** Back to config.properties "shelf". */
+    static void resetShelfOrder(Context c) {
+        c.getSharedPreferences(ORDER_PREFS, Context.MODE_PRIVATE).edit().remove("order").apply();
     }
 
     /** Live TV, the HDMI inputs with a device sending a signal, and All Apps. */
@@ -255,11 +317,14 @@ final class HomeApps {
         return out;
     }
 
-    /** Installed, enabled TV apps that are not on the home screen (the TV's Settings is among them), plus our own. */
+    /** Installed, enabled TV apps that are not on the home screen's row (the TV's Settings is among them). */
     static List<Item> others(Context c) {
         PackageManager pm = c.getPackageManager();
         Set<String> skip = new HashSet<>();
-        for (String[] d : SHELF) skip.add(d[2]);
+        for (String key : shelfOrder(c)) {   // only what's on the row; everything else can be added from here
+            String[] d = known(key);
+            skip.add(d != null ? d[2] : key);
+        }
         skip.addAll(java.util.Arrays.asList(LIVE_TV_APPS));
         skip.add(c.getPackageName());
         skip.addAll(HIDDEN);
@@ -278,14 +343,7 @@ final class HomeApps {
             items.add(it);
         }
         Collections.sort(items, (a, b) -> a.label.toLowerCase(Locale.ROOT).compareTo(b.label.toLowerCase(Locale.ROOT)));
-        items.add(special(c, SETTINGS, "marquise-settings", "Marquise", "sparkles"));
         return items;
-    }
-
-    private static Item special(Context c, int kind, String key, String label, String symbol) {
-        Item it = shortcut(kind, key, label, symbol);
-        it.tile = symbolTile(c, key, symbol);
-        return it;
     }
 
     /** Opens the item with the system zoom transition growing out of the card (the app starts opening right away). */
@@ -724,16 +782,6 @@ final class HomeApps {
             icon.setBounds((TILE_W - s) / 2, (TILE_H - s) / 2, (TILE_W + s) / 2, (TILE_H + s) / 2);
             icon.draw(canvas);
         }
-        return b;
-    }
-
-    /** Settings and the like: the icon in white on a dark card. */
-    private static synchronized Bitmap symbolTile(Context c, String key, String symbol) {
-        if (TILES.containsKey(key)) return TILES.get(key);
-        Bitmap b = darkTile();
-        Symbols.draw(c, new Canvas(b), symbol, TILE_W / 2f, TILE_H / 2f, TILE_H * 0.36f, 0xF2FFFFFF);
-        b.setHasMipMap(true);
-        TILES.put(key, b);
         return b;
     }
 

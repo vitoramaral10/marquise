@@ -19,7 +19,8 @@ O que acabou de chegar no seu servidor, logo na frente. Seus apps, nas cores del
 - **Sua biblioteca, não um feed de propaganda.** Seis pôsteres do que acabou de entrar no seu Jellyfin, com ano, nota
   e classificação indicativa, mudando a cada meia hora. Filmes e Séries têm abas próprias.
 - **Um clique para assistir.** Escolha um pôster e ele abre o filme ou a série no app do Jellyfin.
-- **Seus apps, nas cores deles.** Você escolhe quais apps ficam na fileira e em que ordem. A TV aberta pode ser um deles.
+- **Seus apps, nas cores deles, do seu jeito.** Segure OK num app para mover ou tirar da fileira; segure OK em qualquer
+  app de Todos os Apps para adicionar. A TV aberta pode ser um deles.
 - **Hora e clima** no topo, e a previsão das próximas horas com um clique para baixo.
 - **Claro de dia, escuro à noite**, seguindo o pôr do sol de verdade da sua cidade.
 - **Tela de descanso combinando**: as imagens dos títulos novos em tela cheia, com um relógio grande.
@@ -87,6 +88,11 @@ Tudo fica no `config.properties`, criado no primeiro build e fora do git.
 | `temperature` | `C`, `F` ou `auto` | `auto` |
 | `disable_assistant` | Também desliga o Google Assistente (o botão do microfone para) | `false` |
 | `extra_disable` | Mais pacotes para desligar enquanto o Marquise estiver ligado, separados por vírgula | vazio |
+
+O `shelf` é só a fileira inicial: na TV, **segure OK** num app da fileira para *Mover* (← → e OK), *Remover do Início*
+ou *Restaurar fileira padrão*, e segure OK em qualquer app de *Todos os Apps* para *Adicionar ao Início* (até 8). Isso
+fica salvo na TV e continua depois das atualizações. Apps que você instalou também têm *Desinstalar*, que abre a
+confirmação do próprio Android.
 
 Mudou algo? Rode `./build.sh` e instale de novo. **Guarde o `marquise.keystore`**: as atualizações precisam da mesma
 chave.

@@ -19,8 +19,8 @@ What just arrived on your server, up front. Your apps, in their own colors. One 
 - **Your library, not an ad feed.** Six posters of what was just added to your Jellyfin server, with year, rating and
   age rating, rotating every half hour. Movies and Shows have their own tabs.
 - **One press to watch.** Select a poster and it opens on that movie or show in the Jellyfin app.
-- **Your apps, in their colors.** You pick which apps sit on the row, and in what order. Over-the-air TV can be one of
-  them.
+- **Your apps, in their colors, your way.** Hold OK on an app to move it or take it off the row; hold OK on any app in
+  All Apps to add it. Over-the-air TV can be one of them.
 - **The time and the weather** at the top, and the forecast for the next hours one press down.
 - **Light by day, dark by night**, following your city's real sunset.
 - **A screensaver to match**: full-screen backdrops of your new titles with a big clock.
@@ -85,6 +85,10 @@ Everything lives in `config.properties`, created by the first build and kept out
 | `temperature` | `C`, `F` or `auto` | `auto` |
 | `disable_assistant` | Also turn off Google Assistant (the mic button stops) | `false` |
 | `extra_disable` | More packages to turn off while Marquise is on, comma-separated | empty |
+
+`shelf` is only the starting row: on the TV, **hold OK** on an app of the row to *Move* it (← →, then OK), *Remove* it
+or *Restore the default row*, and hold OK on any app in *All Apps* to *Add it to Home* (up to 8). That's saved on the
+TV and survives updates. Apps you installed also get *Uninstall*, which opens Android's own confirmation.
 
 Changed something? Run `./build.sh` and install again. **Keep `marquise.keystore`**: updates must be signed with the
 same key.
