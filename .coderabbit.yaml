@@ -1,0 +1,68 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+# CodeRabbit reviews every pull request to main, in Portuguese.
+language: pt-BR
+tone_instructions: >-
+  Direto e curto, em português do Brasil. Aponte o problema e o efeito na TV; sugira o conserto só quando ele não for
+  óbvio. Nada de elogio genérico.
+early_access: false
+
+reviews:
+  profile: chill
+  request_changes_workflow: false
+  high_level_summary: true
+  review_status: true
+  collapse_walkthrough: true
+  sequence_diagrams: false
+  poem: false
+  in_progress_fortune: false
+  path_filters:
+    # Generated or binary: icons, screenshots, the curated paintings list.
+    - "!app/assets/symbols/**"
+    - "!app/assets/logos/**"
+    - "!app/assets/fonts/**"
+    - "!app/res/drawable-nodpi/**"
+    - "!docs/img/**"
+    - "!.github/*.png"
+    - "!.github/*.jpg"
+    - "!app/assets/gallery.json"
+  path_instructions:
+    - path: "app/src/**/*.java"
+      instructions: |
+        App Android em Java puro, sem Gradle e sem bibliotecas (só o SDK), nível de linguagem Java 8, minSdk 31,
+        targetSdk 33. Roda em TVs com pouca memória e CPU fraca.
+        - `onDraw` e o laço de quadros não podem alocar objetos (Paint, Shader, String, listas) nem fazer I/O; aponte
+          qualquer alocação nova ali.
+        - Rede e disco nunca na thread de UI.
+        - Todo texto que aparece na tela passa por `Ui.tr("pt", "en")`, com os dois idiomas.
+        - Chaves e tokens (Jellyfin, TMDB) nunca vão para o log, para mensagens de erro nem para URLs registradas.
+        - O que se escolhe na TV fica em `Prefs`; `config.properties` só dá padrões.
+        - Comentários em inglês, curtos, só onde o porquê não é óbvio.
+        - Onde aparecem dados do TMDB, o aviso de atribuição do TMDB tem que continuar visível.
+    - path: "app/AndroidManifest.xml"
+      instructions: |
+        Toda release sobe `versionCode` e `versionName` juntos. Permissões e `<queries>` novas precisam de motivo
+        claro: o app é instalado por leigos e a lista de permissões assusta.
+    - path: "{build.sh,tools/**}"
+      instructions: |
+        Scripts em bash que precisam ser reproduzíveis (versões fixas, sem datas nos arquivos gerados). Nada de
+        segredo impresso.
+    - path: ".github/workflows/**"
+      instructions: |
+        O release assina o APK com os segredos KEYSTORE_BASE64 e KEYSTORE_PASSWORD: eles nunca podem aparecer no log
+        nem em artefatos.
+    - path: "docs/**"
+      instructions: |
+        Página de instalação para leigos, em português, servida pelo GitHub Pages. Tem que funcionar no celular e no
+        navegador do app Downloader da TV (navegação com o controle, foco visível). Sem scripts de rastreamento.
+    - path: "**/*.md"
+      instructions: |
+        README.md e README.pt-BR.md dizem a mesma coisa nos dois idiomas. CHANGELOG segue o Keep a Changelog, com a
+        mudança na seção [Unreleased]. Sem IP, cidade, nome de usuário ou chave de ninguém.
+  auto_review:
+    enabled: true
+    drafts: false
+    base_branches:
+      - main
+
+chat:
+  auto_reply: true
