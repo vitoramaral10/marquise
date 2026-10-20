@@ -3,6 +3,13 @@
 All notable changes to Marquise are listed here. The format follows [Keep a Changelog](https://keepachangelog.com/),
 and versions follow [Semantic Versioning](https://semver.org/).
 
+## [1.4.2] - 2026-10-20
+
+### Fixed
+
+- Updates: dismissing Android's install dialog no longer leaves the settings row stuck on "Installing…"; OK starts
+  again.
+
 ## [1.4.1] - 2026-10-20
 
 ### Fixed
