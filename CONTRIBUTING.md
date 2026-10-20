@@ -38,6 +38,16 @@ adb logcat -s Marquise
 - Java 8 language level, minSdk 31. Comments in English, short, only where the why isn't obvious.
 - Commits follow [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `docs:`…).
 
+## Pull requests and releases
+
+- Every change goes through a pull request to `main`; it's squash-merged and **its title becomes the commit**, so
+  write the title as a Conventional Commit in English (`feat(home): …`, `fix(update): …`).
+- That title decides the release: `feat` makes a new minor version, `fix` and `perf` a patch, a `!` (`feat!: …`) a
+  major one; `docs`, `chore`, `ci`, `refactor`, `test` and `style` make none.
+- If people will notice the change, add a line under `## [Unreleased]` in [CHANGELOG.md](CHANGELOG.md).
+- After the merge everything else is automatic: the version in the manifest, the CHANGELOG, the tag and the signed
+  APK on the releases page, which the TVs then offer as an update.
+
 ## Reporting a problem
 
 Open an issue with your TV's brand, model and Android version, what you expected and what happened, and the output of

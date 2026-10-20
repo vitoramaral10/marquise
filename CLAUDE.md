@@ -96,8 +96,13 @@ TVs that don't run Google TV or Android TV (Samsung, LG and others): the way is 
 - What's chosen on the TV (server, token, user, city) lives in `Prefs`; `config.properties` only gives defaults.
   `SetupActivity` is the first-run wizard (standard views, so the TV keyboard works); `Jellyfin` finds servers and
   signs in (Quick Connect or password).
-- Releases: push a tag `vX.Y.Z`; `.github/workflows/release.yml` signs with the repository secrets
-  (`KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`) and publishes the APK with that version's CHANGELOG section.
+- Releases are automatic: every merge to `main` runs `.github/workflows/release.yml`, which reads the commits since
+  the last tag (`.github/scripts/release.py`: feat → minor, fix/perf → patch, `!` → major; docs, chore, ci → none),
+  bumps `versionCode`/`versionName`, turns CHANGELOG's `[Unreleased]` into the version, commits
+  `chore(release): X.Y.Z` with its tag, signs with the repository secrets (`KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`)
+  and publishes the APK. Never bump the version, edit a released CHANGELOG section or push a tag by hand. PRs are
+  squash-merged with the PR title as the commit, so the title is a Conventional Commit in English; user-facing
+  changes add their line under `[Unreleased]` (left empty, the PR titles are used).
 - Settings come from `config.properties` through the generated `out/gen/br/dev/vitormelo/marquise/Config.java` (never
   edit that).
 - Art: `python3 tools/make_art.py` draws the icon, the TV banner and the repository images.
