@@ -5,7 +5,16 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- The background follows the focused poster (as on Apple TV), crossfading as you move.
+- The focused poster shows its whole title, on two lines when it needs them.
+- Switching tabs fades the new posters in.
+- No posters yet: a marquee-style card says so; before Jellyfin is set up, it's focusable and OK opens the setup.
+
 ### Changed
+
+- A clearer focus on posters (it grows and rises more, with a thicker rim) and more contrast on the tabs.
 
 - Much lighter and smoother on TV chips: memory with Home on screen from ~264 MB to ~120 MB, and hidden from ~240 MB
   to ~110 MB; 1 frame in 150 late instead of 1 in 20; the frame loop sleeps while nothing moves.

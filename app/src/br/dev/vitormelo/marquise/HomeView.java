@@ -211,6 +211,15 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
     private final LinearGradient gridSheen = new LinearGradient(0, 0, 0, 0.5f, 0x1AFFFFFF, 0x00FFFFFF, Shader.TileMode.CLAMP);
     private TextPaint drawerLabelText;
     private final String[] cardTitles = new String[Recs.PER_TAB], cardBadges = new String[Recs.PER_TAB];
+    // The focused poster shows its whole title (up to two lines), laid out once with the others.
+    private final android.text.StaticLayout[] cardTitleLayouts = new android.text.StaticLayout[Recs.PER_TAB];
+    private TextPaint cardTitlePaint;
+    private int bgCard;                       // which poster the background shows (follows the focus)
+    private static final long TAB_FADE_MS = 220;
+    private long tabFadeAt;                   // switching tabs: the new posters fade in and rise a little
+    private float cardsAlpha = 1;
+    private final LinearGradient velvet = new LinearGradient(0, 0, 0, 1, 0xFF7A1830, 0xFF280E2E, Shader.TileMode.CLAMP);
+    private Paint emptyTitle, emptyBody, bulb;
     private final Path clip = new Path();
     private final RectF tmp = new RectF(), tmp2 = new RectF(), cell = new RectF(), screen = new RectF();
     private final Map<String, Integer> artColors = new HashMap<>();   // app key → its art's background color
@@ -543,6 +552,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         boolean sheetMoving = sheet.step(dt);
         boolean toastFading = tickToast(up);
         boolean bgFading = tickBackgroundFade(up);
+        boolean tabFading = tickTabFade(up);
         boolean nightMoving = tickNight(up);
 
         if (drawerMoving || sheetMoving || motionDirty) updateMotion();
@@ -557,7 +567,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         if (drawerMoving || bgFading) sky.invalidate();
         tilesDirty = statusDirty = heroDirty = drawerDirty = gridDirty = motionDirty = false;
         boolean moving = tilesMoving | heroMoving | drawerItemsMoving | gridMoving | drawerMoving | sheetMoving | toastFading
-                | bgFading | nightMoving;
+                | bgFading | nightMoving | tabFading;
         if (moving) {
             wake();
         } else {
@@ -733,11 +743,25 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
     /** Text colors for the current night value (dark by day, white at night). */
     private void applyTone() {
         lTitle.setColor(tone(L_INK, WHITE));
-        lTab.setColor(tone(L_DIM, 0xFF8E8E93));
+        lTab.setColor(tone(0xFF4A4A4F, 0xFFC7C7CC));
         lTabOn.setColor(tone(L_INK, WHITE));
         lCardTitle.setColor(tone(L_INK, WHITE));
         lCardMeta.setColor(tone(L_DIM, 0xFF98989D));
         lTip.setColor(tone(L_INK, WHITE));
+    }
+
+    /** The new tab's posters fading in: cardsAlpha from 0 to 1 (eased), redrawing the top layer meanwhile. */
+    private boolean tickTabFade(long up) {
+        if (tabFadeAt == 0) return false;
+        float t = Math.min(1f, (up - tabFadeAt) / (float) TAB_FADE_MS);
+        cardsAlpha = 1 - (1 - t) * (1 - t);
+        heroDirty = true;
+        if (t >= 1f) {
+            tabFadeAt = 0;
+            cardsAlpha = 1;
+            return false;
+        }
+        return true;
     }
 
     private boolean tickBackgroundFade(long up) {
@@ -1743,6 +1767,11 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
             it = lightButtons.get(topIndex - 3);
             r = topRects[topIndex];
         } else if (zone == Z_CARDS) {
+            if (cards.isEmpty()) {   // "Connect your Jellyfin": the setup, on its server step
+                activity.startActivity(new android.content.Intent(activity, SetupActivity.class)
+                        .putExtra(SetupActivity.EXTRA_STEP, SetupActivity.STEP_SERVER));
+                return;
+            }
             Recs.Pick p = cardIndex < cards.size() ? cards.get(cardIndex) : null;
             if (p == null || p.pkg == null) return;
             it = HomeApps.app(p.pkg, Recs.serviceName(p));
@@ -1813,13 +1842,13 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
             cards = list;
             fitCardText();
             cardIndex = Math.min(cardIndex, Math.max(0, list.size() - 1));
-            if (zone == Z_CARDS && list.isEmpty()) {
+            if (zone == Z_CARDS && list.isEmpty() && Prefs.jellyfinReady(getContext())) {
                 zone = Z_SHELF;
                 retarget(false);
             }
         }
         for (Recs.Pick p : recs.wanted()) recs.backdrop(p);   // all three tabs preloaded: switching tabs is instant
-        Backdrop b = cards.isEmpty() ? null : recs.backdrop(cards.get(0));
+        Backdrop b = cards.isEmpty() ? null : recs.backdrop(cards.get(Math.min(bgCard, cards.size() - 1)));
         if (cards.isEmpty() || b != null) showBackdrop(b);
         heroDirty = true;
     }
@@ -1827,6 +1856,9 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
     private void selectTab(int index) {
         if (index == tab) return;
         tab = index;
+        bgCard = 0;
+        tabFadeAt = SystemClock.uptimeMillis();
+        cardsAlpha = 0;
         updateCards();
         heroDirty = true;
     }
@@ -1897,10 +1929,21 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
             if (i == tab) lTabOn.setColor(blend(tone(L_INK, WHITE), L_INK, focus));   // always dark on the white pill
             c.drawText(tabs()[i], r.centerX() - p.measureText(tabs()[i]) / 2, r.centerY() + Ui.halfCap(p), p);
         }
+        if (cards.isEmpty()) {
+            drawEmptyCard(c);
+            return;
+        }
+        // Switching tabs: for a moment, the posters are drawn into a layer that fades in and rises.
+        int save = -1;
+        if (cardsAlpha < 0.999f) {
+            save = c.saveLayerAlpha(0, (L_CARDS_TOP - 60) * k, w, (L_CARDS_TOP + L_POSTER_H + 160) * k, Math.round(255 * cardsAlpha));
+            c.translate(0, (1 - cardsAlpha) * 18 * k);
+        }
         int top = -1;
         for (int i = 0; i < CARDS; i++) if (cardFocus[i].value > 0.02f && (top < 0 || cardFocus[i].value > cardFocus[top].value)) top = i;
         for (int i = 0; i < CARDS; i++) if (i != top) drawLightCard(c, i);
         if (top >= 0) drawLightCard(c, top);
+        if (save >= 0) c.restoreToCount(save);
     }
 
     /**
@@ -1912,9 +1955,9 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         RectF base = cardRects[i];
         Recs.Pick p = i < cards.size() ? cards.get(i) : null;
         if (p == null && !cards.isEmpty()) return;   // a tab with fewer titles: no empty placeholders
-        float v = cardFocus[i].value, f = Ui.clamp(v), s = 1 + 0.05f * v;
+        float v = cardFocus[i].value, f = Ui.clamp(v), s = 1 + 0.08f * v;
         float bw = base.width(), bh = base.height(), r0 = 18 * k;
-        float cx = base.centerX(), cy = base.centerY() - 6 * k * v;
+        float cx = base.centerX(), cy = base.centerY() - 10 * k * v;
         cell.set(cx - bw * s / 2, cy - bh * s / 2, cx + bw * s / 2, cy + bh * s / 2);
         float r = r0 * s;
         c.save();
@@ -1935,10 +1978,68 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
             c.drawRoundRect(cell, r, r, fill);
         }
         if (f > 0.01f) c.drawRoundRect(cell, r, r, placed(sheen, cardSheen, cell, f));
-        if (f > 0.01f) c.drawRoundRect(cell, r, r, placed(rim, cardRim, cell, f));
+        if (f > 0.01f) {
+            rim.setStrokeWidth(3.5f * k);
+            c.drawRoundRect(cell, r, r, placed(rim, cardRim, cell, f));
+            rim.setStrokeWidth(2.5f * k);
+        }
         if (p == null || cardTitles[i] == null) return;
-        c.drawText(cardTitles[i], base.left, base.bottom + 46 * k, lCardTitle);
-        if (cardBadges[i] != null) c.drawText(cardBadges[i], base.left, base.bottom + 80 * k, lCardMeta);
+        float below = 0;
+        android.text.StaticLayout whole = cardTitleLayouts[i];
+        if (f > 0.5f && whole != null && cardTitlePaint != null) {
+            // Focused: the whole title, on two lines if it needs them; the line below moves down to make room.
+            cardTitlePaint.setColor(lCardTitle.getColor());
+            float baseline = base.bottom + 46 * k;
+            c.save();
+            c.translate(base.left, baseline - whole.getLineBaseline(0));
+            whole.draw(c);
+            c.restore();
+            below = whole.getLineBaseline(whole.getLineCount() - 1) - whole.getLineBaseline(0);
+        } else {
+            c.drawText(cardTitles[i], base.left, base.bottom + 46 * k, lCardTitle);
+        }
+        if (cardBadges[i] != null) c.drawText(cardBadges[i], base.left, base.bottom + 80 * k + below, lCardMeta);
+    }
+
+    /**
+     * No posters: a marquee-style card in their place. Not connected yet, it's focusable and OK opens the setup;
+     * connected, it says the titles are on their way.
+     */
+    private void drawEmptyCard(Canvas c) {
+        if (emptyTitle == null) {
+            emptyTitle = Ui.text(Ui.displaySemibold, 46 * k, 0xFFFFF4E2);
+            emptyTitle.setTextAlign(Paint.Align.CENTER);
+            emptyBody = Ui.text(Ui.regular, 27 * k, 0xCCFFF4E2);
+            emptyBody.setTextAlign(Paint.Align.CENTER);
+            bulb = new Paint(Paint.ANTI_ALIAS_FLAG);
+            bulb.setColor(0xFFFFD68C);
+        }
+        boolean ready = Prefs.jellyfinReady(getContext());
+        float v = cardFocus[0].value, f = Ui.clamp(v), s = 1 + 0.02f * v;
+        float left = MARGIN * k, right = CONTENT_R * k, top = L_CARDS_TOP * k, bottom = top + L_POSTER_H * k;
+        float cx = (left + right) / 2, cy = (top + bottom) / 2, w = (right - left) * s, h = (bottom - top) * s;
+        cell.set(cx - w / 2, cy - h / 2, cx + w / 2, cy + h / 2);
+        float r = 24 * k * s;
+        tmp.set(cell);
+        tmp.offset(0, (12 + 10 * f) * k);
+        softShadow(c, right - left, bottom - top, 24 * k, 30 * k, tmp, Ui.alpha(0xFF000000, 0.3f + 0.2f * f));
+        c.drawRoundRect(cell, r, r, placed(fill, velvet, cell, 1));
+        fill.setShader(null);
+        fill.setAlpha(255);
+        // The marquee's bulbs along the top and bottom edges.
+        float inset = 30 * k * s, step = 58 * k * s, br = 6 * k * s;
+        int n = (int) ((cell.width() - 2 * inset) / step);
+        float x0 = cell.centerX() - n * step / 2;
+        for (int i = 0; i <= n; i++) {
+            c.drawCircle(x0 + i * step, cell.top + inset, br, bulb);
+            c.drawCircle(x0 + i * step, cell.bottom - inset, br, bulb);
+        }
+        if (f > 0.01f) c.drawRoundRect(cell, r, r, placed(rim, cardRim, cell, f));
+        String title = ready ? Ui.tr("Buscando os títulos…", "Fetching titles…") : Ui.tr("Conecte seu Jellyfin", "Connect your Jellyfin");
+        String body = ready ? Ui.tr("Os pôsteres do que chegou no seu servidor aparecem aqui.", "Posters of what just arrived on your server show up here.")
+                : Ui.tr("Aperte OK para escolher o servidor e entrar.", "Press OK to pick your server and sign in.");
+        c.drawText(title, cell.centerX(), cell.centerY() - 6 * k, emptyTitle);
+        c.drawText(body, cell.centerX(), cell.centerY() + 46 * k, emptyBody);
     }
 
     /**
@@ -1988,10 +2089,14 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
     private void fitCardText() {
         if (lCardTitle == null) return;
         TextPaint tp = new TextPaint(lCardTitle), mp = new TextPaint(lCardMeta);
+        cardTitlePaint = new TextPaint(lCardTitle);
         for (int i = 0; i < cardTitles.length; i++) {
             Recs.Pick p = i < cards.size() ? cards.get(i) : null;
             float bw = cardRects[i].width();
             cardTitles[i] = p == null ? null : TextUtils.ellipsize(p.title, tp, bw, TextUtils.TruncateAt.END).toString();
+            cardTitleLayouts[i] = p == null || cardTitles[i].equals(p.title) || bw < 1 ? null
+                    : android.text.StaticLayout.Builder.obtain(p.title, 0, p.title.length(), cardTitlePaint, Math.round(bw))
+                            .setMaxLines(2).setEllipsize(TextUtils.TruncateAt.END).setIncludePad(false).build();
             cardBadges[i] = p == null || p.badge == null || p.badge.isEmpty() ? null
                     : TextUtils.ellipsize(p.badge, mp, bw, TextUtils.TruncateAt.END).toString();
         }
@@ -2075,7 +2180,10 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         switch (zone) {
             case Z_SHELF:
                 if (dy >= 0 || shelf.isEmpty()) return false;
-                if (cards.isEmpty()) {
+                if (cards.isEmpty() && !Prefs.jellyfinReady(getContext())) {
+                    zone = Z_CARDS;   // the "Connect your Jellyfin" card
+                    cardIndex = 0;
+                } else if (cards.isEmpty()) {
                     zone = Z_TOP;
                     topIndex = upFrom(tileRects[shelfIndex].centerX());
                 } else {
@@ -2119,6 +2227,12 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
                 break;
             default:
                 return false;
+        }
+        if (zone == Z_CARDS && cardIndex < cards.size() && cardIndex != bgCard) {
+            // The background follows the focused poster (as on Apple TV); its image is already prepared.
+            bgCard = cardIndex;
+            Backdrop b = recs.backdrop(cards.get(cardIndex));
+            if (b != null) showBackdrop(b);
         }
         retarget(false);
         click.move();
