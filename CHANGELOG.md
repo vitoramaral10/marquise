@@ -5,6 +5,8 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.8.0] - 2026-10-20
+
 ### Added
 
 - Settings → *This TV*: brand, model, Android and the factory apps Marquise keeps off, and a QR code that opens a
