@@ -7,8 +7,8 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
-- On TCL TVs that block apps in the background (TclAppBoot), switching Marquise on now allows it by itself; no
-  computer needed.
+- On TCL TVs where TclAppBoot blocks background jobs, switching Marquise on now lets Marquise run in the background
+  by itself; no computer needed.
 
 ## [1.5.0] - 2026-10-20
 
