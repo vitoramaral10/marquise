@@ -5,6 +5,8 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.10.0] - 2026-10-20
+
 ### Added
 
 - Beta releases, for whoever wants what's new sooner: Settings → *Updates* → *Beta releases too*. Everyone else keeps
