@@ -40,10 +40,11 @@ import java.util.concurrent.Executors;
  * (CC0, the curated list in assets/gallery.json), framed with a mat under a spotlight on a dark wall, its label at
  * the bottom left and the time at the bottom right. A new work every 75 s (fade to the wall and back); the whole
  * scene drifts a few pixels so nothing stays on the same pixels. Images are fetched at screen size (IIIF) and kept
- * on disk, so it also works offline with what was already seen. Redrawn every 2 s, and every frame only while fading.
+ * on disk, so it also works offline with what was already seen. Redrawn every 10 s and on the minute, and every frame
+ * only while fading.
  */
 final class DreamView extends View implements HomeData.Listener {
-    private static final long SHOW_MS = 75_000, FADE_MS = 2400, TICK_MS = 2000;
+    private static final long SHOW_MS = 75_000, FADE_MS = 2400, TICK_MS = 10_000;
     private static final String IIIF = "https://www.artic.edu/iiif/2/%s/full/!1400,840/0/default.jpg";
     private static final int CACHE_KEEP = 24;
     private static final int CREAM = 0xFFF3EDE2, MAT = 0xFFF1ECE3, MAT_SHADE = 0xFFE2DCD0, FRAME = 0xFF17120D;
@@ -60,20 +61,21 @@ final class DreamView extends View implements HomeData.Listener {
     private final HomeData data;
     private final File cache;
     private final List<Art> works = new ArrayList<>();
-    private final ExecutorService loader = Executors.newSingleThreadExecutor();
+    private ExecutorService loader;
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final Runnable tick = new Runnable() {
         @Override public void run() {
             if (!running) return;
             ticks++;
-            if (ticks % 30 == 0) data.refreshIfStale();   // once a minute
+            if (ticks % 6 == 0) data.refreshIfStale();   // once a minute
             long now = System.currentTimeMillis();
             if (fadeStart < 0 && pending != null && (current == null || now - shownAt >= SHOW_MS)) {
                 fadeStart = now;
                 previous = current;
             }
             invalidate();
-            handler.postDelayed(this, TICK_MS);
+            // Every 10 s (the drift moves half a pixel in that time), and right on the minute for the clock.
+            handler.postDelayed(this, Math.min(TICK_MS, 60_000 - now % 60_000 + 50));
         }
     };
     private boolean running, loading;
@@ -127,6 +129,7 @@ final class DreamView extends View implements HomeData.Listener {
     void start() {
         if (running) return;
         running = true;
+        if (loader == null || loader.isShutdown()) loader = Executors.newSingleThreadExecutor();
         startedAt = System.currentTimeMillis();
         data.addListener(this);
         data.refreshIfStale();
@@ -139,11 +142,8 @@ final class DreamView extends View implements HomeData.Listener {
         running = false;
         handler.removeCallbacks(tick);
         data.removeListener(this);
-    }
-
-    @Override protected void onDetachedFromWindow() {
-        super.onDetachedFromWindow();
         loader.shutdownNow();
+        loading = false;
     }
 
     @Override public void onData() {
@@ -158,7 +158,7 @@ final class DreamView extends View implements HomeData.Listener {
 
     /** Fetches the next work that loads (skipping any that fail); offline, only the ones on disk are shown. */
     private void loadNext() {
-        if (loading || pending != null || works.isEmpty() || loader.isShutdown()) return;
+        if (loading || pending != null || works.isEmpty() || loader == null || loader.isShutdown()) return;
         loading = true;
         final int from = position;
         loader.execute(() -> {
