@@ -78,9 +78,29 @@ final class HomeMode {
 
     // MARK: - Requests (from any process)
 
-    /** Asks the main process to switch (the settings screen calls this). */
+    /**
+     * Asks the main process to switch (the settings screen and the setup call this, from the screen on view). Switching
+     * on first lets Marquise run in the background where the TV blocks it: TCL's TclAppBoot stops background jobs of
+     * apps not on its list, which would stop the switch itself (and the watchdog). That's done from here, the app on
+     * screen, which TclAppBoot doesn't block; other TVs answer "Unknown operation string", which is fine.
+     */
     static void request(Context c, String mode) {
-        ModeJob.schedule(c, ModeJob.APPLY, mode, 0);
+        if (!FREE.equals(mode)) {
+            ModeJob.schedule(c, ModeJob.APPLY, mode, 0);
+            return;
+        }
+        final Context app = c.getApplicationContext();
+        busy(app, Ui.tr("Conectando…", "Connecting…"));
+        new Thread(() -> {
+            try (Adb adb = Adb.connect(app, 120_000, () -> busy(app, Ui.tr("Aceite o aviso “Permitir depuração” na TV (marque “Sempre permitir”).",
+                    "Accept “Allow USB debugging?” on the TV (tick “Always allow”).")))) {
+                String out = adb.shell("appops set " + PKG + " AUTO_START allow").trim();
+                if (!out.isEmpty()) AppLog.w("AUTO_START: " + out);
+            } catch (Exception e) {
+                AppLog.w("AUTO_START: " + e.getMessage());   // the switch itself reports what went wrong
+            }
+            ModeJob.schedule(app, ModeJob.APPLY, mode, 0);
+        }, "marquise-autostart").start();
     }
 
     /** Our home screen crashed 3 times in 5 minutes: give the home screen back to the TV's own (asked by :home). */
