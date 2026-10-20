@@ -7,10 +7,17 @@ name: Release
 # published with that CHANGELOG section as the notes. Installs on top of earlier releases (same key).
 # main only takes pull requests (the "main" ruleset); this job pushes the release commit and tag with a deploy key
 # (secret RELEASE_DEPLOY_KEY), the one actor the ruleset lets through.
+# Recovery: if a run tagged a version but didn't publish it, run this workflow by hand with that version; it builds
+# the existing tag and publishes it, without planning, committing or tagging anything.
 on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      version:
+        description: "Republish an existing tag (X.Y.Z) whose release is missing; empty = the normal automatic run"
+        required: false
+        default: ""
 
 permissions:
   contents: write
@@ -21,7 +28,8 @@ concurrency:
 
 jobs:
   release:
-    if: ${{ !startsWith(github.event.head_commit.message, 'chore(release)') }}
+    # Only main: a manual run from another branch would push that branch to main through the deploy key.
+    if: ${{ github.ref == 'refs/heads/main' && !startsWith(github.event.head_commit.message, 'chore(release)') }}
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
@@ -31,10 +39,20 @@ jobs:
 
       - name: What this merge asks for
         id: plan
-        run: python3 .github/scripts/release.py plan | tee -a "$GITHUB_OUTPUT"
+        env:
+          RECOVER: ${{ inputs.version }}
+        run: |
+          if [ -n "$RECOVER" ]; then
+            [[ "$RECOVER" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::version must look like 1.6.0"; exit 1; }
+            git rev-parse -q --verify "refs/tags/v$RECOVER" > /dev/null || { echo "::error::tag v$RECOVER doesn't exist"; exit 1; }
+            git checkout -q "v$RECOVER"
+            printf 'release=true\nversion=%s\nrecover=true\n' "$RECOVER" | tee -a "$GITHUB_OUTPUT"
+          else
+            python3 .github/scripts/release.py plan | tee -a "$GITHUB_OUTPUT"
+          fi
 
       - name: Version and CHANGELOG
-        if: steps.plan.outputs.release == 'true'
+        if: steps.plan.outputs.release == 'true' && steps.plan.outputs.recover != 'true'
         run: python3 .github/scripts/release.py apply "${{ steps.plan.outputs.version }}" "${{ steps.plan.outputs.code }}"
 
       - uses: actions/setup-java@v4
@@ -61,7 +79,7 @@ jobs:
         run: ./build.sh
 
       - name: Commit and tag
-        if: steps.plan.outputs.release == 'true'
+        if: steps.plan.outputs.release == 'true' && steps.plan.outputs.recover != 'true'
         env:
           VERSION: ${{ steps.plan.outputs.version }}
         run: |
@@ -70,7 +88,7 @@ jobs:
           git add app/AndroidManifest.xml CHANGELOG.md
           git commit -m "chore(release): $VERSION"
           git tag -a "v$VERSION" -m "Marquise $VERSION"
-          git push origin HEAD:main "v$VERSION"
+          git push --atomic origin HEAD:main "v$VERSION"
 
       - name: Publish
         if: steps.plan.outputs.release == 'true'
