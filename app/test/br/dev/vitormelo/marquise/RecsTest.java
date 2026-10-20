@@ -6,6 +6,7 @@ import static br.dev.vitormelo.marquise.Tests.eq;
 final class RecsTest {
     private RecsTest() {}
 
+    /** "BR-" ratings lose their prefix; other countries' ratings come through as they are. */
     static void brazilianRatingsLoseTheirPrefix() {
         eq("16", Recs.ageRating("BR-16"));
         eq("L", Recs.ageRating("BR-L"));
@@ -14,6 +15,7 @@ final class RecsTest {
         eq("", Recs.ageRating(null));
     }
 
+    /** The franchise is whatever comes before a ":" or " - " in the title. */
     static void aFranchiseIsWhatComesBeforeTheSubtitle() {
         eq("law & order", Recs.franchise("Law & Order: Special Victims Unit"));
         eq("star wars", Recs.franchise("Star Wars - Episode IV"));

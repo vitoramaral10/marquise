@@ -6,11 +6,13 @@ import static br.dev.vitormelo.marquise.Tests.eq;
 final class JellyfinTest {
     private JellyfinTest() {}
 
+    /** A bare host or IP gets "http://" and Jellyfin's default port, trimmed and without a trailing slash. */
     static void aBareAddressGetsHttpAndJellyfinsPort() {
         eq("http://192.168.1.10:8096", Jellyfin.normalize(" 192.168.1.10 "));
         eq("http://jellyfin.local:8096", Jellyfin.normalize("jellyfin.local/"));
     }
 
+    /** A scheme, port or path typed by hand is kept as is. */
     static void aTypedSchemePortOrPathIsKept() {
         eq("https://jf.example.com", Jellyfin.normalize("https://jf.example.com/"));
         eq("http://jf.local:8920", Jellyfin.normalize("jf.local:8920"));
@@ -18,6 +20,7 @@ final class JellyfinTest {
         eq("", Jellyfin.normalize("   "));
     }
 
+    /** The authorization header only carries a Token when both a device id and a token are given. */
     static void theHeaderCarriesTheTokenOnlyWhenSignedIn() {
         eq("MediaBrowser Client=\"Marquise\", Device=\"TV\", DeviceId=\"marquise\", Version=\"" + Config.VERSION + "\"",
                 Jellyfin.authorization(null, null));

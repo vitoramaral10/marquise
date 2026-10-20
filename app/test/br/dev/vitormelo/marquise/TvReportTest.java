@@ -14,6 +14,7 @@ final class TvReportTest {
     private static final String TV = "TCL 55C735 (TCL, x55) · Android 12 (API 31) · Marquise 1.9.1";
     private static final String HOME = "home: com.tcl.launcher/.Home\nscreensaver: ?\ntuner: none";
 
+    /** A short app list fits whole, with no cut note and spaces properly percent-encoded. */
     static void aShortListGoesWhole() {
         String link = TvReport.fit("TCL 55C735", TV, HOME, Arrays.asList("com.tcl.a", "com.tcl.b"), "(cut)");
         yes(link.startsWith("https://github.com/vitoramaral10/marquise/issues/new?template=tv_support.yml&title="), link);
@@ -22,6 +23,7 @@ final class TvReportTest {
         yes(!link.contains("+"), "spaces as %20, not +");
     }
 
+    /** A long app list is cut from the end until the link fits MAX_URL, keeping the first apps and a cut note. */
     static void aLongListIsCutToFit() {
         List<String> apps = new ArrayList<>();
         for (int i = 0; i < 80; i++) apps.add("com.maker.app" + i);
@@ -33,6 +35,7 @@ final class TvReportTest {
         eq(80, apps.size());
     }
 
+    /** Even when the link is still too long, the cut never drops the list below three apps. */
     static void neverUnderThreeApps() {
         List<String> apps = new ArrayList<>();
         for (int i = 0; i < 5; i++) apps.add("com.maker." + new String(new char[120]).replace('\0', 'x') + i);

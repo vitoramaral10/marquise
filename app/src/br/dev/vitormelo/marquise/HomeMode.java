@@ -426,6 +426,7 @@ final class HomeMode {
         return d.contains("/") && !d.startsWith(PKG + "/") ? d : "";
     }
 
+    /** The package in a "package/activity" component, or the string itself without a slash; null for empty. */
     static String packageOf(String component) {
         if (component == null || component.isEmpty()) return null;
         int slash = component.indexOf('/');

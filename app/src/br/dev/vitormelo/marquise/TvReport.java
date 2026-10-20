@@ -85,6 +85,7 @@ final class TvReport {
         return off == null ? 0 : off.length();
     }
 
+    /** The issue link's URL, with these fields percent-encoded into the form's query parameters. */
     private static String link(String brandModel, String tv, String home, String packages, String notes) {
         return NEW_ISSUE + "&title=" + enc("Support for my TV: " + brandModel) + "&tv=" + enc(tv) + "&home=" + enc(home)
                 + "&packages=" + enc(packages) + (notes.isEmpty() ? "" : "&notes=" + enc(notes));

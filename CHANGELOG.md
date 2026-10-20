@@ -5,6 +5,12 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.9.2] - 2026-10-20
+
+### Fixed
+
+- CodeRabbit auto-fixes for PR #15 (#17).
+
 ## [1.9.1] - 2026-10-20
 
 ### Fixed
