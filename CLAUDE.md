@@ -9,9 +9,10 @@ before you do it, and let them do the taps on the TV.
 
 ## Installing it for someone
 
-The quick way needs no computer: USB debugging on, Downloader from the Play Store, the release APK
-(`github.com/vitoramaral10/marquise/releases/latest/download/marquise.apk`), then Marquise's own setup on the TV
-(server found on the network, Quick Connect, city). The steps below are for building it yourself.
+The quick way needs no computer and is the page in `docs/` (GitHub Pages, vitoramaral10.github.io/marquise): USB
+debugging on, Downloader from the Play Store, the page's download button (the release APK,
+`github.com/vitoramaral10/marquise/releases/latest/download/marquise.apk`), then Marquise's own setup on the TV (TMDB
+or Jellyfin, city). The steps below are for building it yourself.
 
 1. **Ask** for the TV's IP address, their Jellyfin address (as the TV reaches it) and their city, if they didn't say.
 2. **Tools:** a JDK 17+, the Android SDK command-line tools (build-tools 34+, platform android-34), adb and zip. Check
@@ -29,10 +30,10 @@ The quick way needs no computer: USB debugging on, Downloader from the Play Stor
    except the posters. `jellyfin_user` picks whose libraries show (empty = the first user).
 5. **Build:** `./build.sh` → `marquise.apk`. Keep `marquise.keystore`: updates must be signed with the same key.
 6. **Install:** `adb connect <IP>:5555`. The TV asks *Allow USB debugging?*: tell them to accept and tick *Always
-   allow*. Then `adb install -r marquise.apk`. On TCL TVs that have `TclAppBoot`, also
-   `adb shell appops set br.dev.vitormelo.marquise AUTO_START allow` (it blocks background jobs by default, so the
-   switch and the watchdog never run; the log shows `forbid bind service ... ModeJob`). TVs without it answer
-   "Unknown operation string": that's fine.
+   allow*. Then `adb install -r marquise.apk`. On TCL TVs that have `TclAppBoot` (it blocks
+   background jobs by default; the log shows `forbid bind service ... ModeJob`), `HomeMode.request` runs
+   `appops set br.dev.vitormelo.marquise AUTO_START allow` itself, from the app on screen, before switching on. TVs
+   without it answer "Unknown operation string": that's fine.
 7. **Tell them what the switch does** before they make it: the home screen and screensaver change, a short list of
    promo apps is turned off (never uninstalled), and *Original* brings it all back. On some TVs the remote's shortcut
    buttons belong to the stock home screen (TCL: Netflix, YouTube, Prime), so they rest while Marquise is on.

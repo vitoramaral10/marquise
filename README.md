@@ -45,21 +45,20 @@ No computer needed.
 
 ## Install
 
-About five minutes, all with the remote.
+About five minutes, all with the remote. A step-by-step page with pictures (in Portuguese), to send to anyone:
+**[vitoramaral10.github.io/marquise](https://vitoramaral10.github.io/marquise)**.
 
 1. **Turn on USB debugging.** *Settings → System → About →* press *Android TV OS build* 7 times. Then *Settings →
    System → Developer options →* turn on **USB debugging**. (Marquise uses it to switch the Home screen and turn off
    the promo apps; Android has no other way.)
 2. **Install Downloader** from the Play Store (by AFTVnews). Open it and allow it to install apps when asked.
-3. **In Downloader, type** `github.com/vitoramaral10/marquise/releases/latest/download/marquise.apk` and install.
-4. **Open Marquise.** A short setup finds your Jellyfin server on the network, signs you in with **Quick Connect**
-   (a code you approve on your phone, in Jellyfin → your profile → Quick Connect) or your user name and password, and
-   asks for your city. Then **Switch Marquise on**, and accept the TV's debugging prompt (tick *Always allow*).
+3. **In Downloader, type** `vitoramaral10.github.io/marquise`, press *Baixar o Marquise* (download) and install.
+4. **Open Marquise.** A short setup asks where the movies and shows come from: **TMDB** (popular on your streaming
+   apps, with your own free key) or your **Jellyfin** server, which it finds on the network and signs in to with
+   **Quick Connect** (a code you approve on your phone) or a user name and password. Then your city. Then **Switch Marquise on**, and accept the TV's debugging prompt (tick *Always allow*).
 
 Updates: Marquise's settings show *Update — version X available*; press OK and confirm (the first time, Android asks
-to allow Marquise to install apps). Installing the new APK with Downloader, on top of the old one, works too. On some
-TCL TVs, Marquise also needs to run in the background: from a computer,
-`adb shell appops set br.dev.vitormelo.marquise AUTO_START allow`.
+to allow Marquise to install apps). Installing the new APK with Downloader, on top of the old one, works too.
 
 ### Build it yourself
 

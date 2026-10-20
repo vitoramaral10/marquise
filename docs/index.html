@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Marquise · Instalar na sua TV</title>
+<meta name="description" content="O Início que mostra seus filmes e séries: instale o Marquise na sua Google TV ou Android TV em poucos minutos, só com o controle.">
+<link rel="icon" href="img/icon.png">
+<meta property="og:title" content="Marquise · Instalar na sua TV">
+<meta property="og:description" content="Seus filmes e séries no Início da Google TV, sem anúncios. Instale com o controle em poucos minutos.">
+<meta property="og:image" content="https://vitoramaral10.github.io/marquise/img/home.jpg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --velvet-top: #7a1830; --velvet-bottom: #280e2e; --ink: #1c1c1e;
+    --cream: #fff4e2; --cream-2: rgba(255, 244, 226, .78); --cream-3: rgba(255, 244, 226, .56);
+    --amber: #ffc266; --card: rgba(255, 255, 255, .06); --line: rgba(255, 244, 226, .14);
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  html { background: var(--velvet-bottom); }
+  body {
+    margin: 0; color: var(--cream); line-height: 1.55; font-size: 17px;
+    font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: radial-gradient(1200px 600px at 50% -10%, rgba(255, 194, 102, .16), transparent 70%),
+                linear-gradient(180deg, var(--velvet-top) 0, var(--velvet-bottom) 900px, #1a0a1e 100%);
+    background-color: var(--velvet-bottom);
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+  }
+  main { max-width: 980px; margin: 0 auto; padding-block: 40px 64px; }
+  a { color: var(--amber); }
+  h1, h2, h3 { line-height: 1.2; text-wrap: balance; margin: 0; }
+  h2 { font-size: clamp(26px, 4vw, 34px); font-weight: 700; margin-bottom: 8px; }
+  h3 { font-size: 20px; font-weight: 600; }
+  p { margin: 0; }
+  .lede { color: var(--cream-2); max-width: 62ch; }
+
+  /* Hero */
+  .hero { display: grid; gap: 28px; text-align: center; justify-items: center; }
+  .brand { display: flex; align-items: center; gap: 14px; }
+  .brand img { width: 64px; height: 64px; border-radius: 16px; box-shadow: 0 8px 30px rgba(0, 0, 0, .4); }
+  .brand span { font-size: 30px; font-weight: 700; letter-spacing: -.01em; }
+  .hero h1 { font-size: clamp(32px, 6vw, 54px); font-weight: 700; letter-spacing: -.02em; max-width: 16ch; }
+  .shot { width: 100%; max-width: 100%; border-radius: 18px; box-shadow: 0 30px 80px rgba(0, 0, 0, .55), 0 0 0 1px var(--line); }
+  .cta { display: flex; flex-wrap: wrap; gap: 14px; justify-content: center; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 10px; padding: 16px 28px; border-radius: 16px;
+    font-weight: 600; font-size: 19px; text-decoration: none; color: var(--ink); background: var(--cream);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, .35); transition: transform .15s ease, box-shadow .15s ease;
+  }
+  .btn.ghost { background: transparent; color: var(--cream); box-shadow: inset 0 0 0 2px var(--line); }
+  .btn:hover, .btn:focus-visible { transform: translateY(-2px) scale(1.03); box-shadow: 0 16px 40px rgba(0, 0, 0, .45); }
+  a:focus-visible, .btn:focus-visible { outline: 4px solid var(--amber); outline-offset: 4px; }
+  .code {
+    display: grid; gap: 6px; justify-items: center; padding: 18px 26px; border-radius: 18px;
+    background: var(--card); box-shadow: inset 0 0 0 1px var(--line);
+  }
+  .code small { color: var(--cream-3); font-size: 13px; letter-spacing: .14em; text-transform: uppercase; font-weight: 600; }
+  .code b { font-size: clamp(30px, 6vw, 44px); letter-spacing: .08em; color: var(--amber); font-weight: 700; font-variant-numeric: tabular-nums; }
+  .code b.url { font-size: clamp(18px, 3.4vw, 26px); letter-spacing: 0; word-break: break-all; }
+
+  section { margin-top: 72px; }
+
+  /* Steps */
+  .steps { list-style: none; padding: 0; margin: 28px 0 0; display: grid; gap: 16px; counter-reset: step; }
+  .step {
+    display: grid; grid-template-columns: 56px minmax(0, 1fr); gap: 18px; padding: 22px; border-radius: 20px;
+    background: var(--card); box-shadow: inset 0 0 0 1px var(--line);
+  }
+  .step::before {
+    counter-increment: step; content: counter(step); display: grid; place-items: center;
+    width: 56px; height: 56px; border-radius: 50%; background: var(--amber); color: var(--ink);
+    font-weight: 700; font-size: 24px;
+  }
+  .step > div { display: grid; gap: 8px; min-width: 0; }
+  .step p { color: var(--cream-2); }
+  .path { font-weight: 600; color: var(--cream); }
+  .why { font-size: 15px; color: var(--cream-3) !important; }
+  .step img { margin-top: 8px; width: 100%; max-width: 520px; border-radius: 12px; box-shadow: 0 0 0 1px var(--line); }
+  kbd {
+    font: inherit; font-weight: 600; padding: 1px 8px; border-radius: 7px; background: rgba(255, 255, 255, .1);
+    box-shadow: inset 0 -2px 0 rgba(0, 0, 0, .3); white-space: nowrap;
+  }
+
+  /* Features and FAQ */
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-top: 24px; }
+  .tile { padding: 22px; border-radius: 20px; background: var(--card); box-shadow: inset 0 0 0 1px var(--line); display: grid; gap: 8px; align-content: start; }
+  .tile p { color: var(--cream-2); font-size: 16px; }
+  figure { margin: 24px 0 0; }
+  figcaption { margin-top: 10px; color: var(--cream-3); font-size: 14px; text-align: center; }
+  details { border-radius: 16px; background: var(--card); box-shadow: inset 0 0 0 1px var(--line); padding: 18px 22px; }
+  details + details { margin-top: 12px; }
+  summary { cursor: pointer; font-weight: 600; font-size: 18px; }
+  details p { margin-top: 10px; color: var(--cream-2); }
+  .faq { margin-top: 24px; }
+
+  footer { margin-top: 80px; padding-top: 24px; border-top: 1px solid var(--line); color: var(--cream-3); font-size: 14px; display: grid; gap: 8px; }
+
+  @media (max-width: 560px) {
+    body { font-size: 16px; }
+    .step { grid-template-columns: minmax(0, 1fr); }
+    .step::before { width: 44px; height: 44px; font-size: 20px; }
+    .btn { width: 100%; justify-content: center; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <header class="hero">
+    <div class="brand"><img src="img/icon.png" alt="" width="64" height="64"><span>Marquise</span></div>
+    <h1>Seus filmes e séries no Início da TV</h1>
+    <p class="lede">Um Início para Google TV e Android TV sem anúncios nem fileiras patrocinadas: o que está em alta nos
+      seus streamings (ou o que chegou no seu Jellyfin), seus apps nas cores de cada marca, a hora e o clima. Grátis e
+      de código aberto.</p>
+    <div class="cta">
+      <a class="btn" href="https://github.com/vitoramaral10/marquise/releases/latest/download/marquise.apk" id="baixar">⬇ Baixar o Marquise</a>
+      <a class="btn ghost" href="#instalar">Como instalar</a>
+    </div>
+    <div class="code" id="code">
+      <small>No app Downloader da TV, digite</small>
+      <b class="url" id="code-value">vitoramaral10.github.io/marquise</b>
+    </div>
+    <img class="shot" src="img/home.jpg" alt="O Início do Marquise: saudação com a hora e o clima, seis pôsteres em alta na Netflix, no Prime Video e no Disney+, e a fileira de apps" width="1600" height="900">
+  </header>
+
+  <section id="instalar">
+    <h2>Instalar em 4 passos</h2>
+    <p class="lede">Uns cinco minutos, só com o controle. Funciona em TVs com Google TV ou Android TV, Android 12 ou mais
+      novo (TCL, Sony, Philips, Hisense, Chromecast com Google TV…).</p>
+    <ol class="steps">
+      <li class="step"><div>
+        <h3>Ative a depuração da TV</h3>
+        <p>Na TV, vá em <span class="path">Configurações → Sistema → Sobre</span> e aperte <kbd>OK</kbd> 7 vezes em
+          <span class="path">Build do Android TV OS</span>, até aparecer “Você é um desenvolvedor”. Depois, em
+          <span class="path">Configurações → Sistema → Opções do desenvolvedor</span>, ligue a
+          <span class="path">Depuração USB</span>.</p>
+        <p class="why">Por quê: é assim que o Marquise troca o Início e desliga os apps de propaganda sem root. Tudo
+          volta ao normal quando você quiser.</p>
+      </div></li>
+      <li class="step"><div>
+        <h3>Instale o Downloader</h3>
+        <p>Na Play Store da TV, procure <span class="path">Downloader</span> (o da AFTVnews, ícone laranja) e instale.
+          Ao abrir, permita que ele instale apps quando pedir.</p>
+      </div></li>
+      <li class="step"><div>
+        <h3>Baixe o Marquise</h3>
+        <p>No Downloader, digite <span class="path" id="code-step">vitoramaral10.github.io/marquise</span> e aperte
+          <span class="path">Go</span>. Nesta página, aperte <span class="path">Baixar o Marquise</span> e depois
+          <span class="path">Instalar</span>.</p>
+      </div></li>
+      <li class="step"><div>
+        <h3>Abra o Marquise e siga o setup</h3>
+        <p>Escolha de onde vêm os filmes e séries: o <span class="path">TMDB</span> (em alta nos seus streamings) ou o
+          seu <span class="path">Jellyfin</span>. Depois a sua cidade e <span class="path">Ativar o Marquise</span>.
+          A TV pergunta “Permitir depuração USB?”: marque <span class="path">Sempre permitir</span> e confirme.</p>
+        <img src="img/titulos.jpg" alt="Setup do Marquise: escolha entre Jellyfin (o que chegou no seu servidor) e TMDB (em alta nos seus streamings)" width="640" height="360" loading="lazy">
+      </div></li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>O que vem junto</h2>
+    <div class="grid">
+      <div class="tile"><h3>Abre no streaming certo</h3><p>Cada pôster diz onde passa (Netflix, Prime Video, Disney+,
+        Max, Globoplay…) e abre direto no app.</p></div>
+      <div class="tile"><h3>Seus apps, do seu jeito</h3><p>Segure <kbd>OK</kbd> num app para mover, tirar ou
+        desinstalar. Cada um com a cor da marca.</p></div>
+      <div class="tile"><h3>Hora e clima</h3><p>No topo, e a previsão das próximas horas logo abaixo. Claro de dia,
+        escuro depois do pôr do sol.</p></div>
+      <div class="tile"><h3>Atualiza sozinho</h3><p>Quando sai versão nova, as configurações avisam e um <kbd>OK</kbd>
+        instala.</p></div>
+    </div>
+    <figure>
+      <img class="shot" src="img/galeria.jpg" alt="A tela de descanso Galeria: uma pintura de Monet emoldurada, sob um spot, com a legenda do museu e a hora" width="1600" height="900" loading="lazy">
+      <figcaption>A tela de descanso Galeria: pinturas em domínio público do Art Institute of Chicago.</figcaption>
+    </figure>
+  </section>
+
+  <section>
+    <h2>Perguntas</h2>
+    <div class="faq">
+      <details><summary>Dá para voltar ao Início original?</summary>
+        <p>Sim. No Marquise, <span class="path">Configurações → Início → Original</span>. O Início de fábrica, a tela de
+          descanso e todos os apps voltam como estavam. Nada é desinstalado.</p></details>
+      <details><summary>Como pego a chave do TMDB?</summary>
+        <p>É grátis. Crie uma conta em <a href="https://www.themoviedb.org/signup">themoviedb.org</a>, vá em
+          <span class="path">Configurações → API</span>, peça uma chave e copie a “Chave da API”. Para não digitar tudo
+          com o controle, use o app Google TV no celular: ele tem teclado e dá para colar.</p></details>
+      <details><summary>Precisa de root ou de computador?</summary>
+        <p>Não. Só a depuração da TV ligada (passo 1), que o próprio Marquise usa de dentro da TV.</p></details>
+      <details><summary>É seguro? Ele coleta algo?</summary>
+        <p>Não tem conta, propaganda nem rastreamento. Ele só fala com o TMDB ou o seu Jellyfin, com o Open-Meteo para
+          o clima, com o museu para as pinturas e com o GitHub para atualizações. O código é aberto
+          (<a href="https://github.com/vitoramaral10/marquise">GitHub</a>).</p></details>
+      <details><summary>E se der algum problema?</summary>
+        <p>Se o Marquise travar, a TV volta sozinha para o Início original. Para relatar algo, abra uma
+          <a href="https://github.com/vitoramaral10/marquise/issues">issue no GitHub</a>.</p></details>
+    </div>
+  </section>
+
+  <footer>
+    <p>Marquise · © 2026 vitoramaral10 · <a href="https://github.com/vitoramaral10/marquise/blob/main/LICENSE">GPL-3.0</a> ·
+      <a href="https://github.com/vitoramaral10/marquise">código no GitHub</a> ·
+      <a href="https://github.com/vitoramaral10/marquise#readme">in English</a></p>
+    <p>Este produto usa a API do TMDB, mas não é endossado nem certificado pelo TMDB. Disponibilidade nos streamings
+      pelo JustWatch. Não é afiliado ao Google, à TCL nem a nenhum streaming; nomes e logos pertencem aos donos.</p>
+  </footer>
+</main>
+</body>
+</html>

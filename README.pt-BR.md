@@ -45,21 +45,21 @@ Não precisa de computador.
 
 ## Instalar
 
-Uns cinco minutos, tudo pelo controle.
+Uns cinco minutos, tudo pelo controle. O passo a passo com imagens, para mandar para quem nunca fez isso:
+**[vitoramaral10.github.io/marquise](https://vitoramaral10.github.io/marquise)**.
 
 1. **Ative a Depuração USB.** *Configurações → Sistema → Sobre →* aperte 7 vezes em *Build do Android TV OS*. Depois
    *Configurações → Sistema → Opções do desenvolvedor →* ative **Depuração USB**. (O Marquise usa isso para trocar o
    Início e desligar os apps de propaganda; o Android não tem outro caminho.)
 2. **Instale o Downloader** pela Play Store (da AFTVnews). Abra e permita que ele instale apps quando pedir.
-3. **No Downloader, digite** `github.com/vitoramaral10/marquise/releases/latest/download/marquise.apk` e instale.
-4. **Abra o Marquise.** Uma configuração rápida acha seu servidor Jellyfin na rede, faz o login por **Quick Connect**
-   (um código que você aprova no celular, em Jellyfin → seu perfil → Quick Connect) ou com usuário e senha, e pergunta
-   sua cidade. Depois é só **Ativar o Marquise** e aceitar o aviso de depuração da TV (marque *Sempre permitir*).
+3. **No Downloader, digite** `vitoramaral10.github.io/marquise`, aperte *Baixar o Marquise* e instale.
+4. **Abra o Marquise.** Uma configuração rápida pergunta de onde vêm os filmes e séries: o **TMDB** (em alta nos seus
+   streamings, com a sua chave grátis) ou o seu **Jellyfin**, que ela acha na rede e onde entra por **Quick Connect**
+   (um código que você aprova no celular) ou com usuário e senha. Depois, sua cidade. Depois é só **Ativar o Marquise** e aceitar o aviso de depuração da TV (marque *Sempre permitir*).
 
 Atualizações: as configurações do Marquise mostram *Atualização — Versão X disponível*; aperte OK e confirme (na
 primeira vez, o Android pede para permitir que o Marquise instale apps). Instalar o APK novo pelo Downloader, por cima
-do antigo, também funciona. Em algumas TVs TCL, o Marquise também precisa rodar em segundo plano: de um computador,
-`adb shell appops set br.dev.vitormelo.marquise AUTO_START allow`.
+do antigo, também funciona.
 
 ### Compilar você mesmo
 
