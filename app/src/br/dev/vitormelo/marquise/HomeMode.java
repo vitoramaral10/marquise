@@ -233,13 +233,7 @@ final class HomeMode {
             }
             busy(c, Ui.tr("Devolvendo o Início original…", "Restoring the original home screen…"));
             boolean homeOk = restoreHome(adb, home);
-            String chosen = s.optString("originalDreamSetting", "");
-            if (chosen.matches("[A-Za-z0-9._$/,]+") && chosen.contains("/")) {
-                // Quoted: a component can be an inner class ("…$Dream"), and the shell would expand the "$".
-                adb.shell("settings put secure screensaver_components '" + chosen + "'");
-            } else {
-                adb.shell("settings delete secure screensaver_components");
-            }
+            adb.shell(restoreDreamCommand(s.optString("originalDreamSetting", "")));
             s = state(c);
             s.remove("originalDreamSetting");   // back to the person's own: the next switch records it again
             s.put("mode", ORIGINAL).put("since", System.currentTimeMillis()).put("homeReverted", false)
@@ -262,6 +256,17 @@ final class HomeMode {
     }
 
     /** The recorded home screen; without one, Google TV's; without that, the system picks (we leave the role). */
+    /**
+     * The shell command that puts back the screensaver the person had chosen: only a component list goes in, quoted
+     * (a component can be an inner class, "…$Dream", and the shell would expand the "$"); anything else, the default.
+     */
+    static String restoreDreamCommand(String chosen) {
+        if (chosen.matches("[A-Za-z0-9._$/,]+") && chosen.contains("/")) {
+            return "settings put secure screensaver_components '" + chosen + "'";
+        }
+        return "settings delete secure screensaver_components";
+    }
+
     private static boolean restoreHome(Adb adb, String home) throws IOException {
         // The recorded home was another launcher that has since been uninstalled: Google TV's comes back instead.
         if (!home.isEmpty() && !adb.shell("pm path " + packageOf(home)).contains("package:")) home = "";
@@ -360,7 +365,7 @@ final class HomeMode {
     }
 
     /** What to turn off: the TV's own home screen and screensaver, Google TV's recovery home, and the lists above. */
-    private static List<String> targets(String home, String dream) {
+    static List<String> targets(String home, String dream) {
         List<String> out = new ArrayList<>();
         String homePkg = packageOf(home);
         if (homePkg != null && !homePkg.equals(PKG)) out.add(homePkg);
@@ -411,7 +416,7 @@ final class HomeMode {
      * Some TVs (TCL, Android 14) leave the HOME role with Google TV's recovery home, while launcherx is the one that
      * answers the Home button. Treat that as launcherx, or it stays on and "original" restores the recovery screen.
      */
-    private static String realHome(String home) {
+    static String realHome(String home) {
         return home.startsWith(GOOGLE_SETUP + "/") ? GOOGLE_HOME : home;
     }
 
@@ -421,7 +426,7 @@ final class HomeMode {
         return d.contains("/") && !d.startsWith(PKG + "/") ? d : "";
     }
 
-    private static String packageOf(String component) {
+    static String packageOf(String component) {
         if (component == null || component.isEmpty()) return null;
         int slash = component.indexOf('/');
         return slash > 0 ? component.substring(0, slash) : component;

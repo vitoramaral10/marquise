@@ -29,7 +29,10 @@ jobs:
       - name: Android SDK packages
         run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "build-tools;34.0.0" "platforms;android-34" > /dev/null
 
-      - name: Build
+      - name: Release script tests
+        run: python3 -m unittest discover -s .github/scripts
+
+      - name: Build and unit tests
         run: ./build.sh
 
       - uses: actions/upload-artifact@v7
