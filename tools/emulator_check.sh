@@ -23,7 +23,7 @@ shot() { e exec-out screencap -p > "$OUT/$1.png"; }
 top() { run dumpsys activity activities | grep -m1 topResumedActivity || true; }
 home() { run cmd package resolve-activity --brief --user 0 -a android.intent.action.MAIN -c android.intent.category.HOME | tail -1; }
 disabled() { run pm list packages -d | sed 's/^package://' | sort; }
-fail() { echo "FAIL: $*"; shot failure; e logcat -d > "$OUT/logcat.txt"; exit 1; }
+fail() { echo "FAIL: $*"; shot failure || true; e logcat -d > "$OUT/logcat.txt" || true; exit 1; }   # diagnostics even if adb is gone
 step() { echo "== $*"; }
 
 # Settings → Home → Marquise (UP) or Original (DOWN), with the remote's keys. The settings are drawn on a canvas,
