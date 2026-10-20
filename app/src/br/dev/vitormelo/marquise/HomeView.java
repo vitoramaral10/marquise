@@ -1778,15 +1778,17 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
             it = lightButtons.get(topIndex - 3);
             r = topRects[topIndex];
         } else if (zone == Z_CARDS) {
-            if (cards.isEmpty()) {   // "Connect your Jellyfin": the setup, on its server step
+            if (cards.isEmpty()) {   // nothing to show yet: the setup, on choosing where the posters come from
+                if (Recs.hasKey(getContext()) && Recs.tmdb(getContext())) return;   // TMDB set: fetching, or no apps
                 activity.startActivity(new android.content.Intent(activity, SetupActivity.class)
-                        .putExtra(SetupActivity.EXTRA_STEP, SetupActivity.STEP_SERVER));
+                        .putExtra(SetupActivity.EXTRA_STEP, SetupActivity.STEP_SOURCE));
                 return;
             }
             Recs.Pick p = cardIndex < cards.size() ? cards.get(cardIndex) : null;
             if (p == null || p.pkg == null) return;
             it = HomeApps.app(p.pkg, Recs.serviceName(p));
-            it.itemId = p.itemId;
+            if (Recs.JELLYFIN_PKG.equals(p.pkg)) it.itemId = p.itemId;
+            it.uri = p.uri;
             r = cardRects[cardIndex];
         } else {
             if (shelf.isEmpty()) return;
@@ -2032,7 +2034,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
             bulb = new Paint(Paint.ANTI_ALIAS_FLAG);
             bulb.setColor(0xFFFFD68C);
         }
-        boolean ready = Prefs.jellyfinReady(getContext());
+        boolean ready = Recs.hasKey(getContext()), tmdb = Recs.tmdb(getContext());
         float v = cardFocus[0].value, f = Ui.clamp(v), s = 1 + 0.02f * v;
         float left = MARGIN * k, right = CONTENT_R * k, top = L_CARDS_TOP * k, bottom = top + L_POSTER_H * k;
         float cx = (left + right) / 2, cy = (top + bottom) / 2, w = (right - left) * s, h = (bottom - top) * s;
@@ -2053,10 +2055,16 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
             c.drawCircle(x0 + i * step, cell.bottom - inset, br, bulb);
         }
         if (f > 0.01f) c.drawRoundRect(cell, r, r, placed(rim, cardRim, cell, f));
-        String title = ready ? Ui.tr("Buscando os títulos…", "Fetching titles…") : Ui.tr("Conecte seu Jellyfin", "Connect your Jellyfin");
-        String body = ready ? Ui.tr("Os pôsteres do que chegou no seu servidor aparecem aqui.", "Posters of what just arrived on your server show up here.")
-                : Ui.tr("Aperte OK para escolher o servidor e entrar.", "Press OK to pick your server and sign in.");
+        String error = ready ? recs.error() : "";
+        String title = !error.isEmpty() ? Ui.tr("Nada para mostrar agora", "Nothing to show right now")
+                : ready ? Ui.tr("Buscando os títulos…", "Fetching titles…") : Ui.tr("Escolha seus títulos", "Choose your titles");
+        String body = !error.isEmpty() ? error.substring(0, 1).toUpperCase(java.util.Locale.ROOT) + error.substring(1)
+                : !ready ? Ui.tr("Aperte OK para conectar o Jellyfin ou o TMDB.", "Press OK to connect Jellyfin or TMDB.")
+                : tmdb ? Ui.tr("O que está em alta nos seus streamings aparece aqui.", "What's popular on your streaming apps shows up here.")
+                : Ui.tr("Os pôsteres do que chegou no seu servidor aparecem aqui.", "Posters of what just arrived on your server show up here.");
         c.drawText(title, cell.centerX(), cell.centerY() - 6 * k, emptyTitle);
+        body = android.text.TextUtils.ellipsize(body, new android.text.TextPaint(emptyBody), cell.width() - 120 * k,
+                android.text.TextUtils.TruncateAt.END).toString();
         c.drawText(body, cell.centerX(), cell.centerY() + 46 * k, emptyBody);
     }
 

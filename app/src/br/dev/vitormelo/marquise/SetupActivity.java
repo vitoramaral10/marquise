@@ -19,6 +19,7 @@ import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.ScrollView;
 import android.widget.TextView;
 
 import org.json.JSONArray;
@@ -34,15 +35,17 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /**
- * The first run, on the TV, with the remote: the Jellyfin server (found on the network or typed), signing in (Quick
- * Connect: a code approved on the phone; or a user name and password), the city, and switching Marquise on. Also opened
- * from the settings to change the server or the city. Standard views here (unlike the hand-drawn home screen) so typing
+ * The first run, on the TV, with the remote: where the posters come from, then either the Jellyfin server (found on the
+ * network or typed) and signing in (Quick Connect: a code approved on the phone; or a user name and password), or a
+ * TMDB key and a country; then the city, and switching Marquise on. Also opened from the settings to change the source
+ * or the city. Standard views here (unlike the hand-drawn home screen) so typing
  * brings up the TV's own keyboard.
  */
 public class SetupActivity extends Activity {
     static final String EXTRA_STEP = "step";
-    static final String STEP_SERVER = "server", STEP_CITY = "city";
-    private static final int WELCOME = 0, SERVER = 1, MANUAL = 2, LOGIN = 3, PASSWORD = 4, CITY = 5, DONE = 6;
+    static final String STEP_SOURCE = "source", STEP_SERVER = "server", STEP_CITY = "city";
+    private static final int WELCOME = 0, SERVER = 1, MANUAL = 2, LOGIN = 3, PASSWORD = 4, CITY = 5, DONE = 6, SOURCE = 7,
+            TMDB_KEY = 8, COUNTRY = 9;
     private static final int VELVET_TOP = 0xFF7A1830, VELVET_BOTTOM = 0xFF280E2E, CREAM = 0xFFFFF4E2, INK = 0xFF1C1C1E;
 
     private final Handler main = new Handler(Looper.getMainLooper());
@@ -53,6 +56,7 @@ public class SetupActivity extends Activity {
     private volatile int token;          // token: bumped on every screen change, so late answers are dropped
     private boolean single;              // opened for one step from the settings: back there when it's done
     private String server = "", serverName = "", qcSecret;
+    private boolean fromSource;          // the Jellyfin or TMDB steps came from choosing the source: back goes there
 
     @Override protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -85,7 +89,8 @@ public class SetupActivity extends Activity {
 
         String start = getIntent().getStringExtra(EXTRA_STEP);
         single = start != null;
-        if (STEP_SERVER.equals(start)) showServer();
+        if (STEP_SOURCE.equals(start)) showSource();
+        else if (STEP_SERVER.equals(start)) showServer();
         else if (STEP_CITY.equals(start)) showCity();
         else showWelcome();
     }
@@ -105,8 +110,13 @@ public class SetupActivity extends Activity {
         if (e.getKeyCode() == KeyEvent.KEYCODE_BACK && e.getAction() == KeyEvent.ACTION_UP && !e.isCanceled()) {
             switch (step) {
                 case MANUAL: showServer(); return true;
-                case LOGIN: case PASSWORD: if (!single) { showServer(); return true; } break;
-                case CITY: if (!single && Prefs.jellyfinReady(this)) { showLogin(); return true; } break;
+                case SERVER: case TMDB_KEY: if (fromSource) { showSource(); return true; } break;
+                case COUNTRY: showSource(); return true;
+                case LOGIN: case PASSWORD: if (!single || fromSource) { showServer(); return true; } break;
+                case CITY:
+                    if (single) break;
+                    if (Recs.tmdb(this)) showCountry(); else if (Prefs.jellyfinReady(this)) showLogin(); else showSource();
+                    return true;
                 default: break;
             }
         }
@@ -118,9 +128,109 @@ public class SetupActivity extends Activity {
     private void showWelcome() {
         begin(WELCOME);
         title(Ui.tr("Vamos deixar sua TV pronta", "Let's get your TV ready"));
-        body(Ui.tr("Três passos: seu servidor Jellyfin, sua conta e sua cidade. Leva um minuto.",
-                "Three steps: your Jellyfin server, your account and your city. It takes a minute."));
-        button(Ui.tr("Começar", "Start"), this::showServer).requestFocus();
+        body(Ui.tr("Três passos: de onde vêm os filmes e séries (seu Jellyfin ou o TMDB), a conta e sua cidade. Leva um minuto.",
+                "Three steps: where the movies and shows come from (your Jellyfin or TMDB), the account and your city. It takes a minute."));
+        button(Ui.tr("Começar", "Start"), this::showSource).requestFocus();
+    }
+
+    /** Jellyfin (what was added to your server) or TMDB (what's popular on your streaming apps). */
+    private void showSource() {
+        begin(SOURCE);
+        fromSource = true;
+        title(Ui.tr("Seus filmes e séries", "Your movies and shows"));
+        body(Ui.tr("De onde vêm os pôsteres do Início?", "Where do the Home posters come from?"));
+        boolean tmdb = Recs.tmdb(this);
+        View jellyfin = button(Ui.tr("Jellyfin · o que chegou no seu servidor", "Jellyfin · what arrived on your server"), () -> {
+            Prefs.saveSource(this, Prefs.JELLYFIN);
+            if (single && Prefs.jellyfinReady(this)) finishStep(); else showServer();
+        });
+        View popular = button(Ui.tr("TMDB · em alta nos seus streamings", "TMDB · popular on your streaming apps"), () -> {
+            if (Prefs.tmdbReady(this)) {
+                Prefs.saveSource(this, Prefs.TMDB);
+                showCountry();
+            } else {
+                showTmdbKey();
+            }
+        });
+        (tmdb ? popular : jellyfin).requestFocus();
+        if (Prefs.tmdbReady(this)) button(Ui.tr("Trocar a chave do TMDB", "Change the TMDB key"), this::showTmdbKey);
+    }
+
+    /** The person's own TMDB key: free, made on themoviedb.org; checked with TMDB before it's kept. */
+    private void showTmdbKey() {
+        begin(TMDB_KEY);
+        title(Ui.tr("Sua chave do TMDB", "Your TMDB key"));
+        final TextView status = body(Ui.tr("É grátis: em themoviedb.org, entre na sua conta → Configurações → API, crie uma chave "
+                        + "e digite a “Chave da API” aqui. O app Google TV no celular tem teclado para colar.",
+                "It's free: on themoviedb.org, sign in → Settings → API, create a key and type the “API Key” here. "
+                        + "The Google TV app on your phone has a keyboard to paste it."));
+        final EditText input = input(Ui.tr("Chave da API", "API key"),
+                InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD | InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
+        final int t = token;
+        Runnable go = () -> {
+            String key = input.getText().toString().replaceAll("\\s+", "");
+            if (key.isEmpty()) return;
+            status.setText(Ui.tr("Conferindo com o TMDB…", "Checking with TMDB…"));
+            io.execute(() -> {
+                try {
+                    Tmdb.check(key);
+                    main.post(() -> {
+                        if (t != token) return;
+                        Prefs.saveTmdb(this, key);
+                        Prefs.saveSource(this, Prefs.TMDB);
+                        showCountry();
+                    });
+                } catch (Exception e) {
+                    main.post(() -> { if (t == token) status.setText(Ui.tr("Não deu: ", "Couldn't: ") + e.getMessage()); });
+                }
+            });
+        };
+        onDone(input, go);
+        button(Ui.tr("Continuar", "Continue"), go);
+        TextView credit = body(Ui.tr("Este produto usa a API do TMDB, mas não é endossado nem certificado pelo TMDB.",
+                "This product uses the TMDB API but is not endorsed or certified by TMDB."));
+        credit.setTextSize(TypedValue.COMPLEX_UNIT_PX, 21 * k);
+        credit.setTextColor(0x80FFF4E2);
+        input.requestFocus();
+    }
+
+    /** The country whose streaming catalog is shown (TMDB's list), the current one focused. */
+    private void showCountry() {
+        begin(COUNTRY);
+        title(Ui.tr("Seu país", "Your country"));
+        final TextView status = body(Ui.tr("Os streamings mudam de país para país. Buscando a lista…",
+                "Streaming catalogs change by country. Getting the list…"));
+        final ScrollView scroll = new ScrollView(this);
+        scroll.setVerticalScrollBarEnabled(false);
+        final LinearLayout list = new LinearLayout(this);
+        list.setOrientation(LinearLayout.VERTICAL);
+        scroll.addView(list);
+        panel.addView(scroll, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, px(560)));
+        final int t = token;
+        final String key = Prefs.tmdbKey(this), current = Prefs.region(this);
+        io.execute(() -> {
+            try {
+                java.util.List<String[]> regions = Tmdb.regions(key);
+                main.post(() -> {
+                    if (t != token) return;
+                    status.setText(Ui.tr("Os streamings mudam de país para país. Qual é o seu?",
+                            "Streaming catalogs change by country. Which is yours?"));
+                    View first = null, mine = null;
+                    for (String[] region : regions) {
+                        View b = button(list, region[1], () -> {
+                            Prefs.saveRegion(this, region[0], region[1]);
+                            if (single) finishStep(); else showCity();
+                        });
+                        if (first == null) first = b;
+                        if (region[0].equals(current)) mine = b;
+                    }
+                    final View focus = mine != null ? mine : first;
+                    if (focus != null) scroll.post(focus::requestFocus);   // after layout, so the list scrolls to it
+                });
+            } catch (Exception e) {
+                main.post(() -> { if (t == token) status.setText(Ui.tr("Sem resposta do TMDB: ", "No answer from TMDB: ") + e.getMessage()); });
+            }
+        });
     }
 
     private void showServer() {

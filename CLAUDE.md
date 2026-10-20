@@ -78,8 +78,11 @@ TVs that don't run Google TV or Android TV (Samsung, LG and others): the way is 
 - Java 8 language level, minSdk 31 (Android 12), targetSdk 33. No Gradle, no libraries: only the Android SDK.
 - The home screen is drawn by hand on one Canvas (`HomeView`); the glass and the sky use AGSL shaders (`Shaders`,
   Android 13+, with a flat fallback for 12). Keep it at 60 fps: no allocations in `onDraw`, no work on the UI thread.
-- `Recs` fetches Jellyfin's `/Users/{id}/Items/Latest` and keeps the posters on disk.
-  "Watch" launches the Jellyfin app with the `ItemId` extra.
+- `Recs` fetches the posters from the source chosen on the TV (`Prefs.source`) and keeps them on disk:
+  Jellyfin's `/Users/{id}/Items/Latest` ("Watch" launches the Jellyfin app with the `ItemId` extra), or `Tmdb`: popular
+  in `Prefs.region` on the installed streaming apps (`/discover` with `with_watch_providers`, then each title's
+  `/watch/providers`), opening the service's app on its search link where it has one (`Tmdb.SERVICES`). The TMDB key
+  is the person's own, typed in `SetupActivity`; TMDB's attribution must stay wherever its data shows.
 - The screensaver (`Screensaver` → `DreamView`) is a gallery: the curated works in `assets/gallery.json` (Art
   Institute of Chicago, CC0), fetched through IIIF at screen size and kept in `cache/gallery`. It redraws every 10 s
   and only animates during the fade; keep it that way.

@@ -7,8 +7,8 @@ import java.util.Locale;
 import java.util.UUID;
 
 /**
- * What was chosen on the TV (the setup wizard and the settings screen): the Jellyfin server and account, and the
- * city. config.properties gives the defaults, so a build made for one TV works without the wizard.
+ * What was chosen on the TV (the setup wizard and the settings screen): where the posters come from (Jellyfin or
+ * TMDB), the Jellyfin server and account, the TMDB key and country, and the city. config.properties gives the defaults, so a build made for one TV works without the wizard.
  * Read and written in the :home process only (the home screen, the settings and the wizard all live there).
  */
 final class Prefs {
@@ -63,6 +63,53 @@ final class Prefs {
         return id;
     }
 
+    // MARK: - Where the posters come from
+
+    static final String JELLYFIN = "jellyfin", TMDB = "tmdb";
+
+    /** JELLYFIN (what was added to your server) or TMDB (what's popular on your streaming apps). */
+    static String source(Context c) {
+        String s = p(c).getString("source", null);
+        if (s != null) return s;
+        return tmdbKey(c).isEmpty() || jellyfinReady(c) ? JELLYFIN : TMDB;
+    }
+
+    static void saveSource(Context c, String source) {
+        p(c).edit().putString("source", source).apply();
+    }
+
+    // MARK: - TMDB
+
+    /** The person's own TMDB API key (v3) or read access token (v4); empty = not set. */
+    static String tmdbKey(Context c) {
+        return p(c).getString("tmdbKey", "");
+    }
+
+    /** "BR": the country whose streaming catalog is shown. Defaults to the TV's. */
+    static String region(Context c) {
+        String country = Locale.getDefault().getCountry();
+        return p(c).getString("region", country.length() == 2 ? country : "BR");
+    }
+
+    /** "Brasil", for the settings screen. */
+    static String regionName(Context c) {
+        String code = region(c);
+        String name = new Locale("", code).getDisplayCountry(Ui.en ? Locale.US : Ui.PT);
+        return p(c).getString("regionName", name.isEmpty() ? code : name);
+    }
+
+    static boolean tmdbReady(Context c) {
+        return !tmdbKey(c).isEmpty();
+    }
+
+    static void saveTmdb(Context c, String key) {
+        p(c).edit().putString("tmdbKey", key).apply();
+    }
+
+    static void saveRegion(Context c, String code, String name) {
+        p(c).edit().putString("region", code).putString("regionName", name).apply();
+    }
+
     // MARK: - City (weather and the sunset)
 
     static String latitude(Context c) {
@@ -87,7 +134,7 @@ final class Prefs {
 
     /** The wizard ran (or the build already came configured): the app's icon opens the settings, not the wizard. */
     static boolean setupDone(Context c) {
-        return p(c).getBoolean("setupDone", false) || jellyfinReady(c);
+        return p(c).getBoolean("setupDone", false) || jellyfinReady(c) || tmdbReady(c);
     }
 
     static void finishSetup(Context c) {

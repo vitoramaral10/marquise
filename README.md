@@ -19,6 +19,8 @@ What just arrived on your server, up front. Your apps, in their own colors. One 
 - **Your library, not an ad feed.** Six posters of what was just added to your Jellyfin server, with year, rating and
   age rating, rotating every half hour. Movies and Shows have their own tabs.
 - **One press to watch.** Select a poster and it opens on that movie or show in the Jellyfin app.
+- **No Jellyfin? TMDB.** What's popular in your country on the streaming apps you have (Netflix, Prime Video, Disney+,
+  Max, Globoplay…), each opening in its app. Your own free TMDB key, typed once on the TV.
 - **Your apps, in their colors, your way.** Hold OK on an app to move it or take it off the row; hold OK on any app in
   All Apps to add it. Over-the-air TV can be one of them.
 - **The time and the weather** at the top, and the forecast for the next hours one press down.
@@ -26,8 +28,8 @@ What just arrived on your server, up front. Your apps, in their own colors. One 
 - **A gallery screensaver**: framed public-domain paintings from the Art Institute of Chicago, one at a time, with the
   time; it dims at night.
 - **Updates from the TV.** When a new version is out, the settings say so, and OK installs it.
-- **No ads, no sponsored rows, no tracking.** It talks to your Jellyfin server, Open-Meteo for the weather, the Art
-  Institute of Chicago for the paintings and GitHub for updates, and nothing else.
+- **No ads, no sponsored rows, no tracking.** It talks to your Jellyfin server (or TMDB), Open-Meteo for the weather,
+  the Art Institute of Chicago for the paintings and GitHub for updates, and nothing else.
 - **Safe.** No root. Nothing is uninstalled. *Original* brings the factory home screen back, and a watchdog does it by
   itself if Marquise ever crashes.
 
@@ -81,7 +83,8 @@ key.
 ## Settings
 
 **On the TV**, in Marquise's settings (its icon, or the gear at the top of Home): the Jellyfin server and account,
-your city, the Home screen (Marquise or Original), a screensaver preview and, when there is one, a new version.
+where the posters come from (*Titles*: your Jellyfin server and account, or TMDB with your key and country), your
+city, the Home screen (Marquise or Original), a screensaver preview and, when there is one, a new version.
 
 **The app row:** hold OK on an app of the row to *Move* it (← →, then OK), *Remove* it or *Restore the default row*,
 and hold OK on any app in *All Apps* to *Add it to Home* (up to 8). Apps you installed also get *Uninstall*, which
@@ -142,7 +145,8 @@ read-only `adb` commands that tell you what your TV has. Pull requests for more 
 | File | What it is |
 |---|---|
 | [`HomeView.java`](app/src/br/dev/vitormelo/marquise/HomeView.java) | The home screen |
-| [`Recs.java`](app/src/br/dev/vitormelo/marquise/Recs.java) | Recently added, from Jellyfin |
+| [`Recs.java`](app/src/br/dev/vitormelo/marquise/Recs.java) | The posters: recently added on Jellyfin, or popular on TMDB |
+| [`Tmdb.java`](app/src/br/dev/vitormelo/marquise/Tmdb.java) | TMDB and the streaming apps it opens |
 | [`HomeApps.java`](app/src/br/dev/vitormelo/marquise/HomeApps.java) | The app row, inputs and All Apps |
 | [`HomeMode.java`](app/src/br/dev/vitormelo/marquise/HomeMode.java) | Switching between Marquise and Original |
 | [`Adb.java`](app/src/br/dev/vitormelo/marquise/Adb.java) | The TV's own ADB, from inside the TV |
@@ -153,13 +157,15 @@ read-only `adb` commands that tell you what your TV has. Pull requests for more 
 
 ## Privacy
 
-No accounts, no analytics, no tracking. Marquise talks to your Jellyfin server (with the key you set) and to
-Open-Meteo (with the coordinates you set); the screensaver fetches paintings from artic.edu, and the settings check
-GitHub for a new version. Your settings stay on your computer and your TV.
+No accounts, no analytics, no tracking. Marquise talks to your Jellyfin server (with the key you set) or TMDB (with
+your own key), and to Open-Meteo (with the coordinates you set); the screensaver fetches paintings from artic.edu, and
+the settings check GitHub for a new version. Your settings stay on your computer and your TV.
 
 ## Credits
 
 - Weather by [Open-Meteo.com](https://open-meteo.com/) (CC BY 4.0).
+- Movie and show data from [TMDB](https://www.themoviedb.org/), streaming availability by JustWatch. This product uses
+  the TMDB API but is not endorsed or certified by TMDB.
 - Screensaver paintings: [Art Institute of Chicago](https://www.artic.edu/open-access), public domain (CC0).
 - Icons: [Material Symbols](https://fonts.google.com/icons) (Apache 2.0). Font: [Inter](https://rsms.me/inter/)
   (SIL OFL 1.1).

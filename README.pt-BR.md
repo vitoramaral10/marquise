@@ -25,9 +25,11 @@ O que acabou de chegar no seu servidor, logo na frente. Seus apps, nas cores del
 - **Claro de dia, escuro à noite**, seguindo o pôr do sol de verdade da sua cidade.
 - **Tela de descanso Galeria**: pinturas em domínio público do Art Institute of Chicago, emolduradas, uma por vez, com
   a hora; à noite, ela escurece.
+- **Sem Jellyfin? TMDB.** O que está em alta no seu país nos streamings que você tem (Netflix, Prime Video, Disney+,
+  Max, Globoplay…), cada um abrindo no seu app. Com a sua chave grátis do TMDB, digitada uma vez na TV.
 - **Atualiza pela TV.** Quando sai uma versão nova, as configurações avisam, e o OK instala.
-- **Sem anúncios, sem fileiras patrocinadas, sem rastreamento.** Conversa com o seu Jellyfin, com o Open-Meteo para o
-  clima, com o Art Institute of Chicago para as pinturas e com o GitHub para atualizações, e nada mais.
+- **Sem anúncios, sem fileiras patrocinadas, sem rastreamento.** Conversa com o seu Jellyfin (ou o TMDB), com o Open-Meteo
+  para o clima, com o Art Institute of Chicago para as pinturas e com o GitHub para atualizações, e nada mais.
 - **Seguro.** Sem root. Nada é desinstalado. *Original* traz de volta o Início de fábrica, e um vigia faz isso sozinho
   se o Marquise travar.
 
@@ -81,7 +83,8 @@ precisam da mesma chave.
 ## Configurações
 
 **Na TV**, nas configurações do Marquise (o ícone dele, ou a engrenagem no topo do Início): servidor e conta do
-Jellyfin, sua cidade, o Início (Marquise ou Original), uma prévia da tela de descanso e, quando houver, a versão nova.
+de onde vêm os pôsteres (*Títulos*: seu servidor e conta do Jellyfin, ou o TMDB com sua chave e país), sua cidade, o
+Início (Marquise ou Original), uma prévia da tela de descanso e, quando houver, a versão nova.
 
 **A fileira de apps:** segure OK num app da fileira para *Mover* (← → e OK), *Remover do Início* ou *Restaurar fileira
 padrão*, e segure OK em qualquer app de *Todos os Apps* para *Adicionar ao Início* (até 8). Apps que você instalou
@@ -144,13 +147,16 @@ são muito bem-vindos.
 
 ## Privacidade
 
-Sem contas, sem analytics, sem rastreamento. O Marquise conversa com o seu Jellyfin (com a chave que você definir) e
-com o Open-Meteo (com as coordenadas que você definir); a tela de descanso busca pinturas no artic.edu, e as
-configurações consultam o GitHub atrás de versão nova. Suas configurações ficam no seu computador e na sua TV.
+Sem contas, sem analytics, sem rastreamento. O Marquise conversa com o seu Jellyfin (com a chave que você definir) ou
+com o TMDB (com a sua própria chave), e com o Open-Meteo (com as coordenadas que você definir); a tela de descanso
+busca pinturas no artic.edu, e as configurações consultam o GitHub atrás de versão nova. Suas configurações ficam no
+seu computador e na sua TV.
 
 ## Créditos
 
 - Clima por [Open-Meteo.com](https://open-meteo.com/) (CC BY 4.0).
+- Dados de filmes e séries do [TMDB](https://www.themoviedb.org/), disponibilidade nos streamings pelo JustWatch. Este
+  produto usa a API do TMDB, mas não é endossado nem certificado pelo TMDB.
 - Pinturas da tela de descanso: [Art Institute of Chicago](https://www.artic.edu/open-access), domínio público (CC0).
 - Ícones: [Material Symbols](https://fonts.google.com/icons) (Apache 2.0). Fonte: [Inter](https://rsms.me/inter/)
   (SIL OFL 1.1).

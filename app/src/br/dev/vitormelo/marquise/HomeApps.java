@@ -64,6 +64,7 @@ final class HomeApps {
         int kind;
         String key, label, pkg, inputId, number;
         String itemId;      // a Jellyfin item to open straight away (picks), or null
+        String uri;         // a link the app opens instead of its home (a TMDB pick's search), or null
         String symbol;      // icon for the shortcuts and special cards
         Bitmap tile;        // 16:9 card (apps and specials)
         Bitmap logo;        // colored logo with no background (shelf); null = use the card
@@ -332,7 +333,12 @@ final class HomeApps {
         switch (it.kind) {
             case APP:
                 intent = launchIntent(a.getPackageManager(), it.pkg);
-                if (intent != null && it.itemId != null) {
+                if (intent != null && it.uri != null) {
+                    // A streaming app's own link (a search for the title); if the app doesn't take it, its home.
+                    Intent link = new Intent(Intent.ACTION_VIEW, android.net.Uri.parse(it.uri)).setPackage(it.pkg);
+                    if (link.resolveActivity(a.getPackageManager()) != null) intent = link;
+                    intent.addFlags(Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED);
+                } else if (intent != null && it.itemId != null) {
                     // Jellyfin's StartupActivity reads "ItemId" (like its home channels); a fresh task so it does.
                     intent.putExtra("ItemId", it.itemId).addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK);
                 } else if (intent != null) {

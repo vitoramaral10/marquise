@@ -128,6 +128,7 @@ public class SettingsActivity extends Activity {
         private final RectF tmp = new RectF(), rowRect = new RectF();
         private JSONObject state = new JSONObject(), recs = new JSONObject();
         private boolean hasKey;
+        private String tmdbApps = "";   // the installed streaming apps TMDB titles open in (looked up on resume)
         private int screen = MAIN, focus;
         private boolean running, okDown, backDown;
         private long startedAt, lastNanos, pendingAt;
@@ -159,6 +160,7 @@ public class SettingsActivity extends Activity {
 
         void resume() {
             Updater.check();
+            tmdbApps = Tmdb.installedNames(getContext());
             if (running) return;
             running = true;
             startedAt = SystemClock.uptimeMillis();
@@ -251,7 +253,7 @@ public class SettingsActivity extends Activity {
                 c.drawBitmap(logo, null, tmp, logoPaint);
             }
             c.drawText("Marquise", cx, 622 * k, title);
-            c.drawText(Ui.tr("O Início da sua biblioteca Jellyfin", "Your Jellyfin library's home screen"), cx, 672 * k, subtitle);
+            c.drawText(Ui.tr("Seus filmes e séries no Início", "Your movies and shows, up front"), cx, 672 * k, subtitle);
             c.drawText(versionName(getContext()) + Ui.tr(" · por ", " · by ") + AUTHOR, cx, 716 * k, version);
             // The GPL's "appropriate legal notices": copyright, the license, no warranty.
             c.drawText(Ui.tr("© 2026 " + AUTHOR + " · GPL-3.0 · sem garantia", "© 2026 " + AUTHOR + " · GPL-3.0 · no warranty"),
@@ -262,6 +264,11 @@ public class SettingsActivity extends Activity {
                 tmp.set(cx - q / 2, top, cx + q / 2, top + q);
                 c.drawBitmap(qr, null, tmp, logoPaint);
                 c.drawText(REPO, cx, top + q + 40 * k, version);
+            }
+            // TMDB's terms: this notice wherever its data is used.
+            if (Recs.tmdb(getContext())) {
+                c.drawText(Ui.tr("Usa a API do TMDB, sem endosso ou certificação do TMDB.",
+                        "Uses the TMDB API but is not endorsed or certified by TMDB."), cx, 1050 * k, version);
             }
 
             if (screen == MAIN) drawMain(c, seconds); else drawChoice(c);
@@ -274,9 +281,10 @@ public class SettingsActivity extends Activity {
             Context ctx = getContext();
             String who = Prefs.userName(ctx), where = Prefs.serverName(ctx);
             String jellyfin = !Prefs.jellyfinReady(ctx) ? Ui.tr("Configurar", "Set up")
-                    : (who.isEmpty() ? "" : who) + (!who.isEmpty() && !where.isEmpty() ? " · " : "") + where;
+                    : "Jellyfin" + (who.isEmpty() ? "" : " · " + who) + (where.isEmpty() ? "" : " · " + where);
+            if (Recs.tmdb(ctx)) jellyfin = Prefs.tmdbReady(ctx) ? "TMDB · " + Prefs.regionName(ctx) : Ui.tr("Configurar", "Set up");
             String city = Prefs.city(ctx);
-            String[] labels = {Ui.tr("Início", "Home Screen"), "Jellyfin", Ui.tr("Cidade", "City"), Ui.tr("Tela de Descanso", "Screensaver"),
+            String[] labels = {Ui.tr("Início", "Home Screen"), Ui.tr("Títulos", "Titles"), Ui.tr("Cidade", "City"), Ui.tr("Tela de Descanso", "Screensaver"),
                     Ui.tr("Ajustes da TV", "TV Settings")};
             String[] values = {working ? "" : mode, jellyfin, city.isEmpty() ? Ui.tr("Escolher", "Choose") : city,
                     Ui.tr("Ver agora", "Preview"), ""};
@@ -340,11 +348,12 @@ public class SettingsActivity extends Activity {
             c.drawText(value, rowRect.right - 30 * k, base, rowValue);
         }
 
-        /** Jellyfin: how the posters are doing, from which server (its name, version and address). */
+        /** The posters: how they're doing, from which Jellyfin server (name, version, address) or TMDB country. */
         private float drawJellyfin(Canvas c, float y) {
             float x = LIST_X * k + 30 * k;
-            c.drawText("JELLYFIN", x, y, header);
             Context ctx = getContext();
+            boolean tmdb = Recs.tmdb(ctx);
+            c.drawText(tmdb ? "TMDB" : "JELLYFIN", x, y, header);
             String error = recs.optString("error");
             int count = recs.optInt("count");
             String server = Prefs.server(ctx).replaceFirst("^[a-zA-Z]+://", "");
@@ -352,10 +361,13 @@ public class SettingsActivity extends Activity {
             String line;
             Paint paint = notice;
             if (!hasKey) {
-                line = Ui.tr("Ainda não conectado: escolha Jellyfin acima.", "Not connected yet: choose Jellyfin above.");
+                line = Ui.tr("Ainda não conectado: escolha Títulos acima.", "Not connected yet: choose Titles above.");
             } else if (!error.isEmpty()) {
                 line = Ui.tr("Erro: ", "Error: ") + error;
                 paint = warn;
+            } else if (count > 0 && tmdb) {
+                String apps = tmdbApps;
+                line = Ui.tr(count + " em alta", count + " popular") + " · " + Prefs.regionName(ctx) + (apps.isEmpty() ? "" : " · " + apps);
             } else if (count > 0) {
                 line = Ui.tr(count + " títulos recentes", count + " recent titles") + (ver.isEmpty() ? "" : " · Jellyfin " + ver) + " · " + server;
             } else {
@@ -531,7 +543,7 @@ public class SettingsActivity extends Activity {
                 focus = freeActive() ? 0 : 1;
             } else if (focus == 1 || focus == 2) {
                 activity.startActivity(new Intent(c, SetupActivity.class)
-                        .putExtra(SetupActivity.EXTRA_STEP, focus == 1 ? SetupActivity.STEP_SERVER : SetupActivity.STEP_CITY));
+                        .putExtra(SetupActivity.EXTRA_STEP, focus == 1 ? SetupActivity.STEP_SOURCE : SetupActivity.STEP_CITY));
             } else if (focus == ROWS) {
                 Updater.install(c);
             } else if (focus == 3) {

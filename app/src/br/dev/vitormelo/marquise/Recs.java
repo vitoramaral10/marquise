@@ -29,17 +29,20 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /**
- * Home screen picks: what was just added to your Jellyfin server (movies, and shows with new episodes), newest
- * first. "Watch" opens that title straight in the Jellyfin app.
+ * Home screen picks, from the source chosen on the TV (Prefs.source):
+ * - Jellyfin: what was just added to your server (movies, and shows with new episodes), newest first; selecting one
+ *   opens that title straight in the Jellyfin app.
+ * - TMDB: what's popular in your country on the streaming apps this TV has (Tmdb); selecting one opens that app.
  *
- * The server and its API key come from config.properties ("jellyfin_url", "jellyfin_key", optional "jellyfin_user"),
- * built into the app. The key never goes to the log.
+ * Keys and tokens never go to the log.
  */
 final class Recs {
     static final class Pick {
         String itemId;          // the Jellyfin item "Watch" opens
         String kind;            // "movie" or "tv"
-        String title, app, pkg;
+        String title;
+        String app, pkg;        // the service's name ("Jellyfin", "Netflix") and its installed app
+        String uri;             // a link the app opens (a search for the title), or null: the app's home
         String poster;          // the card image (2:3)
         String blurhash;        // the poster's color sketch, shown until the image is ready
         String badge = "";      // the short line under the poster: "2025 · ★ 7,2 · 16", "Novo episódio · ★ 8,8"
@@ -51,7 +54,7 @@ final class Recs {
     private static final long LIST_EVERY = 20 * 60_000L;
     private static final long ROTATE_EVERY = 30 * 60_000L;
     /** Bump when what is saved for each title changes (the saved list is discarded and fetched again). */
-    private static final int CACHE_VERSION = 10;
+    private static final int CACHE_VERSION = 12;
     private static final int MAX = 24;
     /** Posters per tab on the home screen. */
     static final int PER_TAB = 6;
@@ -92,11 +95,20 @@ final class Recs {
         }
     }
 
+    /** The last fetch's error, or empty. */
+    String error() {
+        return error;
+    }
+
     void addListener(Listener l) { if (!listeners.contains(l)) listeners.add(l); }
     void removeListener(Listener l) { listeners.remove(l); }
 
     static boolean hasKey(Context c) {
-        return Prefs.jellyfinReady(c);
+        return tmdb(c) ? Prefs.tmdbReady(c) : Prefs.jellyfinReady(c);
+    }
+
+    static boolean tmdb(Context c) {
+        return Prefs.TMDB.equals(Prefs.source(c));
     }
 
     private String server() {
@@ -117,7 +129,7 @@ final class Recs {
     private void writeStatus() {
         try (FileOutputStream out = new FileOutputStream(new File(context.getFilesDir(), "recs-status.json"))) {
             out.write(new JSONObject().put("count", picks.size()).put("error", error).put("at", System.currentTimeMillis())
-                    .put("server", serverName).put("version", serverVersion)
+                    .put("server", serverName).put("version", serverVersion).put("source", Prefs.source(context))
                     .toString().getBytes(StandardCharsets.UTF_8));
         } catch (Exception ignored) {
         }
@@ -150,9 +162,9 @@ final class Recs {
         return (cut > 0 ? t.substring(0, cut) : t).trim();
     }
 
-    /** Name of the app the pick opens in ("Jellyfin"), or empty. */
+    /** Name of the service the pick opens in ("Jellyfin", "Netflix"), or empty. */
     static String serviceName(Pick p) {
-        return p == null || p.app == null ? "" : "Jellyfin";
+        return p == null || p.app == null ? "" : p.app;
     }
 
     /** The pick's ready backdrop (or null: builds it in the background and notifies when it's ready). */
@@ -186,7 +198,8 @@ final class Recs {
     void refreshIfStale() {
         if (!hasKey(context) || fetching) return;
         long now = System.currentTimeMillis();
-        long stamp = (server() + "\n" + Prefs.token(context) + "\n" + Prefs.userId(context) + "\n" + Prefs.userName(context)).hashCode();
+        long stamp = (Prefs.source(context) + "\n" + server() + "\n" + Prefs.token(context) + "\n" + Prefs.userId(context) + "\n"
+                + Prefs.userName(context) + "\n" + Prefs.tmdbKey(context) + "\n" + Prefs.region(context)).hashCode();
         boolean newKey = stamp != keyStamp;
         long sinceFail = now - failedAt;    // negative = the clock went back: don't wait
         if (!newKey && failedAt != 0 && sinceFail >= 0 && sinceFail < 5 * 60_000L) return;
@@ -257,6 +270,14 @@ final class Recs {
     // MARK: - Jellyfin
 
     private void fetchList() throws Exception {
+        if (tmdb(context)) {
+            List<Pick> list = Tmdb.popular(context, Prefs.tmdbKey(context), Prefs.region(context));
+            picks = list.size() > MAX ? new ArrayList<>(list.subList(0, MAX)) : list;
+            listAt = System.currentTimeMillis();
+            serverName = Prefs.regionName(context);
+            serverVersion = "";
+            return;
+        }
         try {   // the server's name and version (public, no key): shown on the settings screen
             JSONObject info = new JSONObject(get("/System/Info/Public"));
             serverName = info.optString("ServerName");
@@ -272,7 +293,7 @@ final class Recs {
             Pick p = pick(items.getJSONObject(i));
             if (p == null) continue;
             if (app) {
-                p.app = "jellyfin";
+                p.app = "Jellyfin";
                 p.pkg = JELLYFIN_PKG;
             }
             list.add(p);
@@ -400,8 +421,14 @@ final class Recs {
         //noinspection ResultOfMethodCallIgnored
         f.getParentFile().mkdirs();
         File part = new File(f.getPath() + ".part");
-        boolean poster = path.contains("/Images/Primary");
-        HttpURLConnection c = open(server() + path + (poster ? "&maxHeight=840&quality=92" : "&maxWidth=1920&quality=90"));
+        HttpURLConnection c;
+        if (path.startsWith("https://")) {   // TMDB: a public image URL
+            c = (HttpURLConnection) new URL(path).openConnection();
+            c.setConnectTimeout(8000);
+        } else {
+            boolean poster = path.contains("/Images/Primary");
+            c = open(server() + path + (poster ? "&maxHeight=840&quality=92" : "&maxWidth=1920&quality=90"));
+        }
         c.setReadTimeout(20000);
         try (InputStream in = c.getInputStream(); FileOutputStream out = new FileOutputStream(part)) {
             byte[] buffer = new byte[16384];
@@ -462,7 +489,7 @@ final class Recs {
                 a.put(new JSONObject().put("itemId", p.itemId).put("kind", p.kind).put("title", p.title)
                         .put("poster", p.poster)
                         .put("badge", p.badge).put("blurhash", p.blurhash == null ? "" : p.blurhash).put("app", p.app == null ? "" : p.app)
-                        .put("pkg", p.pkg == null ? "" : p.pkg));
+                        .put("pkg", p.pkg == null ? "" : p.pkg).put("uri", p.uri == null ? "" : p.uri));
             }
             cache.edit().putString("picks", a.toString()).putLong("listAt", listAt)
                     .putLong("keyStamp", keyStamp).putInt("version", CACHE_VERSION).apply();
@@ -484,7 +511,8 @@ final class Recs {
             p.blurhash = o.optString("blurhash").isEmpty() ? null : o.optString("blurhash");
             p.app = o.optString("app").isEmpty() ? null : o.optString("app");
             p.pkg = o.optString("pkg").isEmpty() ? null : o.optString("pkg");
-                out.add(p);
+            p.uri = o.optString("uri").isEmpty() ? null : o.optString("uri");
+            out.add(p);
         }
         return out;
     }
