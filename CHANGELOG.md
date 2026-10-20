@@ -3,7 +3,7 @@
 All notable changes to Marquise are listed here. The format follows [Keep a Changelog](https://keepachangelog.com/),
 and versions follow [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [1.3.0] - 2026-10-20
 
 ### Added
 
@@ -17,7 +17,6 @@ and versions follow [Semantic Versioning](https://semver.org/).
 ### Changed
 
 - A clearer focus on posters (it grows and rises more, with a thicker rim) and more contrast on the tabs.
-
 - Much lighter and smoother on TV chips: memory with Home on screen from ~264 MB to ~120 MB, and hidden from ~240 MB
   to ~110 MB; 1 frame in 150 late instead of 1 in 20; the frame loop sleeps while nothing moves.
   - Drawing makes no objects per frame (gradients, paints and cut titles are made once).
