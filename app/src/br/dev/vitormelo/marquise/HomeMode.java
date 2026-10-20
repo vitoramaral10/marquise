@@ -172,8 +172,14 @@ final class HomeMode {
             }
             String dream = s.optString("originalDream", "");
             if (dream.isEmpty()) dream = defaultDream(adb);
+            // The screensaver the person had chosen ("null" = none, the TV's default), so "original" puts it back.
+            String chosen = s.has("originalDreamSetting") ? s.optString("originalDreamSetting") : null;
+            if (chosen == null) {
+                String now = adb.shell("settings get secure screensaver_components").trim();
+                chosen = now.contains(PKG + "/") ? "" : now;
+            }
             JSONObject latest = state(c);
-            latest.put("originalHome", home).put("originalDream", dream);
+            latest.put("originalHome", home).put("originalDream", dream).put("originalDreamSetting", chosen);
             save(c, latest);
             busy(c, Ui.tr("Trocando o Início e a tela de descanso…", "Switching the home screen and screensaver…"));
             check(adb.shell("cmd package set-home-activity " + HOME_ACTIVITY), "Success",
@@ -227,8 +233,15 @@ final class HomeMode {
             }
             busy(c, Ui.tr("Devolvendo o Início original…", "Restoring the original home screen…"));
             boolean homeOk = restoreHome(adb, home);
-            adb.shell("settings delete secure screensaver_components");
+            String chosen = s.optString("originalDreamSetting", "");
+            if (chosen.matches("[A-Za-z0-9._$/,]+") && chosen.contains("/")) {
+                // Quoted: a component can be an inner class ("…$Dream"), and the shell would expand the "$".
+                adb.shell("settings put secure screensaver_components '" + chosen + "'");
+            } else {
+                adb.shell("settings delete secure screensaver_components");
+            }
             s = state(c);
+            s.remove("originalDreamSetting");   // back to the person's own: the next switch records it again
             s.put("mode", ORIGINAL).put("since", System.currentTimeMillis()).put("homeReverted", false)
                     .put("disabled", new JSONArray(failed));
             save(c, s);
