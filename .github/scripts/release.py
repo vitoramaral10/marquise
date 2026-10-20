@@ -21,10 +21,12 @@ SECTIONS = {"feat": "Added", "fix": "Fixed", "perf": "Changed"}
 
 
 def git(*args):
+    """Run Git with the given arguments and return stdout, raising on failure."""
     return subprocess.run(["git", *args], check=True, capture_output=True, text=True).stdout
 
 
 def last_tag():
+    """Return the nearest reachable v[0-9]* tag, or an empty string if none is found."""
     try:
         return git("describe", "--tags", "--abbrev=0", "--match", "v[0-9]*").strip()
     except subprocess.CalledProcessError:
@@ -65,6 +67,7 @@ def bump(entries):
 
 
 def manifest_version():
+    """Read the manifest and return its integer version code and version name."""
     text = open(MANIFEST, encoding="utf-8").read()
     code = int(re.search(r'android:versionCode="(\d+)"', text)[1])
     name = re.search(r'android:versionName="([^"]+)"', text)[1]
@@ -72,6 +75,7 @@ def manifest_version():
 
 
 def plan():
+    """Print the release decision, next version and next code for GitHub Actions."""
     tag = last_tag()
     level = bump(commits(tag))
     code, name = manifest_version()
@@ -105,6 +109,7 @@ def generated_section(entries):
 
 
 def apply(version, code):
+    """Write the manifest version and code, and release the Unreleased changelog section."""
     text = open(MANIFEST, encoding="utf-8").read()
     text = re.sub(r'android:versionCode="\d+"', f'android:versionCode="{code}"', text, count=1)
     text = re.sub(r'android:versionName="[^"]+"', f'android:versionName="{version}"', text, count=1)
@@ -128,6 +133,7 @@ def apply(version, code):
 
 
 def notes(version):
+    """Print the requested version's changelog body, or a blank line if absent."""
     log = open(CHANGELOG, encoding="utf-8").read()
     m = re.search(rf"^## \[{re.escape(version)}\][^\n]*\n(?P<body>.*?)(?=^## \[|\Z)", log, flags=re.M | re.S)
     print((m["body"] if m else "").strip())
