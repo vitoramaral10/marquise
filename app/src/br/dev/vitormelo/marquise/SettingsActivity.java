@@ -112,11 +112,9 @@ public class SettingsActivity extends Activity {
     }
 
     static final class SettingsView extends View implements Choreographer.FrameCallback {
-        private static final int MAIN = 0, HOME_CHOICE = 1, REPORT = 2;
-        /** The "This TV" row: opens the report screen. */
-        private static final int THIS_TV = 4;
+        private static final int MAIN = 0, HOME_CHOICE = 1;
         private static final float LIST_X = 1000, LIST_R = 1824, LIST_TOP = 150, ROW_H = 70, ROW_GAP = 8, CHOICE_H = 104;
-        private static final int ROWS = 6;
+        private static final int ROWS = 5;
         private static final int AMBER = 0xFFFFC266, INK = 0xFF1C1C1E;
 
         private final SettingsActivity activity;
@@ -126,14 +124,11 @@ public class SettingsActivity extends Activity {
         private final Bitmap logo, qr;
         private static final String REPO = "github.com/vitoramaral10/marquise", AUTHOR = "vitoramaral10";
         private final Handler handler = new Handler(Looper.getMainLooper());
-        private final Spring[] pop = new Spring[8];
+        private final Spring[] pop = new Spring[6];
         private final RectF tmp = new RectF(), rowRect = new RectF();
         private JSONObject state = new JSONObject(), recs = new JSONObject();
         private boolean hasKey;
-        private String tmdbApps = "";
-        private final String tvName = TvReport.brandModel();
-        private Bitmap reportQr;               // made the first time "This TV" opens
-        private final Paint qrPaint = new Paint();   // no filtering: the modules stay sharp when scaled up   // the installed streaming apps TMDB titles open in (looked up on resume)
+        private String tmdbApps = "";   // the installed streaming apps TMDB titles open in (looked up on resume)
         private int screen = MAIN, focus;
         private boolean running, okDown, backDown;
         private long startedAt, lastNanos, pendingAt;
@@ -229,7 +224,7 @@ public class SettingsActivity extends Activity {
         }
 
         private int rowCount() {
-            return screen == MAIN ? mainRows() : screen == HOME_CHOICE ? 2 : 0;
+            return screen == MAIN ? mainRows() : 2;
         }
 
         /** The fixed rows, plus "Update" when a newer release is out. */
@@ -276,7 +271,7 @@ public class SettingsActivity extends Activity {
                         "Uses the TMDB API but is not endorsed or certified by TMDB."), cx, 1050 * k, version);
             }
 
-            if (screen == MAIN) drawMain(c, seconds); else if (screen == HOME_CHOICE) drawChoice(c); else drawReport(c);
+            if (screen == MAIN) drawMain(c, seconds); else drawChoice(c);
         }
 
         private void drawMain(Canvas c, float seconds) {
@@ -290,9 +285,9 @@ public class SettingsActivity extends Activity {
             if (Recs.tmdb(ctx)) jellyfin = Prefs.tmdbReady(ctx) ? "TMDB · " + Prefs.regionName(ctx) : Ui.tr("Configurar", "Set up");
             String city = Prefs.city(ctx);
             String[] labels = {Ui.tr("Início", "Home Screen"), Ui.tr("Títulos", "Titles"), Ui.tr("Cidade", "City"), Ui.tr("Tela de Descanso", "Screensaver"),
-                    Ui.tr("Esta TV", "This TV"), Ui.tr("Ajustes da TV", "TV Settings")};
+                    Ui.tr("Ajustes da TV", "TV Settings")};
             String[] values = {working ? "" : mode, jellyfin, city.isEmpty() ? Ui.tr("Escolher", "Choose") : city,
-                    Ui.tr("Ver agora", "Preview"), tvName, ""};
+                    Ui.tr("Ver agora", "Preview"), ""};
             for (int i = 0; i < ROWS; i++) {
                 float y = (LIST_TOP + i * (ROW_H + ROW_GAP)) * k;
                 rowRect.set(LIST_X * k, y, LIST_R * k, y + ROW_H * k);
@@ -332,6 +327,7 @@ public class SettingsActivity extends Activity {
                 y += 46 * k;
             }
             y = drawJellyfin(c, y + 10 * k);
+            y = drawTv(c, y + 50 * k);
             y = drawTips(c, y + 50 * k);
             drawNotices(c, y + 50 * k);
         }
@@ -381,6 +377,21 @@ public class SettingsActivity extends Activity {
             return y + 42 * k;
         }
 
+        /** This TV: brand, model and Android version, and how many apps Marquise keeps turned off. */
+        private float drawTv(Canvas c, float y) {
+            float x = LIST_X * k + 30 * k;
+            c.drawText(Ui.tr("ESTA TV", "THIS TV"), x, y, header);
+            String brand = android.os.Build.BRAND == null ? "" : android.os.Build.BRAND.toUpperCase(java.util.Locale.ROOT);
+            String model = android.os.Build.MODEL == null ? "" : android.os.Build.MODEL;
+            JSONArray off = state.optJSONArray("disabled");
+            int n = off == null ? 0 : off.length();
+            String apps = !freeActive() ? Ui.tr("tudo de fábrica", "all as it came")
+                    : Ui.tr(n + (n == 1 ? " app desligado" : " apps desligados"), n + (n == 1 ? " app off" : " apps off"));
+            String line = (brand + " " + model).trim() + " · Android " + android.os.Build.VERSION.RELEASE + " · " + apps;
+            c.drawText(TextUtils.ellipsize(line, notice, 790 * k, TextUtils.TruncateAt.END).toString(), x, y + 42 * k, notice);
+            return y + 42 * k;
+        }
+
         /** What the remote can do that nothing else on screen tells. */
         private float drawTips(Canvas c, float y) {
             float x = LIST_X * k + 30 * k;
@@ -427,59 +438,6 @@ public class SettingsActivity extends Activity {
         }
 
         /** Home screen choice: Marquise or the original, with a check on the one in use. */
-        /**
-         * This TV: brand, model, Android, how many factory apps Marquise keeps off, and a QR code to a pre-filled GitHub
-         * report (TvReport), so a TV of another brand can be supported with what it really has.
-         */
-        private void drawReport(Canvas c) {
-            Paint heading = Ui.text(Ui.displaySemibold, 34 * k, 0xFFFFFFFF);
-            float x = LIST_X * k + 30 * k;
-            c.drawText(Ui.tr("Esta TV", "This TV"), x, (LIST_TOP - 24) * k, heading);
-            int off = TvReport.turnedOff(getContext());
-            String apps = !freeActive() ? Ui.tr("tudo de fábrica", "all as it came")
-                    : Ui.tr(off + (off == 1 ? " app de fábrica desligado" : " apps de fábrica desligados"), off + (off == 1 ? " factory app off" : " factory apps off"));
-            c.drawText(tvName + " · Android " + android.os.Build.VERSION.RELEASE + " · " + apps, x, (LIST_TOP + 30) * k, notice);
-            float q = 400 * k, top = (LIST_TOP + 80) * k;
-            if (reportQr != null) {
-                tmp.set(x, top, x + q, top + q);
-                c.drawBitmap(reportQr, null, tmp, qrPaint);
-            }
-            float tx = x + q + 44 * k, width = LIST_R * k - tx - 30 * k;
-            float ty = drawWrapped(c, Ui.tr("Outra marca, ou algo não funcionou?",
-                    "Another brand, or something didn't work?"), tx, top + 34 * k, width, rowLabel, 0xF2FFFFFF);
-            ty = drawWrapped(c, Ui.tr("Aponte a câmera do celular para o código: ele abre no GitHub um relatório desta TV, já "
-                    + "preenchido, para o Marquise aprender a marca dela. Precisa de uma conta no GitHub para enviar.",
-                    "Point your phone's camera at the code: it opens a report of this TV on GitHub, already filled in, so "
-                    + "Marquise can learn its brand. Sending it needs a GitHub account."), tx, ty + 24 * k, width, notice, 0xB3FFFFFF);
-            drawWrapped(c, Ui.tr("Vai junto: marca, modelo, Android, o Início e a tela de descanso de fábrica e os apps que vieram "
-                    + "na TV. Nada pessoal: nenhum app seu, conta, rede ou local.",
-                    "It holds: brand, model, Android, the factory home screen and screensaver, and the apps that came with "
-                    + "the TV. Nothing personal: none of your apps, accounts, network or location."), tx, ty + 24 * k, width, header, 0x8CFFFFFF);
-        }
-
-        /** Text wrapped to a width, from the first line's baseline; returns the last line's baseline. */
-        private float drawWrapped(Canvas c, String text, float x, float baseline, float width, Paint paint, int color) {
-            int before = paint.getColor();
-            paint.setColor(color);
-            float line = paint.getTextSize() * 1.45f, y = baseline;
-            StringBuilder current = new StringBuilder();
-            for (String word : text.split(" ")) {
-                String next = current.length() == 0 ? word : current + " " + word;
-                if (paint.measureText(next) > width && current.length() > 0) {
-                    c.drawText(current.toString(), x, y, paint);
-                    y += line;
-                    current.setLength(0);
-                    current.append(word);
-                } else {
-                    current.setLength(0);
-                    current.append(next);
-                }
-            }
-            if (current.length() > 0) c.drawText(current.toString(), x, y, paint);
-            paint.setColor(before);
-            return y;
-        }
-
         private void drawChoice(Canvas c) {
             Paint heading = Ui.text(Ui.displaySemibold, 34 * k, 0xFFFFFFFF);
             c.drawText(Ui.tr("Início", "Home Screen"), LIST_X * k + 30 * k, (LIST_TOP - 24) * k, heading);
@@ -557,8 +515,8 @@ public class SettingsActivity extends Activity {
                         if (e.getRepeatCount() == 0) backDown = true;
                     } else {
                         if (backDown && !e.isCanceled()) {
-                            focus = screen == REPORT ? THIS_TV : 0;
                             screen = MAIN;
+                            focus = 0;
                         }
                         backDown = false;
                     }
@@ -571,9 +529,7 @@ public class SettingsActivity extends Activity {
 
         private void activate() {
             Context c = getContext();
-            if (screen == REPORT) {
-                return;
-            } else if (screen == HOME_CHOICE) {
+            if (screen == HOME_CHOICE) {
                 boolean wantFree = focus == 0;
                 if (wantFree != freeActive() && !busy()) {
                     HomeMode.request(c, wantFree ? HomeMode.FREE : HomeMode.ORIGINAL);
@@ -590,9 +546,6 @@ public class SettingsActivity extends Activity {
                         .putExtra(SetupActivity.EXTRA_STEP, focus == 1 ? SetupActivity.STEP_SOURCE : SetupActivity.STEP_CITY));
             } else if (focus == ROWS) {
                 Updater.install(c);
-            } else if (focus == THIS_TV) {
-                if (reportQr == null) reportQr = TvReport.qr(TvReport.url(c));
-                screen = REPORT;
             } else if (focus == 3) {
                 pause();
                 activity.showPreview();
