@@ -1,0 +1,31 @@
+name: Support for my TV
+description: Help Marquise learn another brand or model.
+labels: [tv-support]
+body:
+  - type: input
+    id: tv
+    attributes:
+      label: TV
+      description: Brand, model and Android version.
+    validations:
+      required: true
+  - type: textarea
+    id: home
+    attributes:
+      label: Home screens and screensaver
+      description: |
+        The output of:
+        `adb shell cmd package query-activities --brief -a android.intent.action.MAIN -c android.intent.category.HOME`
+        `adb shell settings get secure screensaver_components`
+      render: text
+  - type: textarea
+    id: packages
+    attributes:
+      label: System apps
+      description: The output of `adb shell pm list packages -s`.
+      render: text
+  - type: textarea
+    id: notes
+    attributes:
+      label: Anything else
+      description: Promo apps you'd like turned off, a live TV app, remote buttons that stopped working…

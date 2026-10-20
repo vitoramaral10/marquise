@@ -1,0 +1,11 @@
+name: Idea
+description: Suggest something for Marquise.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: The idea
+      description: What would you like, and what would it make easier on your TV?
+    validations:
+      required: true

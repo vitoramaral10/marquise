@@ -1,0 +1,14 @@
+# Your settings and signing key stay on your machine
+config.properties
+*.keystore
+*.idsig
+
+# Build output
+out/
+*.apk
+
+# macOS
+.DS_Store
+
+# Local work notes
+TASKS.md

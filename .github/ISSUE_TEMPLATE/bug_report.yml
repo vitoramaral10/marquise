@@ -1,0 +1,30 @@
+name: Something went wrong
+description: Marquise misbehaved on your TV.
+labels: [bug]
+body:
+  - type: input
+    id: tv
+    attributes:
+      label: TV
+      description: Brand, model and Android version (Settings → System → About).
+      placeholder: TCL 55C735, Android 12
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: log
+    attributes:
+      label: Log
+      description: The output of `adb logcat -s Marquise` around the moment it went wrong. Remove your Jellyfin address and any key.
+      render: text
+  - type: input
+    id: version
+    attributes:
+      label: Marquise version
+      description: Shown at the bottom of Marquise's settings screen.
