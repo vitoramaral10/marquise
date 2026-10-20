@@ -3,7 +3,7 @@
 All notable changes to Marquise are listed here. The format follows [Keep a Changelog](https://keepachangelog.com/),
 and versions follow [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [1.4.0] - 2026-10-20
 
 ### Added
 
