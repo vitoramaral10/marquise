@@ -160,4 +160,6 @@ Open-Meteo (with the coordinates you set). Your settings stay on your computer a
 
 ## License
 
-[MIT](LICENSE).
+[GPL-3.0](LICENSE) (or any later version). Use it, change it and share it; if you distribute a modified version, its
+source code must be published under the same license. Improvements are welcome back as pull requests. Third-party
+notices are in [NOTICE](NOTICE).

@@ -3,6 +3,18 @@
 All notable changes to Marquise are listed here. The format follows [Keep a Changelog](https://keepachangelog.com/),
 and versions follow [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Changed
+
+- License: from MIT to GPL-3.0-or-later. Modified versions that are distributed must publish their source under the
+  same license. Releases up to 1.1.0 remain available under MIT. Third-party notices moved to NOTICE.
+
+### Added
+
+- The settings screen shows who makes Marquise, a QR code to the project page, the Jellyfin server's name and
+  version, this TV's model and Android version, and tips for the remote.
+
 ## [1.1.0] - 2026-10-19
 
 ### Added

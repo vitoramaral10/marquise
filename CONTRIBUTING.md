@@ -1,6 +1,10 @@
 # Contributing to Marquise
 
-Thanks for helping. Marquise is small on purpose: one Java app, no Gradle, no libraries, drawn by hand. Contributions
+Thanks for helping. Marquise is licensed under the [GPL-3.0](LICENSE): by sending a pull request you agree that your
+contribution is released under it too. If you ship a modified Marquise, publish its source; better yet, send the
+improvement here so everyone gets it.
+
+Marquise is small on purpose: one Java app, no Gradle, no libraries, drawn by hand. Contributions
 that keep it that way are the easiest to merge.
 
 ## Good first contributions

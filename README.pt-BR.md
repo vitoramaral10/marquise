@@ -156,4 +156,6 @@ com o Open-Meteo (com as coordenadas que você definir). Suas configurações fi
 
 ## Licença
 
-[MIT](LICENSE).
+[GPL-3.0](LICENSE) (ou versão posterior). Use, modifique e compartilhe; se você distribuir uma versão modificada, o
+código dela precisa ser publicado sob a mesma licença. Melhorias são bem-vindas de volta como pull requests. Os avisos
+de terceiros estão em [NOTICE](NOTICE).
