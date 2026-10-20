@@ -2,742 +2,386 @@ package br.dev.vitormelo.marquise;
 
 import android.content.Context;
 import android.graphics.Bitmap;
-import android.graphics.BitmapShader;
+import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.LinearGradient;
 import android.graphics.Matrix;
 import android.graphics.Paint;
 import android.graphics.RadialGradient;
-import android.graphics.Rect;
-import android.graphics.RecordingCanvas;
-import android.graphics.RenderNode;
-import android.graphics.RuntimeShader;
+import android.graphics.RectF;
 import android.graphics.Shader;
 import android.os.Handler;
 import android.os.Looper;
-import android.os.SystemClock;
-import android.text.Layout;
-import android.text.StaticLayout;
-import android.text.TextPaint;
 import android.text.TextUtils;
-import android.view.Choreographer;
 import android.view.View;
 
+import org.json.JSONArray;
+import org.json.JSONObject;
+
+import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.util.HashSet;
+import java.io.FileOutputStream;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Date;
 import java.util.List;
-import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /**
- * The screensaver, in the same style as the home screen:
- *  - the recommendations' photos in full screen, one every 30 s, with a slow zoom and pan (the "Ken Burns" effect of
- *    the Apple TV photos) and a crossfade between them; each photo is loaded 10% larger than the screen, so the zoom
- *    never upscales it;
- *  - top right, like the iPhone lock screen: the date with the weather, the big Liquid Glass clock (the photo shows
- *    through the digits, bent at the edges; Shaders.GLASS_TEXT);
- *  - bottom left, the photo's caption: "RECENTLY ADDED", the title, and type · year · runtime · genre.
- * Dark scrims only where there is text, stronger where the photo is bright. Any key exits (as on Apple TV).
- * Without photos (no Jellyfin key, or before the first fetch): the big clock over the night aurora.
+ * The screensaver: a gallery. One painting at a time from the Art Institute of Chicago's public-domain collection
+ * (CC0, the curated list in assets/gallery.json), framed with a mat under a spotlight on a dark wall, its label at
+ * the bottom left and the time at the bottom right. A new work every 75 s (fade to the wall and back); the whole
+ * scene drifts a few pixels so nothing stays on the same pixels. Images are fetched at screen size (IIIF) and kept
+ * on disk, so it also works offline with what was already seen. Redrawn every 2 s, and every frame only while fading.
  */
-final class DreamView extends View implements Choreographer.FrameCallback, HomeData.Listener, Recs.Listener {
-    private static final long SHOW_MS = 30_000, FADE_MS = 3_000, FIRST_MS = 1_600;
-    private static final float ZOOM = 0.1f;
-    /** Photos 10% larger than the screen (the zoom goes up to 1.1 without upscaling). */
-    private static final int PW = 2112, PH = 1188;
-    private static final float MARGIN = 80, RIGHT = 1840, TITLE_W = 900, META_BASE = 1008;
-    private static final float DATE_BASE = 92, CLOCK_TOP = 120, CLOCK_SIZE = 200;
-    private static final double DRIFT_PERIOD_S = 600;
+final class DreamView extends View implements HomeData.Listener {
+    private static final long SHOW_MS = 75_000, FADE_MS = 2400, TICK_MS = 2000;
+    private static final String IIIF = "https://www.artic.edu/iiif/2/%s/full/!1400,840/0/default.jpg";
+    private static final int CACHE_KEEP = 24;
+    private static final int CREAM = 0xFFF3EDE2, MAT = 0xFFF1ECE3, MAT_SHADE = 0xFFE2DCD0, FRAME = 0xFF17120D;
 
-    /** One photo on screen: the image, its motion (zooming in or out, toward a corner) and its caption. */
-    private static final class Slide {
-        final Recs.Pick pick;
-        final Bitmap image, frost;
-        final BitmapShader shader;    // the frosted version, for the clock's glass
-        final float lightCaption, lightClock;
-        final boolean zoomIn;
-        final float panX, panY;
-        final RenderNode caption = new RenderNode("caption");
-        long startedAt;
-
-        Slide(Recs.Pick pick, Bitmap image, Bitmap frost, float lightCaption, float lightClock, int n) {
-            this.pick = pick;
-            this.image = image;
-            this.frost = frost;
-            shader = new BitmapShader(frost, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP);
-            Frost.filter(shader, BitmapShader.FILTER_MODE_LINEAR);
-            this.lightCaption = lightCaption;
-            this.lightClock = lightClock;
-            zoomIn = n % 2 == 0;
-            // Toward one of the corners, alternating, without repeating the previous one.
-            panX = (n / 2) % 2 == 0 ? 0.8f : -0.8f;
-            panY = n % 3 == 0 ? -0.6f : 0.6f;
-        }
+    private static final class Art {
+        String title, artist, date, image;
+        float ratio;
+        Bitmap bitmap;
+        final RectF frame = new RectF(), mat = new RectF(), picture = new RectF();
+        Paint matPaint;
+        String label1, label2;
     }
 
-    /** The glass clock's digits, rendered once a minute in the background. */
-    private static final class Glass {
-        final String text;
-        final Bitmap slope, cover, shadow;
-        final int x, y;
-        final float inkTop, inkHeight;
-
-        Glass(String text, Bitmap slope, Bitmap cover, Bitmap shadow, int x, int y, float inkTop, float inkHeight) {
-            this.text = text;
-            this.slope = slope;
-            this.cover = cover;
-            this.shadow = shadow;
-            this.x = x;
-            this.y = y;
-            this.inkTop = inkTop;
-            this.inkHeight = inkHeight;
-        }
-    }
-
-    private final Scene scene = new Scene();
     private final HomeData data;
-    private final Recs recs;
+    private final File cache;
+    private final List<Art> works = new ArrayList<>();
+    private final ExecutorService loader = Executors.newSingleThreadExecutor();
     private final Handler handler = new Handler(Looper.getMainLooper());
-    private ExecutorService worker = Executors.newSingleThreadExecutor();
-    private final RenderNode content = new RenderNode("clock");     // without photos: the clock over the aurora
-    private final RenderNode chrome = new RenderNode("corner");     // date, weather and the clock's shadow
-    private final float timeOffset = (float) (Math.random() * 300);
-    private final Matrix matrix = new Matrix();
-    private final float[] placeA = new float[3], placeB = new float[3];
-    private final Paint photoPaint = new Paint(Paint.FILTER_BITMAP_FLAG | Paint.DITHER_FLAG);
-    private final Paint black = new Paint();
-    private final Paint shadowPaint = new Paint(Paint.FILTER_BITMAP_FLAG);
-    private final Paint glassPaint = new Paint();
-    private final Set<String> failed = new HashSet<>();     // Recs.key: a movie and a series can have the same ID
-    private RuntimeShader glassShader;
-    private boolean running, dirty = true, chromeDirty = true;
-    private boolean fallback;       // the aurora with the clock (no photos)
-    private boolean decoding;
-    private int generation, slides;
-    private Slide current, incoming, prepared;
-    private Glass glass;
-    private String glassFor = "";
-    private long startedAt, firstAt, lastFrame, lastSky;
-    private int w, h;
-    private float k = 1;
-    private long minute = -1;
-    private String clock = "", date = "";
-    private Paint datePaint, clockPaint, weatherPaint, weatherDim;
-    private Paint cornerDate, cornerClock, labelPaint, metaPaint;
-    private TextPaint titlePaint;
-
     private final Runnable tick = new Runnable() {
         @Override public void run() {
             if (!running) return;
-            data.refreshIfStale();
-            recs.refreshIfStale();
-            recs.prefetchAll();
-            dirty = true;
-            chromeDirty = true;
-            prepareNext();
-            handler.postDelayed(this, 60_000);
+            ticks++;
+            if (ticks % 30 == 0) data.refreshIfStale();   // once a minute
+            long now = System.currentTimeMillis();
+            if (fadeStart < 0 && pending != null && (current == null || now - shownAt >= SHOW_MS)) {
+                fadeStart = now;
+                previous = current;
+            }
+            invalidate();
+            handler.postDelayed(this, TICK_MS);
         }
     };
+    private boolean running, loading;
+    private long startedAt, shownAt, fadeStart = -1;
+    private int ticks, position;
+    private Art current, previous, pending;
+
+    // Made once per size.
+    private float k = 1;
+    private int w, h;
+    private Paint wall, spot, shadow, frame, frameEdge, bevel, picture, title, line, museum, time, date;
+    private final Matrix move = new Matrix();
+    private final RectF rect = new RectF();
+    private final Date now = new Date();
+    private java.text.DateFormat timeFormat;
+    private SimpleDateFormat dateFormat;
 
     DreamView(Context c) {
         super(c);
         data = HomeData.get(c);
-        recs = Recs.get(c);
-        Shaders.dream(scene.palette);
-        scene.setMotion(0.4f, 0.32f);
-        scene.applyPalette();
-        content.setUseCompositingLayer(true, null);
-        try {
-            glassShader = new RuntimeShader(Shaders.GLASS_TEXT);
-            glassPaint.setShader(glassShader);
-        } catch (RuntimeException | LinkageError e) {   // Android 12: no AGSL
-            AppLog.w("glass clock unavailable: " + e.getMessage());
-            glassShader = null;
+        cache = new File(c.getCacheDir(), "gallery");
+        try (InputStream in = c.getAssets().open("gallery.json")) {
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            byte[] buffer = new byte[8192];
+            int n;
+            while ((n = in.read(buffer)) > 0) out.write(buffer, 0, n);
+            JSONArray list = new JSONArray(out.toString(StandardCharsets.UTF_8.name()));
+            for (int i = 0; i < list.length(); i++) {
+                JSONObject o = list.getJSONObject(i);
+                Art a = new Art();
+                a.title = o.getString("title");
+                a.artist = o.optString("artist");
+                a.date = o.optString("date");
+                a.image = o.getString("image");
+                a.ratio = (float) o.getDouble("ratio");
+                works.add(a);
+            }
+        } catch (Exception e) {
+            AppLog.w("gallery: " + e.getMessage());
         }
-        black.setColor(0xFF000000);
-        shadowPaint.setColor(0xFF000000);
+        Collections.shuffle(works);
+        // Start with a work already on disk, so the first one shows at once (and offline).
+        for (int i = 0; i < works.size(); i++) {
+            if (file(works.get(i)).exists()) {
+                Collections.swap(works, 0, i);
+                break;
+            }
+        }
     }
 
     void start() {
         if (running) return;
         running = true;
-        if (worker.isShutdown()) worker = Executors.newSingleThreadExecutor();
-        startedAt = clock();
-        lastFrame = 0;
-        failed.clear();
-        fallback = recs.showcase().isEmpty();
+        startedAt = System.currentTimeMillis();
         data.addListener(this);
-        recs.addListener(this);
         data.refreshIfStale();
-        recs.refreshIfStale();
-        recs.prefetchAll();
-        prepareNext();
-        handler.postDelayed(tick, 60_000);
-        Choreographer.getInstance().postFrameCallback(this);
-        invalidate();
+        loadNext();
+        handler.post(tick);
     }
 
     void stop() {
         if (!running) return;
         running = false;
-        generation++;
-        decoding = false;
-        Choreographer.getInstance().removeFrameCallback(this);
         handler.removeCallbacks(tick);
         data.removeListener(this);
-        recs.removeListener(this);
-        // The photos stay in GPU memory until the garbage collector runs: release them now (after the last frame).
-        final java.util.Set<Bitmap> gone = new java.util.HashSet<>();
-        for (Slide s : new Slide[] {current, incoming, prepared}) {
-            if (s == null) continue;
-            gone.add(s.image);
-            gone.add(s.frost);
-        }
-        if (!gone.isEmpty()) handler.postDelayed(() -> { for (Bitmap b : gone) b.recycle(); }, 1000);
-        current = incoming = prepared = null;
-        glass = null;
-        slides = 0;
-        glassFor = "";
     }
 
     @Override protected void onDetachedFromWindow() {
         super.onDetachedFromWindow();
-        worker.shutdownNow();
+        loader.shutdownNow();
     }
 
     @Override public void onData() {
-        dirty = true;
-        chromeDirty = true;
         invalidate();
     }
 
-    @Override public void onRecs() {
-        if (running) prepareNext();
+    // ---------------------------------------------------------------- loading
+
+    private File file(Art a) {
+        return new File(cache, a.image + ".jpg");
     }
+
+    /** Fetches the next work that loads (skipping any that fail); offline, only the ones on disk are shown. */
+    private void loadNext() {
+        if (loading || pending != null || works.isEmpty() || loader.isShutdown()) return;
+        loading = true;
+        final int from = position;
+        loader.execute(() -> {
+            Art found = null;
+            int tried = 0, at = from;
+            while (found == null && tried < works.size()) {
+                Art a = works.get(at % works.size());
+                at++;
+                tried++;
+                if (a == current) continue;
+                boolean cached = file(a).exists();
+                if (!cached && !download(a)) continue;
+                a.bitmap = decode(file(a), 1400, 840);   // the size IIIF sends
+                if (a.bitmap != null) found = a;
+            }
+            final Art art = found;
+            final int next = at;
+            handler.post(() -> {
+                loading = false;
+                position = next;
+                if (art == null) return;
+                pending = art;
+                layout(art);
+                if (current == null) {   // the first one comes in right away
+                    fadeStart = System.currentTimeMillis();
+                    previous = null;
+                    invalidate();
+                }
+            });
+        });
+    }
+
+    private boolean download(Art a) {
+        HttpURLConnection c = null;
+        try {
+            c = (HttpURLConnection) new URL(String.format(IIIF, a.image)).openConnection();
+            c.setConnectTimeout(8000);
+            c.setReadTimeout(15000);
+            c.setRequestProperty("AIC-User-Agent", "Marquise/" + Config.VERSION + " (github.com/vitoramaral10/marquise)");
+            if (c.getResponseCode() != 200) return false;
+            if (!cache.isDirectory() && !cache.mkdirs()) return false;
+            File part = new File(cache, a.image + ".part");
+            try (InputStream in = c.getInputStream(); OutputStream out = new FileOutputStream(part)) {
+                byte[] buffer = new byte[65536];
+                int n;
+                while ((n = in.read(buffer)) > 0) out.write(buffer, 0, n);
+            }
+            if (!part.renameTo(file(a))) return false;
+            trimCache();
+            return true;
+        } catch (Exception e) {
+            AppLog.w("gallery " + a.image + ": " + e.getMessage());
+            return false;
+        } finally {
+            if (c != null) c.disconnect();
+        }
+    }
+
+    /** Keeps the most recently fetched works on disk (~300 KB each). */
+    private void trimCache() {
+        File[] files = cache.listFiles();
+        if (files == null || files.length <= CACHE_KEEP) return;
+        Arrays.sort(files, (x, y) -> Long.compare(y.lastModified(), x.lastModified()));
+        for (int i = CACHE_KEEP; i < files.length; i++) //noinspection ResultOfMethodCallIgnored
+            files[i].delete();
+    }
+
+    private static Bitmap decode(File f, int maxW, int maxH) {
+        BitmapFactory.Options o = new BitmapFactory.Options();
+        o.inJustDecodeBounds = true;
+        BitmapFactory.decodeFile(f.getPath(), o);
+        if (o.outWidth <= 0) {
+            //noinspection ResultOfMethodCallIgnored
+            f.delete();   // a broken download: fetch it again next time
+            return null;
+        }
+        o.inJustDecodeBounds = false;
+        o.inSampleSize = 1;
+        while (o.outWidth / (o.inSampleSize * 2) >= maxW && o.outHeight / (o.inSampleSize * 2) >= maxH) o.inSampleSize *= 2;
+        return BitmapFactory.decodeFile(f.getPath(), o);
+    }
+
+    // ---------------------------------------------------------------- layout
 
     @Override protected void onSizeChanged(int width, int height, int oldWidth, int oldHeight) {
         w = width;
         h = height;
         k = w / 1920f;
-        scene.setSize(w, h);
-        content.setPosition(0, 0, w, h);
-        chrome.setPosition(0, 0, w, h);
-        // Without photos (the clock over the aurora).
-        datePaint = Ui.text(Ui.semibold, 36 * k, 0xD9FFFFFF);
-        datePaint.setTextAlign(Paint.Align.CENTER);
-        clockPaint = Ui.numbers(Ui.thin, 280 * k, 0xF2FFFFFF);
-        clockPaint.setTextAlign(Paint.Align.CENTER);
-        clockPaint.setLetterSpacing(-0.01f);
-        weatherPaint = Ui.numbers(Ui.medium, 30 * k, 0xC7FFFFFF);
-        weatherDim = Ui.numbers(Ui.regular, 28 * k, 0x80FFFFFF);
-        // With photos: the corner (date, clock) and the caption.
-        cornerDate = Ui.numbers(Ui.semibold, 30 * k, 0xEBFFFFFF);
-        cornerClock = Ui.numbers(Ui.displaySemibold, CLOCK_SIZE * k, 0xF2FFFFFF);
-        labelPaint = Ui.text(Ui.medium, 25 * k, 0xB8FFFFFF);
-        labelPaint.setLetterSpacing(0.1f);
-        titlePaint = new TextPaint(Ui.text(Ui.displayMedium, 76 * k, 0xFFFFFFFF));
-        titlePaint.setLetterSpacing(0.005f);
-        metaPaint = Ui.text(Ui.medium, 29 * k, 0xC7FFFFFF);
-        metaPaint.setLetterSpacing(0.014f);
-        for (Paint p : new Paint[] {cornerDate, cornerClock, labelPaint, titlePaint, metaPaint}) {
-            p.setShadowLayer(18 * k, 0, 2 * k, 0x66000000);
-        }
-        glassFor = "";
-        dirty = true;
-        chromeDirty = true;
-        for (Slide s : new Slide[] {current, incoming, prepared}) if (s != null) recordCaption(s);
+        wall = new Paint();
+        wall.setShader(new LinearGradient(0, 0, 0, h, 0xFF1C1915, 0xFF0A0908, Shader.TileMode.CLAMP));
+        // The gallery light from above, made at the origin and moved onto the work.
+        spot = new Paint();
+        spot.setShader(new RadialGradient(0, 0, 1000 * k, new int[] {0x38FFE4BC, 0x14FFD9A6, 0x00000000},
+                new float[] {0, 0.55f, 1}, Shader.TileMode.CLAMP));
+        shadow = new Paint(Paint.ANTI_ALIAS_FLAG);
+        shadow.setColor(FRAME);
+        shadow.setShadowLayer(54 * k, 0, 30 * k, 0xB0000000);
+        frame = new Paint(Paint.ANTI_ALIAS_FLAG);
+        frame.setColor(FRAME);
+        frameEdge = new Paint(Paint.ANTI_ALIAS_FLAG);
+        frameEdge.setStyle(Paint.Style.STROKE);
+        frameEdge.setStrokeWidth(1.5f * k);
+        frameEdge.setColor(0x2EFFE9C8);
+        bevel = new Paint(Paint.ANTI_ALIAS_FLAG);
+        bevel.setStyle(Paint.Style.STROKE);
+        bevel.setStrokeWidth(4 * k);
+        bevel.setColor(0xFFFCFAF5);
+        picture = new Paint(Paint.FILTER_BITMAP_FLAG | Paint.ANTI_ALIAS_FLAG);
+        title = Ui.text(Ui.displaySemibold, 32 * k, CREAM);
+        line = Ui.text(Ui.regular, 24 * k, 0x99F3EDE2);
+        museum = Ui.text(Ui.semibold, 15 * k, 0x66F3EDE2);
+        museum.setLetterSpacing(0.32f);
+        time = Ui.numbers(Ui.light, 68 * k, CREAM);
+        time.setTextAlign(Paint.Align.RIGHT);
+        date = Ui.text(Ui.regular, 24 * k, 0x99F3EDE2);
+        date.setTextAlign(Paint.Align.RIGHT);
+        timeFormat = android.text.format.DateFormat.getTimeFormat(getContext());
+        dateFormat = Ui.en ? new SimpleDateFormat("EEEE, MMMM d", java.util.Locale.US) : new SimpleDateFormat("EEEE, d 'de' MMMM", Ui.PT);
+        if (current != null) layout(current);
+        if (pending != null) layout(pending);
+        loadNext();
     }
 
-    // MARK: - Photos
-
-    /** Loads the next photo in the background (one at a time); once ready, it comes in at the right moment. */
-    private void prepareNext() {
-        if (!running || decoding || prepared != null) return;
-        List<Recs.Pick> list = recs.showcase();
-        if (list.isEmpty()) return;
-        Slide last = incoming != null ? incoming : current;
-        int start = 0;
-        if (last != null) {
-            for (int i = 0; i < list.size(); i++) {
-                if (Recs.key(list.get(i)).equals(Recs.key(last.pick))) {
-                    start = i + 1;
-                    break;
-                }
-            }
-        }
-        Recs.Pick pick = null;
-        for (int i = 0; i < list.size() && pick == null; i++) {
-            Recs.Pick p = list.get((start + i) % list.size());
-            if (!failed.contains(Recs.key(p))) pick = p;
-        }
-        if (pick == null) {
-            if (current == null) fallback = true;
-            return;
-        }
-        if (last != null && Recs.key(pick).equals(Recs.key(last.pick))) {
-            // Only one photo: the same one again, with a different motion.
-            prepared = newSlide(pick, last.image, last.frost, last.lightCaption, last.lightClock);
-            return;
-        }
-        File file = recs.readyImage(pick);
-        if (file == null) {
-            failed.add(Recs.key(pick));   // the image is gone from disk: try the next one
-            prepareNext();
-            return;
-        }
-        decoding = true;
-        final int gen = generation;
-        final Recs.Pick chosen = pick;
-        worker.execute(() -> {
-            Bitmap[] images = null;
-            float[] light = new float[2];
-            try {
-                images = Backdrop.photo(file, PW, PH, light);
-                images[0] = Backdrop.gpu(withScrims(images[0], light[0], light[1]));
-            } catch (Exception | OutOfMemoryError e) {
-                AppLog.w("screensaver: photo for “" + chosen.title + "”: " + e.getMessage());
-            }
-            final Bitmap[] ready = images;
-            handler.post(() -> {
-                if (gen != generation) {
-                    // The screensaver closed while the photo was loading: free the memory right away.
-                    if (ready != null) for (Bitmap b : ready) b.recycle();
-                    return;
-                }
-                decoding = false;
-                if (ready == null) {
-                    failed.add(Recs.key(chosen));
-                    prepareNext();
-                    return;
-                }
-                prepared = newSlide(chosen, ready[0], ready[1], light[0], light[1]);
-                invalidate();
-            });
-        });
-    }
-
-    private Slide newSlide(Recs.Pick pick, Bitmap image, Bitmap frost, float lightCaption, float lightClock) {
-        Slide s = new Slide(pick, image, frost, lightCaption, lightClock, slides++);
-        if (w > 0) recordCaption(s);
-        return s;
-    }
-
-    /** The prepared photo goes on screen when its turn comes (the first one right away; the others every 30 s). */
-    private void advance(long up) {
-        if (current == null) {
-            if (prepared == null) return;
-            current = prepared;
-            prepared = null;
-            current.startedAt = up;
-            firstAt = up;
-            bindPhotos();
-            prepareNext();
-            return;
-        }
-        if (incoming == null && prepared != null && up >= current.startedAt + SHOW_MS) {
-            incoming = prepared;
-            prepared = null;
-            incoming.startedAt = up;
-            bindPhotos();
-            return;
-        }
-        if (incoming != null && up >= incoming.startedAt + FADE_MS) {
-            Slide old = current;
-            current = incoming;
-            incoming = null;
-            bindPhotos();
-            if (old.image != current.image) {
-                // Once the last frame that uses them has been drawn.
-                Bitmap gone = old.image, goneFrost = old.frost;
-                handler.postDelayed(() -> {
-                    gone.recycle();
-                    goneFrost.recycle();
-                }, 1000);
-            }
-            prepareNext();
-        }
-    }
-
-    /** The photos the clock's glass shows (the current one and, during a crossfade, the incoming one). */
-    private void bindPhotos() {
-        if (glassShader == null || current == null) return;
-        glassShader.setInputShader("imageA", current.shader);
-        glassShader.setInputShader("imageB", incoming != null ? incoming.shader : current.shader);
-    }
-
-    /** Photo position and scale now: zoom from 1 to 1.1 (or back) and a pan toward a corner, never showing an edge. */
-    private void place(Slide s, long up, float[] out) {
-        float u = Ui.clamp((up - s.startedAt) / (float) (SHOW_MS + FADE_MS));
-        float f = s.zoomIn ? u : 1 - u;
-        float z = 1 + ZOOM * f;
-        float rx = w * (z - 1) / 2, ry = h * (z - 1) / 2;
-        out[0] = rx * (s.panX * f - 1);
-        out[1] = ry * (s.panY * f - 1);
-        out[2] = (float) w / s.image.getWidth() * z;
-    }
-
-    private void drawPhoto(Canvas c, Slide s, float[] place, float alpha) {
-        if (alpha <= 0.004f) return;
-        matrix.setScale(place[2], place[2]);
-        matrix.postTranslate(place[0], place[1]);
-        photoPaint.setAlpha(Math.round(255 * Math.min(1, alpha)));
-        c.drawBitmap(s.image, matrix, photoPaint);
-    }
-
-    // MARK: - Frames: 20 per second, locked to every 3rd display frame (60 Hz)
-    // Motion is slow (under half a pixel per frame). Measured on the TV: ~4 ms of GPU per frame of ours, but drawing
-    // every frame, it only reaches ~50 fps (the system also composites the UI on the GPU); at 20 there's room to spare.
-
-    @Override public void doFrame(long frameTimeNanos) {
-        if (!running) return;
-        if (frameTimeNanos - lastFrame >= 45_000_000L) {
-            lastFrame = frameTimeNanos;
-            invalidate();
-        }
-        Choreographer.getInstance().postFrameCallback(this);
-    }
-
-    /** The clock that drives the animations. */
-    private long clock() {
-        long up = SystemClock.uptimeMillis();
-        return up;
-    }
-
-    @Override protected void onDraw(Canvas canvas) {
+    /** The frame, mat and picture rectangles (centered a little above the middle, leaving room for the label). */
+    private void layout(Art a) {
         if (w == 0) return;
-        long up = clock();
-        long now = System.currentTimeMillis();
-        if (now / 60_000 != minute) {
-            minute = now / 60_000;
-            clock = Ui.clock(now);
-            date = Ui.date(now);
-            dirty = true;
-            chromeDirty = true;
-        }
-        if (running) advance(up);
-        if (!glassFor.equals(clock)) buildGlass(clock);
-
-        float first = current == null ? 0 : fadeIn(up - firstAt, FIRST_MS);
-        if (current == null || first < 1) {
-            if (fallback) drawFallback(canvas, up, current == null ? 1 : 1 - first);
-            else canvas.drawRect(0, 0, w, h, black);
-        }
-        if (current == null) return;
-        if (fallback && first >= 1) fallback = false;
-
-        place(current, up, placeA);
-        float e = incoming == null ? 0 : fadeIn(up - incoming.startedAt, FADE_MS);
-        drawPhoto(canvas, current, placeA, first);
-        if (incoming != null) {
-            place(incoming, up, placeB);
-            drawPhoto(canvas, incoming, placeB, e);
-        }
-
-        if (chromeDirty) recordChrome();
-        chrome.setAlpha(first);
-        canvas.drawRenderNode(chrome);
-        drawGlass(canvas, first, e);
-        drawCaptions(canvas, up);
+        float maxW = 1040 * k, maxH = 560 * k;
+        float pw = Math.min(maxW, maxH * a.ratio), ph = pw / a.ratio;
+        float m = 62 * k, f = 20 * k, cx = w / 2f, cy = h * 0.42f;
+        a.picture.set(cx - pw / 2, cy - ph / 2, cx + pw / 2, cy + ph / 2);
+        a.mat.set(a.picture.left - m, a.picture.top - m, a.picture.right + m, a.picture.bottom + m * 1.12f);   // museum mats sit a bit lower
+        a.frame.set(a.mat.left - f, a.mat.top - f, a.mat.right + f, a.mat.bottom + f);
+        a.matPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        a.matPaint.setShader(new LinearGradient(0, a.mat.top, 0, a.mat.bottom, MAT, MAT_SHADE, Shader.TileMode.CLAMP));
+        a.label1 = TextUtils.ellipsize(a.title, new android.text.TextPaint(title), 980 * k, TextUtils.TruncateAt.END).toString();
+        String by = a.artist == null || a.artist.isEmpty() || a.artist.equals("null") ? "" : a.artist;
+        a.label2 = by.isEmpty() ? a.date : a.date.isEmpty() ? by : by + ", " + a.date;
     }
 
-    private static float fadeIn(long elapsed, long duration) {
-        float t = Ui.clamp(elapsed / (float) duration);
-        return t * t * (3 - 2 * t);
-    }
+    // ---------------------------------------------------------------- drawing
 
-    /**
-     * Black scrims where there is text, stronger where the photo is bright, painted once onto the photo itself (in the
-     * background): each frame draws only the photo (the TV's GPU feels every full-screen layer). With the slow zoom,
-     * they move a little along with the photo, which makes no difference to the text.
-     */
-    private static Bitmap withScrims(Bitmap photo, float lightCaption, float lightClock) {
-        int w = photo.getWidth(), h = photo.getHeight();
-        Canvas c = new Canvas(photo);
-        Paint p = new Paint(Paint.DITHER_FLAG);
-        float caption = scrimStrength(lightCaption, 0.5f), corner = scrimStrength(lightClock, 0.42f);
-        p.setShader(new LinearGradient(0, h, 0, h * 0.42f,
-                new int[] {black(0.55f * caption), black(0.33f * caption), black(0.11f * caption), 0},
-                new float[] {0, 0.35f, 0.7f, 1}, Shader.TileMode.CLAMP));
-        c.drawRect(0, h * 0.42f, w, h, p);
-        RadialGradient around = new RadialGradient(0, h, w * 0.7f,
-                new int[] {black(caption), black(0.55f * caption), black(0.15f * caption), 0},
-                new float[] {0, 0.4f, 0.72f, 1}, Shader.TileMode.CLAMP);
-        Matrix m = new Matrix();
-        m.setScale(1, 0.62f, 0, h);
-        around.setLocalMatrix(m);
-        p.setShader(around);
-        c.drawRect(0, h - w * 0.7f * 0.62f, w * 0.7f, h, p);
-        p.setShader(new LinearGradient(0, 0, 0, h * 0.3f, new int[] {black(0.3f), black(0.075f), 0},
-                new float[] {0, 0.45f, 1}, Shader.TileMode.CLAMP));
-        c.drawRect(0, 0, w, h * 0.3f, p);
-        float cx = w * 0.86f, cy = h * 0.15f;
-        RadialGradient clockSide = new RadialGradient(cx, cy, w * 0.36f,
-                new int[] {black(corner), black(0.6f * corner), black(0.15f * corner), 0},
-                new float[] {0, 0.42f, 0.75f, 1}, Shader.TileMode.CLAMP);
-        Matrix mc = new Matrix();
-        mc.setScale(1, 0.72f, cx, cy);
-        clockSide.setLocalMatrix(mc);
-        p.setShader(clockSide);
-        c.drawRect(w * 0.5f, 0, w, cy + w * 0.36f * 0.72f, p);
-        return photo;
-    }
+    @Override protected void onDraw(Canvas c) {
+        if (wall == null) return;
+        long t = System.currentTimeMillis();
+        c.drawRect(0, 0, w, h, wall);
 
-    private static int black(float a) {
-        return Math.round(Math.max(0, Math.min(1, a)) * 255) << 24;
-    }
-
-    private static float scrimStrength(float light, float base) {
-        return Math.max(base - 0.1f, Math.min(0.78f, base + (light - 0.3f) * 0.9f));
-    }
-
-    // MARK: - Corner: date and weather, glass clock
-
-    private void recordChrome() {
-        RecordingCanvas c = chrome.beginRecording(w, h);
-        try {
-            float right = RIGHT * k;
-            float x = right;
-            HomeData.Weather wx = data.weather;
-            if (!Double.isNaN(wx.temp)) {
-                String temp = HomeData.degrees(wx.temp);
-                float tw = cornerDate.measureText(temp);
-                c.drawText(temp, x - tw, DATE_BASE * k, cornerDate);
-                x -= tw + 10 * k;
-                String symbol = Symbols.weather(wx.code, wx.isDay);
-                float size = 30 * k, sw = Symbols.width(getContext(), symbol, size);
-                Symbols.draw(getContext(), c, symbol, x - sw / 2, DATE_BASE * k - Ui.halfCap(cornerDate), size, 0xEBFFFFFF);
-                x -= sw + 26 * k;
-            }
-            c.drawText(date, x - cornerDate.measureText(date), DATE_BASE * k, cornerDate);
-
-            Glass g = glass;
-            if (g != null && glassShader != null) {
-                // The shadow under the glass: sets the digits apart from a bright photo.
-                shadowPaint.setAlpha(140);
-                c.drawBitmap(g.shadow, g.x, g.y + 6 * k, shadowPaint);
+        // Fade out to the wall, then in with the next one.
+        float p = 1;
+        if (fadeStart >= 0) {
+            p = Math.min(1, (t - fadeStart) / (float) FADE_MS);
+            if (p >= 1) {
+                if (previous != null && previous != pending && previous.bitmap != null) previous.bitmap.recycle();
+                current = pending;
+                pending = null;
+                previous = null;
+                fadeStart = -1;
+                shownAt = t;
+                loadNext();
             } else {
-                Rect ink = new Rect();
-                cornerClock.getTextBounds(clock, 0, clock.length(), ink);
-                c.drawText(clock, right - ink.right, CLOCK_TOP * k - ink.top, cornerClock);
-            }
-        } finally {
-            chrome.endRecording();
-        }
-        chromeDirty = false;
-    }
-
-    private void drawGlass(Canvas c, float alpha, float e) {
-        Glass g = glass;
-        if (g == null || glassShader == null || alpha <= 0.004f) return;
-        // The glass samples the frosted version (1/6 of the photo): same position, with the scale 6 times larger.
-        float f = Backdrop.PHOTO_FROST;
-        glassShader.setFloatUniform("placeA", placeA[0], placeA[1], placeA[2] * f);
-        if (incoming != null) glassShader.setFloatUniform("placeB", placeB[0], placeB[1], placeB[2] * f);
-        else glassShader.setFloatUniform("placeB", placeA[0], placeA[1], placeA[2] * f);
-        glassShader.setFloatUniform("mixB", incoming == null ? 0 : e);
-        glassShader.setFloatUniform("origin", g.x, g.y);
-        glassShader.setFloatUniform("ink", g.inkTop, g.inkHeight);
-        glassShader.setFloatUniform("refraction", 14 * k);
-        glassShader.setFloatUniform("specular", 1);
-        glassShader.setFloatUniform("alpha", alpha);
-        c.drawRect(g.x, g.y, g.x + g.cover.getWidth(), g.y + g.cover.getHeight(), glassPaint);
-    }
-
-    /** Builds the glass clock's digits in the background (once a minute) and swaps them in when they're ready. */
-    private void buildGlass(String text) {
-        glassFor = text;
-        if (glassShader == null || text.isEmpty()) {
-            chromeDirty = true;
-            return;
-        }
-        final Paint paint = new Paint(cornerClock);
-        paint.clearShadowLayer();
-        paint.setColor(0xFFFFFFFF);
-        final float right = RIGHT * k, top = CLOCK_TOP * k, scale = k;
-        final int gen = generation;
-        worker.execute(() -> {
-            Glass g = makeGlass(text, paint, right, top, scale);
-            handler.post(() -> {
-                if (gen != generation || !text.equals(glassFor)) return;
-                glass = g;
-                glassShader.setInputShader("slope", nearest(g.slope));
-                glassShader.setInputShader("cover", nearest(g.cover));
-                chromeDirty = true;
-                invalidate();
-            });
-        });
-    }
-
-    private static BitmapShader nearest(Bitmap b) {
-        BitmapShader s = new BitmapShader(b, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP);
-        Frost.filter(s, BitmapShader.FILTER_MODE_NEAREST);
-        return s;
-    }
-
-    /**
-     * The sharp rendering of the digits, the surface height (the blurred rendering: 0.5 at the edge, 1 in the middle of
-     * the strokes), its slope (for the lens and the highlight) and the shadow.
-     */
-    private static Glass makeGlass(String text, Paint paint, float right, float top, float k) {
-        Rect ink = new Rect();
-        paint.getTextBounds(text, 0, text.length(), ink);
-        int pad = Math.round(40 * k);
-        int w = ink.width() + 2 * pad, h = ink.height() + 2 * pad;
-        Bitmap cover = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
-        new Canvas(cover).drawText(text, pad - ink.left, pad - ink.top, paint);
-        int[] px = new int[w * h];
-        cover.getPixels(px, 0, w, 0, 0, w, h);
-        int[] alpha = new int[px.length];
-        for (int i = 0; i < px.length; i++) alpha[i] = (px[i] >>> 24) * 16;
-        int[] height = blur(alpha, w, h, Math.max(2, Math.round(6 * k)), 3);
-        int[] soft = blur(alpha, w, h, Math.max(3, Math.round(12 * k)), 3);
-        float max = 1;
-        for (int y = 1; y < h - 1; y++) {
-            for (int x = 1; x < w - 1; x++) {
-                int i = y * w + x;
-                float gx = height[i + 1] - height[i - 1], gy = height[i + w] - height[i - w];
-                max = Math.max(max, (float) Math.sqrt(gx * gx + gy * gy));
+                postInvalidateOnAnimation();
             }
         }
-        int[] slope = new int[px.length], shadow = new int[px.length];
-        for (int y = 0; y < h; y++) {
-            for (int x = 0; x < w; x++) {
-                int i = y * w + x;
-                float gx = x > 0 && x < w - 1 ? height[i + 1] - height[i - 1] : 0;
-                float gy = y > 0 && y < h - 1 ? height[i + w] - height[i - w] : 0;
-                int r = 128 + Math.round(127 * gx / max), g = 128 + Math.round(127 * gy / max);
-                int b = Math.min(255, height[i] / 16);
-                slope[i] = 0xFF000000 | (r << 16) | (g << 8) | b;
-                shadow[i] = Math.min(255, soft[i] / 16) << 24;
-            }
+        Art art;
+        float alpha;
+        if (fadeStart < 0) {
+            art = current;
+            alpha = 1;
+        } else if (previous != null && p < 0.5f) {
+            art = previous;
+            alpha = 1 - ease(p * 2);
+        } else {
+            art = pending;
+            alpha = previous == null ? ease(p) : ease((p - 0.5f) * 2);
         }
-        int x = Math.round(right - ink.width()) - pad, y = Math.round(top) - pad;
-        return new Glass(text, Bitmap.createBitmap(slope, w, h, Bitmap.Config.ARGB_8888), cover,
-                Bitmap.createBitmap(shadow, w, h, Bitmap.Config.ARGB_8888), x, y, pad, Math.max(1, ink.height()));
+
+        // The slow drift (minutes per cycle).
+        float s = (t - startedAt) / 1000f;
+        float dx = 16 * k * (float) Math.sin(2 * Math.PI * s / 600), dy = 10 * k * (float) Math.sin(2 * Math.PI * s / 840);
+        c.save();
+        c.translate(dx, dy);
+        if (art != null && art.bitmap != null && alpha > 0) drawArt(c, art, alpha);
+        drawClock(c);
+        c.restore();
     }
 
-    /** Box blur (passes of radius r in both directions); anything outside the image counts as empty. */
-    private static int[] blur(int[] src, int w, int h, int r, int passes) {
-        int[] a = src.clone(), b = new int[src.length];
-        for (int pass = 0; pass < passes; pass++) {
-            box(a, b, w, h, r, true);
-            box(b, a, w, h, r, false);
-        }
-        return a;
+    private static float ease(float x) {
+        return x * x * (3 - 2 * x);
     }
 
-    private static void box(int[] in, int[] out, int w, int h, int r, boolean horizontal) {
-        int n = horizontal ? w : h, lines = horizontal ? h : w, step = horizontal ? 1 : w, lineStep = horizontal ? w : 1;
-        int div = 2 * r + 1;
-        for (int line = 0; line < lines; line++) {
-            int base = line * lineStep, sum = 0;
-            for (int i = 0; i <= r && i < n; i++) sum += in[base + i * step];
-            for (int i = 0; i < n; i++) {
-                out[base + i * step] = (sum + div / 2) / div;
-                int add = i + r + 1, sub = i - r;
-                if (add < n) sum += in[base + add * step];
-                if (sub >= 0) sum -= in[base + sub * step];
-            }
-        }
+    private void drawArt(Canvas c, Art a, float alpha) {
+        int layer = alpha < 1 ? c.saveLayerAlpha(0, 0, w, h, Math.round(alpha * 255)) : -1;
+        move.setTranslate(a.frame.centerX(), a.frame.top - 120 * k);
+        spot.getShader().setLocalMatrix(move);
+        c.drawRect(-40 * k, 0, w + 40 * k, h, spot);
+
+        c.drawRect(a.frame, shadow);
+        c.drawRect(a.frame, frame);
+        rect.set(a.frame.left + 1.5f * k, a.frame.top + 1.5f * k, a.frame.right - 1.5f * k, a.frame.bottom - 1.5f * k);
+        c.drawRect(rect, frameEdge);
+        c.drawRect(a.mat, a.matPaint);
+        rect.set(a.picture.left - 2 * k, a.picture.top - 2 * k, a.picture.right + 2 * k, a.picture.bottom + 2 * k);
+        c.drawRect(rect, bevel);
+        c.drawBitmap(a.bitmap, null, a.picture, picture);
+
+        float x = 96 * k, base = h - 150 * k;
+        c.drawText(a.label1, x, base, title);
+        if (!a.label2.isEmpty()) c.drawText(a.label2, x, base + 40 * k, line);
+        c.drawText(Ui.tr("ART INSTITUTE OF CHICAGO · DOMÍNIO PÚBLICO", "ART INSTITUTE OF CHICAGO · PUBLIC DOMAIN"), x, base + 78 * k, museum);
+        if (layer >= 0) c.restoreToCount(layer);
     }
 
-    // MARK: - Photo caption (bottom left)
-
-    private void recordCaption(Slide s) {
-        RecordingCanvas c = s.caption.beginRecording(w, h);
-        try {
-            float x = MARGIN * k, metaBase = META_BASE * k, titleBase = metaBase - 58 * k;
-            String title = s.pick.title == null ? "" : s.pick.title;
-            StaticLayout t = StaticLayout.Builder.obtain(title, 0, title.length(), titlePaint, Math.round(TITLE_W * k))
-                    .setMaxLines(2).setEllipsize(TextUtils.TruncateAt.END).setAlignment(Layout.Alignment.ALIGN_NORMAL)
-                    .setIncludePad(false).build();
-            float originY = titleBase - t.getLineBaseline(t.getLineCount() - 1);
-            float capTop = originY + t.getLineBaseline(0) - Ui.cap(titlePaint);
-            c.drawText(Recs.periodLabel(), x, capTop - 30 * k, labelPaint);
-            c.save();
-            c.translate(x - Ui.leftBearing(titlePaint, title), originY);
-            t.draw(c);
-            c.restore();
-            if (s.pick.meta != null && !s.pick.meta.isEmpty()) c.drawText(s.pick.meta, x, metaBase, metaPaint);
-        } finally {
-            s.caption.endRecording();
-        }
-        s.caption.setPosition(0, 0, w, h);
+    private void drawClock(Canvas c) {
+        now.setTime(System.currentTimeMillis());
+        float x = w - 96 * k, base = h - 150 * k;
+        c.drawText(timeFormat.format(now), x, base + 6 * k, time);
+        c.drawText(dateLine(), x, base + 50 * k, date);
     }
 
-    /** The caption fades out fast; the new one rises in once the photo has partly changed (like the home screen). */
-    private void drawCaptions(Canvas c, long up) {
-        if (incoming == null) {
-            float a = current.startedAt == firstAt ? fadeIn(up - firstAt - 700, 900) : 1;
-            current.caption.setAlpha(a);
-            current.caption.setTranslationY(14 * k * (1 - a));
-            c.drawRenderNode(current.caption);
-            return;
-        }
-        long t = up - incoming.startedAt;
-        float out = 1 - Ui.clamp(t / 500f);
-        if (out > 0.004f) {
-            current.caption.setAlpha(out);
-            current.caption.setTranslationY(0);
-            c.drawRenderNode(current.caption);
-        }
-        float in = fadeIn(t - 1300, 900);
-        if (in > 0.004f) {
-            incoming.caption.setAlpha(in);
-            incoming.caption.setTranslationY(14 * k * (1 - in));
-            c.drawRenderNode(incoming.caption);
-        }
-    }
-
-    // MARK: - Without photos: the big clock over the aurora
-
-    private void drawFallback(Canvas canvas, long up, float alpha) {
-        float t = (up - startedAt) / 1000f;
-        if (up - lastSky >= 100) {
-            lastSky = up;
-            scene.advance(timeOffset + t);
-        }
-        scene.drawBackground(canvas);
-        if (dirty) {
-            RecordingCanvas rc = content.beginRecording(w, h);
-            try {
-                drawContent(rc);
-            } finally {
-                content.endRecording();
-            }
-            dirty = false;
-        }
-        double phase = 2 * Math.PI * t / DRIFT_PERIOD_S;
-        content.setTranslationX((float) (40 * k * Math.sin(phase)));
-        content.setTranslationY((float) (26 * k * Math.sin(2 * phase + 0.7)));
-        content.setAlpha(alpha);
-        canvas.drawRenderNode(content);
-    }
-
-    private void drawContent(Canvas c) {
-        float cx = w / 2f;
-        float clockCap = Ui.cap(clockPaint);
-        float clockBase = h * 0.5f + clockCap / 2 - 10 * k;
-        c.drawText(date, cx, clockBase - clockCap - 34 * k, datePaint);
-        c.drawText(clock, cx, clockBase, clockPaint);
-
-        // Weather: symbol, temperature, high and low, centered under the clock.
+    /** "Segunda-feira, 20 de outubro · 16°" (the temperature when known). */
+    private String dateLine() {
+        String day = dateFormat.format(now);
+        day = day.substring(0, 1).toUpperCase(Ui.en ? java.util.Locale.US : Ui.PT) + day.substring(1);
         HomeData.Weather wx = data.weather;
-        if (!Double.isNaN(wx.temp)) {
-            float base = clockBase + 76 * k;
-            String symbol = Symbols.weather(wx.code, wx.isDay);
-            String now = HomeData.degrees(wx.temp);
-            String range = Ui.en ? "H:" + HomeData.degrees(wx.max) + "  L:" + HomeData.degrees(wx.min)
-                    : "Máx. " + HomeData.degrees(wx.max) + "  Mín. " + HomeData.degrees(wx.min);
-            float sw = Symbols.width(getContext(), symbol, 32 * k);
-            float width = sw + 12 * k + weatherPaint.measureText(now) + 18 * k + weatherDim.measureText(range);
-            float x = cx - width / 2;
-            Symbols.draw(getContext(), c, symbol, x + sw / 2, base - Ui.halfCap(weatherPaint), 32 * k, 0xC7FFFFFF);
-            x += sw + 12 * k;
-            c.drawText(now, x, base, weatherPaint);
-            x += weatherPaint.measureText(now) + 18 * k;
-            c.drawText(range, x, base, weatherDim);
-        }
+        return Double.isNaN(wx.temp) ? day : day + "  ·  " + HomeData.degrees(wx.temp);
     }
 }

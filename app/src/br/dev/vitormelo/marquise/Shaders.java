@@ -198,67 +198,6 @@ final class Shaders {
         "  return half4(col * half(aa), half(aa));\n" +
         "}\n";
 
-    /**
-     * Glass clock for the screensaver (like the iOS 26 lock screen's): the digits are clear glass over the photo
-     * moving behind them. `slope` (opaque): R and G = the surface slope (the height gradient, pointing into the
-     * stroke; 0.5 = flat), B = the height (0.5 at the edge, 1 in the middle of the strokes); `cover`: the sharp
-     * rendering of the digits (the soft edge comes from it). Near the edge the glass bends the photo (a lens), with
-     * slight color dispersion; the core brightens a little; a thin highlight on the edge facing the light (top left)
-     * and an echo on the opposite side. Photos: `imageA`/`imageB` with each one's on-screen position (x, y) and scale
-     * (the same slow zoom as the background), and `mixB` during a transition. Premultiplied color.
-     */
-    static final String GLASS_TEXT =
-        "uniform shader imageA;\n" +
-        "uniform shader imageB;\n" +
-        "uniform shader slope;\n" +
-        "uniform shader cover;\n" +
-        "uniform float3 placeA;\n" +
-        "uniform float3 placeB;\n" +
-        "uniform float mixB;\n" +
-        "uniform float2 origin;\n" +        // the clock's top-left corner on screen
-        "uniform float2 ink;\n" +           // top and height of the digits (in the bitmaps)
-        "uniform float refraction;\n" +     // how many px the edge bends the photo
-        "uniform float specular;\n" +
-        "uniform float alpha;\n" +
-        "half3 photo(float2 p) {\n" +
-        "  half3 a = imageA.eval((p - placeA.xy) / placeA.z).rgb;\n" +
-        "  if (mixB <= 0.0) { return a; }\n" +
-        "  return mix(a, imageB.eval((p - placeB.xy) / placeB.z).rgb, half(mixB));\n" +
-        "}\n" +
-        "half4 main(float2 xy) {\n" +
-        "  float2 local = xy - origin;\n" +
-        "  half a = cover.eval(local).a;\n" +
-        "  if (a <= 0.0) { return half4(0.0); }\n" +
-        "  half3 s = slope.eval(local).rgb;\n" +
-        "  float2 n = (float2(s.r, s.g) - 0.5) * 2.0;\n" +
-        "  float bend = length(n);\n" +
-        "  float height = float(s.b);\n" +
-        "  float2 p = xy + n * refraction;\n" +
-        "  half3 bg;\n" +
-        "  if (bend > 0.02) {\n" +
-        "    float2 ca = n * (refraction * 0.2);\n" +
-        "    bg = half3(photo(p + ca).r, photo(p).g, photo(p - ca).b);\n" +
-        "  } else {\n" +
-        "    bg = photo(p);\n" +
-        "  }\n" +
-        "  half l = dot(bg, half3(0.2126, 0.7152, 0.0722));\n" +
-        "  bg = mix(half3(l), bg, 1.15);\n" +
-        "  float ty = clamp((local.y - ink.x) / ink.y, 0.0, 1.0);\n" +
-        // Clear glass: most of the photo, plus a light white veil that is stronger at the top (the face's sheen).
-        "  half3 col = bg * 0.86 + half3(0.07 + 0.11 * (1.0 - ty));\n" +
-        "  float2 dir = n / max(bend, 0.001);\n" +
-        "  float2 L = float2(-0.447, -0.894);\n" +
-        "  float facing = clamp(-dot(dir, L), 0.0, 1.0);\n" +
-        "  float back = clamp(dot(dir, L), 0.0, 1.0);\n" +
-        "  float edge = smoothstep(0.05, 0.35, bend);\n" +
-        "  float rim = (1.0 - smoothstep(0.5, 0.6, height)) * edge;\n" +
-        "  float glow = (1.0 - smoothstep(0.5, 0.86, height)) * edge;\n" +
-        "  col += half3((rim * (0.28 + 0.9 * facing + 0.45 * back) + glow * (0.05 + 0.1 * facing)) * specular);\n" +
-        "  col *= half(1.0 - 0.1 * back * bend * (1.0 - rim));\n" +
-        "  half k = a * half(alpha);\n" +
-        "  return half4(col * k, k);\n" +
-        "}\n";
-
     /** Aurora colors: three tones (background, middle, highlight), from 0 to 1. */
     static final class Palette {
         final float[] c = new float[9];
@@ -335,11 +274,6 @@ final class Shaders {
         java.util.Calendar c = java.util.Calendar.getInstance();
         c.setTimeInMillis(at);
         return ((c.get(java.util.Calendar.HOUR_OF_DAY) * 60L + c.get(java.util.Calendar.MINUTE)) * 60 + c.get(java.util.Calendar.SECOND)) * 1000L;
-    }
-
-    /** Screensaver: always the night palette, by day and by night. */
-    static void dream(Palette out) {
-        out.set(NIGHT[0], NIGHT[1], NIGHT[2]);
     }
 
     private static int mix(int a, int b, float f) {

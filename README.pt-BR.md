@@ -23,7 +23,7 @@ O que acabou de chegar no seu servidor, logo na frente. Seus apps, nas cores del
   app de Todos os Apps para adicionar. A TV aberta pode ser um deles.
 - **Hora e clima** no topo, e a previsão das próximas horas com um clique para baixo.
 - **Claro de dia, escuro à noite**, seguindo o pôr do sol de verdade da sua cidade.
-- **Tela de descanso combinando**: as imagens dos títulos novos em tela cheia, com um relógio grande.
+- **Tela de descanso Galeria**: pinturas em domínio público do Art Institute of Chicago, emolduradas, uma por vez, com a hora.
 - **Sem anúncios, sem fileiras patrocinadas, sem rastreamento.** Só conversa com o seu Jellyfin e com o Open-Meteo
   para o clima.
 - **Seguro.** Sem root. Nada é desinstalado. *Original* traz de volta o Início de fábrica, e um vigia faz isso sozinho

@@ -23,7 +23,7 @@ What just arrived on your server, up front. Your apps, in their own colors. One 
   All Apps to add it. Over-the-air TV can be one of them.
 - **The time and the weather** at the top, and the forecast for the next hours one press down.
 - **Light by day, dark by night**, following your city's real sunset.
-- **A screensaver to match**: full-screen backdrops of your new titles with a big clock.
+- **A gallery screensaver**: framed public-domain paintings from the Art Institute of Chicago, one at a time, with the time.
 - **No ads, no sponsored rows, no tracking.** It only talks to your Jellyfin server and to Open-Meteo for the weather.
 - **Safe.** No root. Nothing is uninstalled. *Original* brings the factory home screen back, and a watchdog does it by
   itself if Marquise ever crashes.
@@ -140,7 +140,7 @@ read-only `adb` commands that tell you what your TV has. Pull requests for more 
 | [`HomeMode.java`](app/src/br/dev/vitormelo/marquise/HomeMode.java) | Switching between Marquise and Original |
 | [`Adb.java`](app/src/br/dev/vitormelo/marquise/Adb.java) | The TV's own ADB, from inside the TV |
 | [`HomeData.java`](app/src/br/dev/vitormelo/marquise/HomeData.java) | Weather |
-| [`DreamView.java`](app/src/br/dev/vitormelo/marquise/DreamView.java) | The screensaver |
+| [`DreamView.java`](app/src/br/dev/vitormelo/marquise/DreamView.java) | The screensaver (Gallery) |
 | [`Watchdog.java`](app/src/br/dev/vitormelo/marquise/Watchdog.java) | The safety net |
 
 ## Privacy

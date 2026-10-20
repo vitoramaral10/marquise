@@ -39,8 +39,8 @@ final class Recs {
     static final class Pick {
         String itemId;          // the Jellyfin item "Watch" opens
         String kind;            // "movie" or "tv"
-        String title, backdrop, meta = "", app, pkg;
-        String poster;          // the card image (2:3); the backdrop is only for the screensaver
+        String title, app, pkg;
+        String poster;          // the card image (2:3)
         String blurhash;        // the poster's color sketch, shown until the image is ready
         String badge = "";      // the short line under the poster: "2025 · ★ 7,2 · 16", "Novo episódio · ★ 8,8"
     }
@@ -51,7 +51,7 @@ final class Recs {
     private static final long LIST_EVERY = 20 * 60_000L;
     private static final long ROTATE_EVERY = 30 * 60_000L;
     /** Bump when what is saved for each title changes (the saved list is discarded and fetched again). */
-    private static final int CACHE_VERSION = 9;
+    private static final int CACHE_VERSION = 10;
     private static final int MAX = 24;
     /** Posters per tab on the home screen. */
     static final int PER_TAB = 6;
@@ -123,10 +123,6 @@ final class Recs {
         }
     }
 
-    static String periodLabel() {
-        return Ui.tr("ADICIONADOS RECENTEMENTE", "RECENTLY ADDED");
-    }
-
     /**
      * 3 of the recently added, rotating every half hour through the list, movies only ("movie") or shows only ("tv");
      * null = both (the home screen tabs). Never two from the same franchise.
@@ -178,11 +174,6 @@ final class Recs {
         return null;
     }
 
-    /** The screensaver's photo (the backdrop) is on disk. */
-    private boolean hasImage(Pick p) {
-        return p.backdrop != null && imageFile(p.backdrop).exists();
-    }
-
     private boolean hasPoster(Pick p) {
         return p.poster != null && imageFile(p.poster).exists();
     }
@@ -215,7 +206,6 @@ final class Recs {
                     tried++;
                     try {
                         download(pick.poster);
-                        if (pick.backdrop != null) download(pick.backdrop);
                     } catch (Exception e) {
                         failures++;
                         last = e.getMessage() == null ? e.toString() : e.getMessage();
@@ -244,54 +234,6 @@ final class Recs {
         synchronized (images) {
             images.keySet().retainAll(wanted);
         }
-    }
-
-    /** Screensaver: the shown picks first, then the rest of the list, those with an image already on disk. */
-    List<Pick> showcase() {
-        List<Pick> out = new ArrayList<>();
-        if (!hasKey(context)) return out;
-        java.util.Set<String> seen = new java.util.HashSet<>();
-        for (Pick p : wanted()) if (hasImage(p) && seen.add(key(p))) out.add(p);
-        for (Pick p : picks) if (p.pkg != null && hasImage(p) && seen.add(key(p))) out.add(p);
-        return out;
-    }
-
-    /** The pick's original image if it's already on disk (the screensaver loads it in its own way), or null. */
-    File readyImage(Pick p) {
-        return hasImage(p) ? imageFile(p.backdrop) : null;
-    }
-
-    /** While the screensaver is showing: the images of the whole list, one at a time, so it has more photos. */
-    void prefetchAll() {
-        if (!hasKey(context) || fetching) return;
-        long sinceFail = System.currentTimeMillis() - failedAt;
-        if (failedAt != 0 && sinceFail >= 0 && sinceFail < 5 * 60_000L) return;
-        List<Pick> todo = new ArrayList<>();
-        for (Pick p : picks) if (p.pkg != null && !hasImage(p)) todo.add(p);
-        if (todo.isEmpty()) return;
-        fetching = true;
-        io.execute(() -> {
-            int failures = 0;
-            String last = "";
-            try {
-                for (Pick p : todo) {
-                    try {
-                        download(p.backdrop);
-                    } catch (Exception e) {
-                        failures++;
-                        last = e.getMessage() == null ? e.toString() : e.getMessage();
-                    }
-                }
-                if (failures == todo.size()) {
-                    error = last;
-                    failedAt = System.currentTimeMillis();
-                    AppLog.w("recommendations (screensaver): " + last);
-                }
-            } finally {
-                fetching = false;
-                notifyListeners();
-            }
-        });
     }
 
     /** The picks for the three tabs (Explore, Movies, Shows), without repeats. */
@@ -323,7 +265,7 @@ final class Recs {
         }
         String uid = user();
         JSONArray items = new JSONArray(get("/Users/" + uid + "/Items/Latest?IncludeItemTypes=Movie,Episode&GroupItems=true"
-                + "&Limit=" + (MAX + 12) + "&Fields=Genres,ProductionYear,ChildCount&EnableImageTypes=Primary,Backdrop,Thumb&ImageTypeLimit=1"));
+                + "&Limit=" + (MAX + 12) + "&Fields=ProductionYear,ChildCount&EnableImageTypes=Primary&ImageTypeLimit=1"));
         boolean app = HomeApps.launchIntent(context.getPackageManager(), JELLYFIN_PKG) != null;
         List<Pick> list = new ArrayList<>();
         for (int i = 0; i < items.length() && list.size() < MAX; i++) {
@@ -364,47 +306,29 @@ final class Recs {
         Pick p = new Pick();
         p.itemId = o.optString("Id");
         p.kind = type.equals("Movie") ? "movie" : "tv";
-        p.backdrop = backdropPath(o);
         p.poster = posterPath(o);
         p.blurhash = posterHash(o);
         if (p.poster == null || p.itemId.isEmpty()) return null;
         List<String> badge = new ArrayList<>();
-        List<String> parts = new ArrayList<>();
         switch (type) {
             case "Movie": {
                 p.title = o.optString("Name");
-                parts.add(Ui.tr("Filme", "Movie"));
                 int year = o.optInt("ProductionYear");
-                if (year > 0) parts.add(String.valueOf(year));
-                long minutes = o.optLong("RunTimeTicks") / 600_000_000L;
-                if (minutes > 0) parts.add(minutes >= 60 ? (minutes / 60) + (Ui.en ? "h " : " h ") + (minutes % 60) + (Ui.en ? "m" : " min")
-                        : minutes + (Ui.en ? "m" : " min"));
                 if (year > 0) badge.add(String.valueOf(year));
                 break;
             }
             case "Episode": {
                 p.title = o.optString("SeriesName", o.optString("Name"));
-                parts.add(Ui.tr("Série", "Series"));
-                int s = o.optInt("ParentIndexNumber"), e = o.optInt("IndexNumber");
-                if (s > 0 && e > 0) parts.add((Ui.en ? "S" : "T") + s + " E" + e);
-                String name = o.optString("Name");
-                if (!name.isEmpty() && !name.equals(p.title)) parts.add(name);
                 badge.add(Ui.tr("Novo episódio", "New episode"));
                 break;
             }
             default: {   // Season or Series: several new episodes grouped
                 p.title = o.optString("SeriesName", o.optString("Name"));
-                parts.add(Ui.tr("Série", "Series"));
                 int n = o.optInt("ChildCount");
-                if (n > 1) parts.add(n + Ui.tr(" episódios novos", " new episodes"));
-                else if (type.equals("Season")) parts.add(o.optString("Name"));
                 badge.add(n > 1 ? n + Ui.tr(" episódios novos", " new episodes") : Ui.tr("Novo episódio", "New episode"));
                 break;
             }
         }
-        JSONArray genres = o.optJSONArray("Genres");
-        if (genres != null && genres.length() > 0 && !type.equals("Episode")) parts.add(genres.optString(0));
-        p.meta = String.join(" · ", parts);
         double rating = o.optDouble("CommunityRating", Double.NaN);
         if (o.optInt("ChildCount") <= 1) {   // "3 episódios novos" alone: it's all that fits under a poster
             if (!Double.isNaN(rating) && rating > 0) {
@@ -444,20 +368,6 @@ final class Recs {
         String series = o.optString("SeriesId"), tag = o.optString("SeriesPrimaryImageTag");
         if (!series.isEmpty()) return "/Items/" + series + "/Images/Primary?tag=" + (tag.isEmpty() ? "series" : tag);
         return null;
-    }
-
-    /** The item's own backdrop, or its show's (episodes and seasons). */
-    private static String backdropPath(JSONObject o) {
-        JSONArray own = o.optJSONArray("BackdropImageTags");
-        if (own != null && own.length() > 0) return "/Items/" + o.optString("Id") + "/Images/Backdrop/0?tag=" + own.optString(0);
-        JSONArray parent = o.optJSONArray("ParentBackdropImageTags");
-        String parentId = o.optString("ParentBackdropItemId");
-        if (parent != null && parent.length() > 0 && !parentId.isEmpty()) {
-            return "/Items/" + parentId + "/Images/Backdrop/0?tag=" + parent.optString(0);
-        }
-        // Latest sometimes leaves the show's tags out: the show's backdrop by its id (the server 404s if none).
-        String series = o.optString("SeriesId");
-        return series.isEmpty() ? null : "/Items/" + series + "/Images/Backdrop/0?tag=series";
     }
 
     private String get(String path) throws IOException {
@@ -550,8 +460,8 @@ final class Recs {
             JSONArray a = new JSONArray();
             for (Pick p : picks) {
                 a.put(new JSONObject().put("itemId", p.itemId).put("kind", p.kind).put("title", p.title)
-                        .put("backdrop", p.backdrop == null ? "" : p.backdrop).put("poster", p.poster)
-                        .put("badge", p.badge).put("blurhash", p.blurhash == null ? "" : p.blurhash).put("meta", p.meta).put("app", p.app == null ? "" : p.app)
+                        .put("poster", p.poster)
+                        .put("badge", p.badge).put("blurhash", p.blurhash == null ? "" : p.blurhash).put("app", p.app == null ? "" : p.app)
                         .put("pkg", p.pkg == null ? "" : p.pkg));
             }
             cache.edit().putString("picks", a.toString()).putLong("listAt", listAt)
@@ -569,11 +479,9 @@ final class Recs {
             p.itemId = o.optString("itemId");
             p.kind = o.optString("kind");
             p.title = o.optString("title");
-            p.backdrop = o.optString("backdrop").isEmpty() ? null : o.optString("backdrop");
             p.poster = o.optString("poster").isEmpty() ? null : o.optString("poster");
             p.badge = o.optString("badge");
             p.blurhash = o.optString("blurhash").isEmpty() ? null : o.optString("blurhash");
-            p.meta = o.optString("meta");
             p.app = o.optString("app").isEmpty() ? null : o.optString("app");
             p.pkg = o.optString("pkg").isEmpty() ? null : o.optString("pkg");
                 out.add(p);

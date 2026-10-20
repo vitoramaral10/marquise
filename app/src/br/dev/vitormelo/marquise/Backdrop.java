@@ -56,49 +56,6 @@ final class Backdrop {
         return new Backdrop(frost, tall, light, lightGlass, night, nightGlass);
     }
 
-    /** How many times smaller the screensaver photo's frosted version is (the glass math uses the same number). */
-    static final int PHOTO_FROST = 6;
-
-    /**
-     * Screensaver: the whole original from disk at w × h (center-cropped to that aspect ratio), filtered down, plus the
-     * frosted version (1/6, blurred) for the glass clock. `light` receives the luminance (0 to 1) where the caption
-     * (bottom left) and the clock (top right) sit, for the scrims. Returns {photo (mutable), frosted}.
-     */
-    static Bitmap[] photo(java.io.File f, int w, int h, float[] light) throws java.io.IOException {
-        android.graphics.BitmapFactory.Options bounds = new android.graphics.BitmapFactory.Options();
-        bounds.inJustDecodeBounds = true;
-        android.graphics.BitmapFactory.decodeFile(f.getPath(), bounds);
-        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) throw new java.io.IOException("unreadable image");
-        android.graphics.BitmapFactory.Options opts = new android.graphics.BitmapFactory.Options();
-        opts.inSampleSize = 1;
-        while (bounds.outWidth / (opts.inSampleSize * 2) >= w && bounds.outHeight / (opts.inSampleSize * 2) >= h) opts.inSampleSize *= 2;
-        Bitmap src = android.graphics.BitmapFactory.decodeFile(f.getPath(), opts);
-        if (src == null) throw new java.io.IOException("unreadable image");
-        float ratio = (float) w / h;
-        int cw = Math.min(src.getWidth(), Math.round(src.getHeight() * ratio));
-        int ch = Math.min(src.getHeight(), Math.round(cw / ratio));
-        Bitmap b = Bitmap.createBitmap(src, (src.getWidth() - cw) / 2, (src.getHeight() - ch) / 2, cw, ch);
-        if (b != src) src.recycle();
-        while (b.getWidth() / 2 >= w) {
-            Bitmap half = Bitmap.createScaledBitmap(b, b.getWidth() / 2, b.getHeight() / 2, true);
-            b.recycle();
-            b = half;
-        }
-        Bitmap out = b.getWidth() == w && b.getHeight() == h ? b : Bitmap.createScaledBitmap(b, w, h, true);
-        if (out != b) b.recycle();
-        if (light != null && light.length >= 2) {
-            light[0] = luminance(out, 0, 0.6f, 0.5f, 0.95f);
-            light[1] = luminance(out, 0.62f, 0.04f, 0.96f, 0.36f);
-        }
-        int fw = w / PHOTO_FROST, fh = h / PHOTO_FROST;
-        Bitmap frost = Bitmap.createBitmap(reduce(out, fw, fh, 3, 2), fw, fh, Bitmap.Config.ARGB_8888);
-        if (!out.isMutable()) {
-            Bitmap copy = out.copy(Bitmap.Config.ARGB_8888, true);
-            out.recycle();
-            out = copy;
-        }
-        return new Bitmap[] {out, frost};
-    }
 
     /** The center of the photo at the card's aspect ratio, filtered down (halving while possible) to the exact size. */
     private static Bitmap card(Bitmap full, int w, int h) {
