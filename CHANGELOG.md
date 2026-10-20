@@ -3,6 +3,25 @@
 All notable changes to Marquise are listed here. The format follows [Keep a Changelog](https://keepachangelog.com/),
 and versions follow [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- Updates from the TV: the settings show "Update — version X available" when a newer release is out, and OK downloads
+  it straight into Android's own installer (the first time, Android asks to allow Marquise to install apps).
+
+### Changed
+
+- A new screensaver, Gallery: one painting at a time from the Art Institute of Chicago's public-domain collection
+  (64 curated works, CC0), framed with a mat under a spotlight, with a museum label and the time; a new work every
+  75 s, a slow drift against burn-in, and the works already seen kept on disk so it also works offline.
+- Icons redrawn from the official Material Symbols Rounded SVGs (`tools/make_symbols.sh`, pinned version): the
+  partly cloudy night icon was broken, sunrise and sunset were the same, and a few were outlined among filled ones.
+
+### Removed
+
+- The photo screensaver, and with it the full-size backdrop downloads (only posters are fetched now).
+
 ## [1.3.0] - 2026-10-20
 
 ### Added
