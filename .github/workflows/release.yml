@@ -1,45 +1,80 @@
 name: Release
 
-# Push a tag like v1.2.0: CI builds, signs with the project's key (repository secrets) and publishes the APK, with the
-# CHANGELOG section of that version as the notes. Installs on top of earlier releases (same key).
+# Every merge to main releases by itself when it should: the commits since the last tag decide (Conventional
+# Commits: feat → minor, fix/perf → patch, "!" or BREAKING CHANGE → major; docs, chore, ci… → no release). Then the
+# manifest's version goes up, CHANGELOG's [Unreleased] becomes the new version, that goes to main as a
+# "chore(release)" commit with its tag, and the APK is built, signed with the project's key (repository secrets) and
+# published with that CHANGELOG section as the notes. Installs on top of earlier releases (same key).
 on:
   push:
-    tags: ["v*"]
+    branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: write
 
+concurrency:
+  group: release
+  cancel-in-progress: false
+
 jobs:
-  apk:
+  release:
+    if: ${{ !startsWith(github.event.head_commit.message, 'chore(release)') }}
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: What this merge asks for
+        id: plan
+        run: python3 .github/scripts/release.py plan | tee -a "$GITHUB_OUTPUT"
+
+      - name: Version and CHANGELOG
+        if: steps.plan.outputs.release == 'true'
+        run: python3 .github/scripts/release.py apply "${{ steps.plan.outputs.version }}" "${{ steps.plan.outputs.code }}"
 
       - uses: actions/setup-java@v4
+        if: steps.plan.outputs.release == 'true'
         with:
           distribution: temurin
           java-version: "17"
 
       - name: Android SDK packages
+        if: steps.plan.outputs.release == 'true'
         run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "build-tools;34.0.0" "platforms;android-34" > /dev/null
 
       - name: Signing key
+        if: steps.plan.outputs.release == 'true'
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
         run: echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/marquise.keystore"
 
       - name: Build
+        if: steps.plan.outputs.release == 'true'
         env:
           MARQUISE_KEYSTORE: ${{ runner.temp }}/marquise.keystore
           MARQUISE_KEYSTORE_PASS: ${{ secrets.KEYSTORE_PASSWORD }}
         run: ./build.sh
 
+      - name: Commit and tag
+        if: steps.plan.outputs.release == 'true'
+        env:
+          VERSION: ${{ steps.plan.outputs.version }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
+          git add app/AndroidManifest.xml CHANGELOG.md
+          git commit -m "chore(release): $VERSION"
+          git tag -a "v$VERSION" -m "Marquise $VERSION"
+          git push origin HEAD:main "v$VERSION"
+
       - name: Publish
+        if: steps.plan.outputs.release == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ github.ref_name }}
+          VERSION: ${{ steps.plan.outputs.version }}
         run: |
-          version="${TAG#v}"
-          awk -v v="$version" '$0 ~ "^## \\[" v "\\]" {on=1; next} on && /^## \[/ {exit} on {print}' CHANGELOG.md > notes.md
-          cp marquise.apk "marquise-$version.apk"
-          gh release create "$TAG" marquise.apk "marquise-$version.apk" --title "Marquise $version" --notes-file notes.md
+          python3 .github/scripts/release.py notes "$VERSION" > notes.md
+          cp marquise.apk "marquise-$VERSION.apk"
+          gh release create "v$VERSION" marquise.apk "marquise-$VERSION.apk" --title "Marquise $VERSION" --notes-file notes.md

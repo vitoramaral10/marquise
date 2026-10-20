@@ -3,6 +3,13 @@
 All notable changes to Marquise are listed here. The format follows [Keep a Changelog](https://keepachangelog.com/),
 and versions follow [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Changed
+
+- On TCL TVs that block apps in the background (TclAppBoot), switching Marquise on now allows it by itself; no
+  computer needed.
+
 ## [1.5.0] - 2026-10-20
 
 ### Added
