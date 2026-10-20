@@ -124,7 +124,7 @@ public class SettingsActivity extends Activity {
         private final Bitmap logo, qr;
         private static final String REPO = "github.com/vitoramaral10/marquise", AUTHOR = "vitoramaral10";
         private final Handler handler = new Handler(Looper.getMainLooper());
-        private final Spring[] pop = new Spring[5];
+        private final Spring[] pop = new Spring[6];
         private final RectF tmp = new RectF(), rowRect = new RectF();
         private JSONObject state = new JSONObject(), recs = new JSONObject();
         private boolean hasKey;
@@ -158,6 +158,7 @@ public class SettingsActivity extends Activity {
         }
 
         void resume() {
+            Updater.check();
             if (running) return;
             running = true;
             startedAt = SystemClock.uptimeMillis();
@@ -221,7 +222,12 @@ public class SettingsActivity extends Activity {
         }
 
         private int rowCount() {
-            return screen == MAIN ? ROWS : 2;
+            return screen == MAIN ? mainRows() : 2;
+        }
+
+        /** The fixed rows, plus "Update" when a newer release is out. */
+        private int mainRows() {
+            return Updater.available.isEmpty() ? ROWS : ROWS + 1;
         }
 
         @Override protected void onDraw(Canvas c) {
@@ -300,8 +306,9 @@ public class SettingsActivity extends Activity {
                     c.drawText(values[i], right, base, rowValue);
                 }
             }
+            if (mainRows() > ROWS) drawUpdateRow(c);
 
-            float y = (LIST_TOP + ROWS * (ROW_H + ROW_GAP) + 40) * k;
+            float y = (LIST_TOP + mainRows() * (ROW_H + ROW_GAP) + 40) * k;
             String error = state.optString("error");
             if (working && (busyText.contains("Permitir") || busyText.contains("Allow"))) {
                 c.drawText(Ui.tr("Na TV: marque “Sempre permitir” e aperte OK.", "On the TV: tick “Always allow” and press OK."),
@@ -315,6 +322,22 @@ public class SettingsActivity extends Activity {
             y = drawTv(c, y + 50 * k);
             y = drawTips(c, y + 50 * k);
             drawNotices(c, y + 50 * k);
+        }
+
+        /** "Update": the new version (in amber), the download's progress, or what went wrong. OK installs it. */
+        private void drawUpdateRow(Canvas c) {
+            float y = (LIST_TOP + ROWS * (ROW_H + ROW_GAP)) * k;
+            rowRect.set(LIST_X * k, y, LIST_R * k, y + ROW_H * k);
+            float f = drawRowBackground(c, ROWS);
+            rowLabel.setColor(blend(0xF2FFFFFF, INK, f));
+            float base = rowRect.centerY() + Ui.halfCap(rowLabel);
+            c.drawText(Ui.tr("Atualização", "Update"), rowRect.left + 30 * k, base, rowLabel);
+            int progress = Updater.progress;
+            String value = progress >= 0 ? (progress >= 100 ? Ui.tr("Instalando…", "Installing…") : Ui.tr("Baixando ", "Downloading ") + progress + "%")
+                    : !Updater.error.isEmpty() ? Ui.tr("Não deu, tente de novo", "Didn't work, try again")
+                    : Ui.tr("Versão " + Updater.available + " disponível", "Version " + Updater.available + " available");
+            rowValue.setColor(blend(AMBER, 0xFF8A4B00, f));
+            c.drawText(value, rowRect.right - 30 * k, base, rowValue);
         }
 
         /** Jellyfin: how the posters are doing, from which server (its name, version and address). */
@@ -509,6 +532,8 @@ public class SettingsActivity extends Activity {
             } else if (focus == 1 || focus == 2) {
                 activity.startActivity(new Intent(c, SetupActivity.class)
                         .putExtra(SetupActivity.EXTRA_STEP, focus == 1 ? SetupActivity.STEP_SERVER : SetupActivity.STEP_CITY));
+            } else if (focus == ROWS) {
+                Updater.install(c);
             } else if (focus == 3) {
                 pause();
                 activity.showPreview();

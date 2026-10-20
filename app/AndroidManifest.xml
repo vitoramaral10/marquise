@@ -11,6 +11,8 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <!-- "Uninstall" in an app's menu (hold OK): opens Android's own confirmation; nothing is removed without it. -->
     <uses-permission android:name="android.permission.REQUEST_DELETE_PACKAGES" />
+    <!-- Updating itself from the project's releases (settings → Update): Android's installer asks to confirm. -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
     <!-- Android 11+: without this list the app can't "see" the other apps (getLeanbackLaunchIntentForPackage
          returns null). The shelf and streaming apps, the live TV apps and, through the <intent>, every TV app
@@ -120,6 +122,12 @@
             android:name=".ModeJob"
             android:exported="false"
             android:permission="android.permission.BIND_JOB_SERVICE" />
+
+        <!-- The installer's answer to an update; in :home, where the settings screen follows the progress. -->
+        <receiver
+            android:name=".UpdateReceiver"
+            android:process=":home"
+            android:exported="false" />
 
         <receiver
             android:name=".HomeReceiver"
