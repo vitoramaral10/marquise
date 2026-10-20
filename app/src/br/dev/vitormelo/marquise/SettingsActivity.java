@@ -132,8 +132,9 @@ public class SettingsActivity extends Activity {
         private boolean hasKey;
         private String tmdbApps = "";
         private final String tvName = TvReport.brandModel();
-        private Bitmap reportQr;               // made the first time "This TV" opens
-        private String[] errorLines = new String[0];   // the last problems AppLog kept, newest first, as lines
+        private Bitmap reportQr;               // made when "This TV" opens (off the UI thread), again if the link changed
+        private String reportUrl;              // the link reportQr is of
+        private String[] errorLines;           // the last problems AppLog kept, newest first, as lines; null until read
         private final Paint qrPaint = new Paint();   // no filtering: the modules stay sharp when scaled up   // the installed streaming apps TMDB titles open in (looked up on resume)
         private int screen = MAIN, focus;
         /** Whether the Updates screen has had the "Install" row: when it appears, focus moves down with the rows. */
@@ -479,8 +480,34 @@ public class SettingsActivity extends Activity {
             // The last problems Marquise saw, under the code: what to say when something didn't work.
             float ey = top + q + 56 * k;
             c.drawText(Ui.tr("ÚLTIMOS ERROS", "LAST ERRORS"), x, ey, header);
-            if (errorLines.length == 0) c.drawText(Ui.tr("Nenhum erro recente.", "No recent errors."), x, ey + 42 * k, notice);
-            for (int i = 0; i < errorLines.length; i++) c.drawText(errorLines[i], x, ey + (42 + 34 * i) * k, notice);
+            if (errorLines != null && errorLines.length == 0) {
+                c.drawText(Ui.tr("Nenhum erro recente.", "No recent errors."), x, ey + 42 * k, notice);
+            }
+            for (int i = 0; errorLines != null && i < errorLines.length; i++) {
+                c.drawText(errorLines[i], x, ey + (42 + 34 * i) * k, notice);
+            }
+        }
+
+        /**
+         * The link, its QR code and the last problems, read and made on a background thread (they read files and ask
+         * the package manager). The QR is made again only when the link changed since it was last made, so what is
+         * on screen under the code is what the code carries.
+         */
+        private void loadReport() {
+            final Context c = getContext();
+            new Thread(() -> {
+                String url = TvReport.url(c);
+                String[] lines = loadErrors();
+                Bitmap qr = reportQr == null || !url.equals(reportUrl) ? TvReport.qr(url) : null;
+                post(() -> {
+                    if (qr != null) {
+                        reportQr = qr;
+                        reportUrl = url;
+                    }
+                    errorLines = lines;
+                    invalidate();
+                });
+            }, "marquise-report").start();
         }
 
         /**
@@ -693,9 +720,8 @@ public class SettingsActivity extends Activity {
                 updatesHadInstall = !Updater.available.isEmpty();
                 focus = Updater.available.isEmpty() ? (Prefs.betas(c) ? 1 : 0) : 0;
             } else if (focus == THIS_TV) {
-                if (reportQr == null) reportQr = TvReport.qr(TvReport.url(c));
-                errorLines = loadErrors();
                 screen = REPORT;
+                loadReport();
             } else if (focus == 3) {
                 pause();
                 activity.showPreview();

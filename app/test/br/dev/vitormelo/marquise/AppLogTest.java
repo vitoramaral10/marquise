@@ -23,6 +23,25 @@ final class AppLogTest {
         eq("tmdb: <url> failed", AppLog.clean("tmdb: https://api.themoviedb.org/3/discover/movie?api_key=0123456789abcdef failed"));
     }
 
+    /** IPv6 addresses, in the forms an exception prints, are taken out; a time of day is not. */
+    static void ipv6AddressesAreTakenOut() {
+        eq("connect to <ip> failed", AppLog.clean("connect to fe80::1%wlan0 failed"));
+        eq("connect to <ip> failed", AppLog.clean("connect to [2001:db8::1]:8096 failed"));
+        eq("connect to <ip> failed", AppLog.clean("connect to /2001:0db8:0000:0000:0000:ff00:0042:8329 failed"));
+        eq("connect to <ip>", AppLog.clean("connect to ::1"));
+        eq("at 12:30:45 it failed", AppLog.clean("at 12:30:45 it failed"));
+    }
+
+    /** A name with a port, a name after "host" and a country domain are taken out. */
+    static void moreHostNamesAreTakenOut() {
+        eq("connect to <host> failed", AppLog.clean("connect to jf.casa.pt:8096 failed"));
+        eq("connect to <host> failed", AppLog.clean("connect to nas:8096 failed"));
+        eq("Unable to resolve host \"<host>\"", AppLog.clean("Unable to resolve host nas.casa"));
+        eq("Unable to resolve host \"<host>\"", AppLog.clean("Unable to resolve host \"nas\""));
+        eq("connect to <host> failed", AppLog.clean("connect to jf.casa.pt failed"));
+        eq("host is down", AppLog.clean("host is down"));
+    }
+
     /** A host name is taken out, but a package name is not: it's what tells the apps apart. */
     static void hostNamesGoButPackagesStay() {
         eq("Unable to resolve host \"<host>\": No address", AppLog.clean("Unable to resolve host \"jf.example.com\": No address"));
@@ -30,6 +49,10 @@ final class AppLogTest {
         eq("could not turn off br.dev.vitormelo.marquise: error", AppLog.clean("could not turn off br.dev.vitormelo.marquise: error"));
         eq("couldn't open com.google.android.youtube.tv", AppLog.clean("couldn't open com.google.android.youtube.tv"));
         eq("couldn't open org.jellyfin.androidtv", AppLog.clean("couldn't open org.jellyfin.androidtv"));
+        // Packages that end like a domain word: the report needs them to support another brand.
+        eq("could not turn off com.sony.dtv.home", AppLog.clean("could not turn off com.sony.dtv.home"));
+        eq("could not turn off org.droidtv.home", AppLog.clean("could not turn off org.droidtv.home"));
+        eq("could not turn off com.vendor.app", AppLog.clean("could not turn off com.vendor.app"));
     }
 
     /** A long run of letters and digits could be a token: it's taken out. */

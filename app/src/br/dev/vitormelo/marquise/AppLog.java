@@ -13,6 +13,8 @@ import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.regex.Pattern;
 
 /**
@@ -26,6 +28,12 @@ final class AppLog {
 
     private static final int KEEP = 12, MAX_LEN = 140;
     private static final long REPEAT_MS = 60_000;
+    /** The writes go one at a time, in order, off the thread that logged (the UI thread logs too: no disk there). */
+    private static final ExecutorService IO = Executors.newSingleThreadExecutor(r -> {
+        Thread t = new Thread(r, "marquise-log");
+        t.setDaemon(true);
+        return t;
+    });
     private static volatile File file;
     private static String lastMessage = "";
     private static long lastAt;
@@ -55,7 +63,7 @@ final class AppLog {
             if (text.equals(lastMessage) && now - lastAt < REPEAT_MS) return;   // the same thing again: once a minute
             lastMessage = text;
             lastAt = now;
-            append(f, now, text);
+            IO.execute(() -> append(f, now, text));
         }
     }
 
@@ -112,16 +120,26 @@ final class AppLog {
 
     private static final Pattern URL = Pattern.compile("[a-zA-Z][a-zA-Z0-9+.-]*://\\S+");
     private static final Pattern IP = Pattern.compile("/?\\b\\d{1,3}(?:\\.\\d{1,3}){3}(?::\\d+)?\\b");
-    // A name ending in a well-known domain ("jf.example.com", "nas.local:8096"); never a package like br.dev.vitormelo.
+    // IPv6, in the forms an exception prints: fe80::1%wlan0, [2001:db8::1]:8096, a full 8-group address. Not "12:30:45".
+    private static final Pattern IPV6 = Pattern.compile(
+            "/?\\[?(?:[0-9a-fA-F]{0,4}(?::[0-9a-fA-F]{0,4})*::(?:[0-9a-fA-F]{1,4}(?::[0-9a-fA-F]{0,4})*)?"
+                    + "|\\b(?:[0-9a-fA-F]{1,4}:){5,7}[0-9a-fA-F]{1,4}\\b)(?:%[\\w.]+)?\\]?(?::\\d+)?");
+    // A name ending in a well-known domain ("jf.example.com", "nas.local"), or any name with a port ("nas:8096",
+    // "jf.casa.pt:8096"), or the name after "host". Never a package: br.dev.vitormelo, com.sony.dtv.home and
+    // org.droidtv.home don't end in one of these, and "home", "app", "me" and "info" are left out for that reason.
     private static final Pattern HOST = Pattern.compile(
-            "\\b[\\w-]+(?:\\.[\\w-]+)*\\.(?:com|net|org|io|dev|br|local|lan|home|app|me|xyz|info|cloud)(?::\\d+)?(?!\\.?[\\w-])",
+            "\\b[\\w-]+(?:\\.[\\w-]+)*\\.(?:com|net|org|io|dev|br|pt|es|uk|de|fr|us|local|lan|cloud)(?::\\d+)?(?!\\.?[\\w-])"
+                    + "|\\b[A-Za-z][\\w.-]*:\\d{4,5}\\b",
             Pattern.CASE_INSENSITIVE);
+    private static final Pattern HOST_WORD = Pattern.compile("\\bhost\\s+(?:\"[^\"]+\"|[\\w-]+\\.[\\w.-]+)", Pattern.CASE_INSENSITIVE);
     private static final Pattern KEY = Pattern.compile("[A-Za-z0-9_-]{24,}");
 
     /** One short line without links, addresses or anything that looks like a key or token. */
     static String clean(String message) {
         String t = URL.matcher(message).replaceAll("<url>");
         t = IP.matcher(t).replaceAll("<ip>");
+        t = IPV6.matcher(t).replaceAll("<ip>");
+        t = HOST_WORD.matcher(t).replaceAll("host \"<host>\"");
         t = HOST.matcher(t).replaceAll("<host>");
         t = KEY.matcher(t).replaceAll("<key>");
         t = t.replaceAll("\\s+", " ").trim();
