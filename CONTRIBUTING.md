@@ -55,3 +55,6 @@ every push and pull request the same way, and also tests the release script
 
 Open an issue with your TV's brand, model and Android version, what you expected and what happened, and the output of
 `adb logcat -s Marquise` around the moment it went wrong. Please remove your Jellyfin address and any key from logs.
+
+A security problem goes privately, not in an issue: see the [security policy](.github/SECURITY.md). Everyone here
+follows the [code of conduct](.github/CODE_OF_CONDUCT.md).
