@@ -131,6 +131,10 @@ pieces to `PROTECTED` in [`HomeMode.java`](app/src/br/dev/vitormelo/marquise/Hom
 `LIVE_TV_APPS` in [`HomeApps.java`](app/src/br/dev/vitormelo/marquise/HomeApps.java). [CLAUDE.md](CLAUDE.md) lists the
 read-only `adb` commands that tell you what your TV has. Pull requests for more brands are very welcome.
 
+No computer at hand? On the TV, *Marquise → This TV* shows a QR code: point your phone at it and it opens a report of
+the TV on GitHub, already filled in (brand, model, Android, the factory home screen and screensaver, and the apps that
+came with it; nothing personal).
+
 ## How it works
 
 - **A plain Android app in Java, no Gradle, no libraries.** [`build.sh`](build.sh) runs aapt2 → javac → d8 → zipalign
