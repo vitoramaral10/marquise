@@ -9,7 +9,7 @@ before you do it, and let them do the taps on the TV.
 
 ## Installing it for someone
 
-The quick way needs no computer and is the page in `docs/` (GitHub Pages, vitoramaral10.github.io/marquise): USB
+The quick way needs no computer and is the page in `docs/` (GitHub Pages, marquise.vitormelo.dev.br): USB
 debugging on, Downloader from the Play Store, the Downloader code `9141955` (aftv.news, pointing to the release APK,
 `github.com/vitoramaral10/marquise/releases/latest/download/marquise.apk`), then Marquise's own setup on the TV (TMDB
 or Jellyfin, city). The steps below are for building it yourself.

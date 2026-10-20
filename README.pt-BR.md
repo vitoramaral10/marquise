@@ -46,13 +46,13 @@ Não precisa de computador.
 ## Instalar
 
 Uns cinco minutos, tudo pelo controle. O passo a passo com imagens, para mandar para quem nunca fez isso:
-**[vitoramaral10.github.io/marquise](https://vitoramaral10.github.io/marquise)**.
+**[marquise.vitormelo.dev.br](https://marquise.vitormelo.dev.br)**.
 
 1. **Ative a Depuração USB.** *Configurações → Sistema → Sobre →* aperte 7 vezes em *Build do Android TV OS*. Depois
    *Configurações → Sistema → Opções do desenvolvedor →* ative **Depuração USB**. (O Marquise usa isso para trocar o
    Início e desligar os apps de propaganda; o Android não tem outro caminho.)
 2. **Instale o Downloader** pela Play Store (da AFTVnews). Abra e permita que ele instale apps quando pedir.
-3. **No Downloader, digite o código** `9141955` e instale (ou digite `vitoramaral10.github.io/marquise` e aperte
+3. **No Downloader, digite o código** `9141955` e instale (ou digite `marquise.vitormelo.dev.br` e aperte
    *Baixar o Marquise*).
 4. **Abra o Marquise.** Uma configuração rápida pergunta de onde vêm os filmes e séries: o **TMDB** (em alta nos seus
    streamings, com a sua chave grátis) ou o seu **Jellyfin**, que ela acha na rede e onde entra por **Quick Connect**

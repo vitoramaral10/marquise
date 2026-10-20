@@ -46,13 +46,13 @@ No computer needed.
 ## Install
 
 About five minutes, all with the remote. A step-by-step page with pictures (in Portuguese), to send to anyone:
-**[vitoramaral10.github.io/marquise](https://vitoramaral10.github.io/marquise)**.
+**[marquise.vitormelo.dev.br](https://marquise.vitormelo.dev.br)**.
 
 1. **Turn on USB debugging.** *Settings → System → About →* press *Android TV OS build* 7 times. Then *Settings →
    System → Developer options →* turn on **USB debugging**. (Marquise uses it to switch the Home screen and turn off
    the promo apps; Android has no other way.)
 2. **Install Downloader** from the Play Store (by AFTVnews). Open it and allow it to install apps when asked.
-3. **In Downloader, type the code** `9141955` and install (or type `vitoramaral10.github.io/marquise` and press
+3. **In Downloader, type the code** `9141955` and install (or type `marquise.vitormelo.dev.br` and press
    *Baixar o Marquise*, download).
 4. **Open Marquise.** A short setup asks where the movies and shows come from: **TMDB** (popular on your streaming
    apps, with your own free key) or your **Jellyfin** server, which it finds on the network and signs in to with
