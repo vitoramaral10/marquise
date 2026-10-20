@@ -5,6 +5,8 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.7.0] - 2026-10-20
+
 ### Added
 
 - Over-the-air TV on more brands: the Live TV apps of Philips, Xiaomi and AOSP's Live Channels (MediaTek's already
