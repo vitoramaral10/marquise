@@ -29,9 +29,8 @@ import java.util.concurrent.Executors;
  * config.properties.
  */
 final class HomeData {
-    private static final String WEATHER_URL = "https://api.open-meteo.com/v1/forecast?latitude=" + Config.LATITUDE
-            + "&longitude=" + Config.LONGITUDE
-            + "&current=temperature_2m,weather_code,is_day&daily=temperature_2m_max,temperature_2m_min,sunrise,sunset"
+    private static final String WEATHER_QUERY = "&current=temperature_2m,weather_code,is_day"
+            + "&daily=temperature_2m_max,temperature_2m_min,sunrise,sunset"
             + "&hourly=temperature_2m,weather_code,is_day&timezone=auto&forecast_days=2";
     private static final long WEATHER_EVERY = 30 * 60_000L;
     private static final Locale PT = new Locale("pt", "BR");
@@ -61,12 +60,14 @@ final class HomeData {
     volatile Weather weather = new Weather();
 
     private final SharedPreferences cache;
+    private final Context context;
     private final ExecutorService io = Executors.newSingleThreadExecutor();
     private final Handler main = new Handler(Looper.getMainLooper());
     private final List<Listener> listeners = new ArrayList<>();
     private volatile boolean fetchingWeather;
 
     private HomeData(Context c) {
+        context = c;
         cache = c.getSharedPreferences("homedata", Context.MODE_PRIVATE);
         try {
             String w = cache.getString("weather", null);
@@ -81,15 +82,19 @@ final class HomeData {
     /** Fetches whatever is stale. The screen calls this when it appears and every minute while it's visible. */
     void refreshIfStale() {
         long now = System.currentTimeMillis();
+        // The city changed on the TV: the cached forecast is for somewhere else.
+        String place = Prefs.latitude(context) + "," + Prefs.longitude(context);
+        if (!place.equals(cache.getString("weatherFor", place))) weatherAt = 0;
         // A negative age (the TV's clock went back) counts as stale: otherwise the data would freeze.
         if (!fetchingWeather && (now - weatherAt > WEATHER_EVERY || now < weatherAt)) {
             fetchingWeather = true;
             io.execute(() -> {
                 try {
-                    String body = get(WEATHER_URL);
+                    String body = get("https://api.open-meteo.com/v1/forecast?latitude=" + Prefs.latitude(context)
+                            + "&longitude=" + Prefs.longitude(context) + WEATHER_QUERY);
                     weather = parseWeather(body);
                     weatherAt = System.currentTimeMillis();
-                    cache.edit().putString("weather", body).putLong("weatherAt", weatherAt).apply();
+                    cache.edit().putString("weather", body).putLong("weatherAt", weatherAt).putString("weatherFor", place).apply();
                     notifyListeners();
                 } catch (Exception e) {
                     AppLog.w("weather: " + e.getMessage());

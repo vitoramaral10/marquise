@@ -3,17 +3,24 @@
 All notable changes to Marquise are listed here. The format follows [Keep a Changelog](https://keepachangelog.com/),
 and versions follow [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [1.2.0] - 2026-10-20
+
+### Added
+
+- Install without a computer: a signed APK on every release (GitHub Releases), installed on the TV with Downloader.
+- A setup on the TV, with the remote: finds the Jellyfin server on the network (Jellyfin's discovery, plus a quick look
+  for its port on the local network) or takes a typed address; signs in with Quick Connect (a code approved on the
+  phone) or a user name and password; looks up the city by name; checks USB debugging and switches Marquise on.
+- Jellyfin and City rows in the settings, to change the server, the account or the city later.
+- The settings screen shows who makes Marquise, a QR code to the project page, the Jellyfin server's name and
+  version, this TV's model and Android version, and tips for the remote.
 
 ### Changed
 
 - License: from MIT to GPL-3.0-or-later. Modified versions that are distributed must publish their source under the
   same license. Releases up to 1.1.0 remain available under MIT. Third-party notices moved to NOTICE.
-
-### Added
-
-- The settings screen shows who makes Marquise, a QR code to the project page, the Jellyfin server's name and
-  version, this TV's model and Android version, and tips for the remote.
+- Settings live on the TV; config.properties only pre-fills them. Plain-HTTP Jellyfin servers work at any address
+  (the build no longer needs to know it).
 
 ## [1.1.0] - 2026-10-19
 

@@ -1,9 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="br.dev.vitormelo.marquise"
-    android:versionCode="2"
-    android:versionName="1.1.0">
+    android:versionCode="3"
+    android:versionName="1.2.0">
 
+    <!-- Home Jellyfin servers usually answer plain HTTP on the LAN, at an address chosen on the TV; the app's other
+         sources (the weather) are fixed HTTPS addresses. -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <!-- After the TV boots (and after a TV update), checks that Marquise mode is still as you left it. -->
@@ -49,7 +51,7 @@
         android:icon="@drawable/icon"
         android:banner="@drawable/banner"
         android:allowBackup="false"
-        android:networkSecurityConfig="@xml/network_security_config">
+        android:usesCleartextTraffic="true">
 
         <!-- The app's icon opens the settings (switch between Marquise and the original home screen). -->
         <activity
@@ -69,6 +71,15 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- First run (and changing the server or the city later): standard views, so typing uses the TV's keyboard. -->
+        <activity
+            android:name=".SetupActivity"
+            android:process=":home"
+            android:exported="false"
+            android:screenOrientation="landscape"
+            android:windowSoftInputMode="adjustPan"
+            android:theme="@style/Marquise.Home" />
 
         <!-- The home screen. Its own process (:home): if it ever crashes, the safety net in the main process still
              works. It only becomes the TV's home screen in Marquise mode (cmd package set-home-activity). -->

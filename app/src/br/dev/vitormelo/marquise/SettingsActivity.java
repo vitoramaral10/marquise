@@ -41,12 +41,18 @@ public class SettingsActivity extends Activity {
         super.onCreate(savedInstanceState);
         Watchdog.install(this);
         Ui.init(this);
+        if (!Prefs.setupDone(this)) {   // first run: the wizard (server, account, city), then back here
+            startActivity(new Intent(this, SetupActivity.class));
+            finish();
+            return;
+        }
         view = new SettingsView(this);
         setContentView(view);
     }
 
     @Override protected void onResume() {
         super.onResume();
+        if (view == null) return;
         view.resume();
         // From ADB: am start -n br.dev.vitormelo.marquise/.SettingsActivity --ez screensaver true (straight to the preview).
         if (preview == null && getIntent().getBooleanExtra("screensaver", false)) {
@@ -62,6 +68,10 @@ public class SettingsActivity extends Activity {
     }
 
     @Override protected void onPause() {
+        if (view == null) {
+            super.onPause();
+            return;
+        }
         closePreview();     // before pausing the view: closing the preview resumes it (view.resume)
         view.pause();
         super.onPause();
@@ -104,7 +114,8 @@ public class SettingsActivity extends Activity {
 
     static final class SettingsView extends View implements Choreographer.FrameCallback {
         private static final int MAIN = 0, HOME_CHOICE = 1;
-        private static final float LIST_X = 1000, LIST_R = 1824, LIST_TOP = 186, ROW_H = 74, ROW_GAP = 8, CHOICE_H = 104;
+        private static final float LIST_X = 1000, LIST_R = 1824, LIST_TOP = 150, ROW_H = 70, ROW_GAP = 8, CHOICE_H = 104;
+        private static final int ROWS = 5;
         private static final int AMBER = 0xFFFFC266, INK = 0xFF1C1C1E;
 
         private final SettingsActivity activity;
@@ -214,7 +225,7 @@ public class SettingsActivity extends Activity {
         }
 
         private int rowCount() {
-            return screen == MAIN ? 3 : 2;
+            return screen == MAIN ? ROWS : 2;
         }
 
         @Override protected void onDraw(Canvas c) {
@@ -258,9 +269,16 @@ public class SettingsActivity extends Activity {
             boolean working = busy();
             String busyText = state.optString("busy");
             String mode = freeActive() ? "Marquise" : Ui.tr("Original", "Original");
-            String[] labels = {Ui.tr("Início", "Home Screen"), Ui.tr("Tela de Descanso", "Screensaver"), Ui.tr("Ajustes da TV", "TV Settings")};
-            String[] values = {working ? "" : mode, Ui.tr("Ver agora", "Preview"), ""};
-            for (int i = 0; i < 3; i++) {
+            Context ctx = getContext();
+            String who = Prefs.userName(ctx), where = Prefs.serverName(ctx);
+            String jellyfin = !Prefs.jellyfinReady(ctx) ? Ui.tr("Configurar", "Set up")
+                    : (who.isEmpty() ? "" : who) + (!who.isEmpty() && !where.isEmpty() ? " · " : "") + where;
+            String city = Prefs.city(ctx);
+            String[] labels = {Ui.tr("Início", "Home Screen"), "Jellyfin", Ui.tr("Cidade", "City"), Ui.tr("Tela de Descanso", "Screensaver"),
+                    Ui.tr("Ajustes da TV", "TV Settings")};
+            String[] values = {working ? "" : mode, jellyfin, city.isEmpty() ? Ui.tr("Escolher", "Choose") : city,
+                    Ui.tr("Ver agora", "Preview"), ""};
+            for (int i = 0; i < ROWS; i++) {
                 float y = (LIST_TOP + i * (ROW_H + ROW_GAP)) * k;
                 rowRect.set(LIST_X * k, y, LIST_R * k, y + ROW_H * k);
                 float f = drawRowBackground(c, i);
@@ -269,7 +287,7 @@ public class SettingsActivity extends Activity {
                 float base = rowRect.centerY() + Ui.halfCap(rowLabel);
                 c.drawText(labels[i], rowRect.left + 30 * k, base, rowLabel);
                 float right = rowRect.right - 30 * k;
-                if (i >= 2) {
+                if (i == ROWS - 1) {
                     float cw = Symbols.width(getContext(), "chevron_right", 22 * k);
                     Symbols.draw(getContext(), c, "chevron_right", right - cw / 2, rowRect.centerY(), 22 * k, blend(0x66FFFFFF, 0x991C1C1E, f));
                 } else if (i == 0 && working) {
@@ -287,7 +305,7 @@ public class SettingsActivity extends Activity {
                 }
             }
 
-            float y = (LIST_TOP + 3 * (ROW_H + ROW_GAP) + 46) * k;
+            float y = (LIST_TOP + ROWS * (ROW_H + ROW_GAP) + 40) * k;
             String error = state.optString("error");
             if (working && (busyText.contains("Permitir") || busyText.contains("Allow"))) {
                 c.drawText(Ui.tr("Na TV: marque “Sempre permitir” e aperte OK.", "On the TV: tick “Always allow” and press OK."),
@@ -298,42 +316,33 @@ public class SettingsActivity extends Activity {
                 y += 46 * k;
             }
             y = drawJellyfin(c, y + 10 * k);
-            y = drawTv(c, y + 56 * k);
-            y = drawTips(c, y + 56 * k);
-            drawNotices(c, y + 56 * k);
+            y = drawTv(c, y + 50 * k);
+            y = drawTips(c, y + 50 * k);
+            drawNotices(c, y + 50 * k);
         }
 
-        /** Jellyfin: how the posters are doing, and which server and user they come from. */
+        /** Jellyfin: how the posters are doing, from which server (its name, version and address). */
         private float drawJellyfin(Canvas c, float y) {
             float x = LIST_X * k + 30 * k;
             c.drawText("JELLYFIN", x, y, header);
+            Context ctx = getContext();
             String error = recs.optString("error");
             int count = recs.optInt("count");
-            String user = Config.JELLYFIN_USER.trim().isEmpty() ? Ui.tr("primeiro usuário", "first user") : Config.JELLYFIN_USER.trim();
+            String server = Prefs.server(ctx).replaceFirst("^[a-zA-Z]+://", "");
+            String ver = recs.optString("version");
             String line;
             Paint paint = notice;
             if (!hasKey) {
-                line = Ui.tr("Sem servidor ou chave: preencha jellyfin_url e jellyfin_key no config.properties.",
-                        "No server or key: set jellyfin_url and jellyfin_key in config.properties.");
+                line = Ui.tr("Ainda não conectado: escolha Jellyfin acima.", "Not connected yet: choose Jellyfin above.");
             } else if (!error.isEmpty()) {
                 line = Ui.tr("Erro: ", "Error: ") + error;
                 paint = warn;
             } else if (count > 0) {
-                line = Ui.tr(count + " títulos recentes · " + user, count + " recent titles · " + user);
+                line = Ui.tr(count + " títulos recentes", count + " recent titles") + (ver.isEmpty() ? "" : " · Jellyfin " + ver) + " · " + server;
             } else {
                 line = Ui.tr("Buscando os títulos…", "Fetching titles…");
             }
             c.drawText(TextUtils.ellipsize(line, new TextPaint(paint), 790 * k, TextUtils.TruncateAt.END).toString(), x, y + 42 * k, paint);
-            String server = Config.JELLYFIN_URL.trim().replaceFirst("^[a-zA-Z]+://", "").replaceAll("/+$", "");
-            if (!server.isEmpty()) {
-                // "HomeLab · Jellyfin 10.10 · 192.168.1.10:8096": which server, when it answered.
-                String name = recs.optString("server"), ver = recs.optString("version");
-                String about = (name.isEmpty() ? "" : name + " · ") + (ver.isEmpty() ? "" : "Jellyfin " + ver + " · ") + server;
-                version.setTextAlign(Paint.Align.LEFT);
-                c.drawText(TextUtils.ellipsize(about, new TextPaint(version), 790 * k, TextUtils.TruncateAt.END).toString(), x, y + 80 * k, version);
-                version.setTextAlign(Paint.Align.CENTER);
-                return y + 80 * k;
-            }
             return y + 42 * k;
         }
 
@@ -343,17 +352,13 @@ public class SettingsActivity extends Activity {
             c.drawText(Ui.tr("ESTA TV", "THIS TV"), x, y, header);
             String brand = android.os.Build.BRAND == null ? "" : android.os.Build.BRAND.toUpperCase(java.util.Locale.ROOT);
             String model = android.os.Build.MODEL == null ? "" : android.os.Build.MODEL;
-            String line = (brand + " " + model).trim() + " · Android " + android.os.Build.VERSION.RELEASE;
-            c.drawText(TextUtils.ellipsize(line, notice, 790 * k, TextUtils.TruncateAt.END).toString(), x, y + 42 * k, notice);
             JSONArray off = state.optJSONArray("disabled");
             int n = off == null ? 0 : off.length();
-            String sub = !freeActive() ? Ui.tr("Marquise desligado: tudo como veio de fábrica.", "Marquise is off: everything as it came.")
-                    : n == 1 ? Ui.tr("1 app desligado pelo Marquise.", "1 app turned off by Marquise.")
-                    : Ui.tr(n + " apps desligados pelo Marquise.", n + " apps turned off by Marquise.");
-            version.setTextAlign(Paint.Align.LEFT);
-            c.drawText(sub, x, y + 80 * k, version);
-            version.setTextAlign(Paint.Align.CENTER);
-            return y + 80 * k;
+            String apps = !freeActive() ? Ui.tr("tudo de fábrica", "all as it came")
+                    : Ui.tr(n + (n == 1 ? " app desligado" : " apps desligados"), n + (n == 1 ? " app off" : " apps off"));
+            String line = (brand + " " + model).trim() + " · Android " + android.os.Build.VERSION.RELEASE + " · " + apps;
+            c.drawText(TextUtils.ellipsize(line, notice, 790 * k, TextUtils.TruncateAt.END).toString(), x, y + 42 * k, notice);
+            return y + 42 * k;
         }
 
         /** What the remote can do that nothing else on screen tells. */
@@ -505,7 +510,10 @@ public class SettingsActivity extends Activity {
                 if (busy()) return;
                 screen = HOME_CHOICE;
                 focus = freeActive() ? 0 : 1;
-            } else if (focus == 1) {
+            } else if (focus == 1 || focus == 2) {
+                activity.startActivity(new Intent(c, SetupActivity.class)
+                        .putExtra(SetupActivity.EXTRA_STEP, focus == 1 ? SetupActivity.STEP_SERVER : SetupActivity.STEP_CITY));
+            } else if (focus == 3) {
                 pause();
                 activity.showPreview();
             } else {

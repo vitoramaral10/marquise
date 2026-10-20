@@ -33,37 +33,39 @@ What just arrived on your server, up front. Your apps, in their own colors. One 
 - A **Google TV or Android TV with Android 12 or newer** (TCL, Sony, Hisense, Philips, Chromecast with Google TV,
   Google TV Streamer, onn 4K, NVIDIA Shield…). Samsung, LG or another TV: plug a Google TV streamer into it.
 - A **Jellyfin server** the TV can reach, and the **Jellyfin app** on the TV.
-- A computer on the same network, with a JDK 17+, the Android SDK command-line tools and `adb`.
+
+No computer needed.
 
 ## Install
 
-About ten minutes.
+About five minutes, all with the remote.
 
-1. **On the TV**, turn on developer mode: *Settings → System → About →* press *Android TV OS build* 7 times. Then
-   *Settings → System → Developer options →* turn on **USB debugging**. Note the TV's IP address (*Settings → Network*).
-2. **Get the tools.** On a Mac:
-   ```bash
-   brew install --cask temurin android-commandlinetools android-platform-tools
-   sdkmanager "build-tools;34.0.0" "platforms;android-34"
-   ```
-   On Linux, get OpenJDK 17, Android's command-line tools and `adb` from your package manager, then run the same
-   `sdkmanager` line. On Windows, use WSL.
-3. **Get the code and build once** (this creates `config.properties`):
-   ```bash
-   git clone https://github.com/vitoramaral10/marquise && cd marquise
-   ./build.sh
-   ```
-4. **Fill in `config.properties`**: your Jellyfin address and an API key (*Jellyfin Dashboard → API Keys → +*), your
-   city's coordinates, and the apps you want on the row. See [Settings](#settings). Then build again: `./build.sh`.
-5. **Install:**
-   ```bash
-   adb connect 192.168.1.50:5555      # your TV's IP; accept the prompt on the TV and tick "Always allow"
-   adb install -r marquise.apk
-   ```
-   On some TCL TVs, also let it run in the background:
-   `adb shell appops set br.dev.vitormelo.marquise AUTO_START allow`.
-6. **On the TV**, open *Marquise → Home Screen → Marquise*, and accept the debugging prompt once more (Marquise uses the
-   TV's own debugging connection to switch the home screen).
+1. **Turn on USB debugging.** *Settings → System → About →* press *Android TV OS build* 7 times. Then *Settings →
+   System → Developer options →* turn on **USB debugging**. (Marquise uses it to switch the Home screen and turn off
+   the promo apps; Android has no other way.)
+2. **Install Downloader** from the Play Store (by AFTVnews). Open it and allow it to install apps when asked.
+3. **In Downloader, type** `github.com/vitoramaral10/marquise/releases/latest/download/marquise.apk` and install.
+4. **Open Marquise.** A short setup finds your Jellyfin server on the network, signs you in with **Quick Connect**
+   (a code you approve on your phone, in Jellyfin → your profile → Quick Connect) or your user name and password, and
+   asks for your city. Then **Switch Marquise on**, and accept the TV's debugging prompt (tick *Always allow*).
+
+Updates: install the new APK the same way, on top of the old one. On some TCL TVs, Marquise also needs to run in the
+background: from a computer, `adb shell appops set br.dev.vitormelo.marquise AUTO_START allow`.
+
+### Build it yourself
+
+You'll need a JDK 17+, the Android SDK command-line tools (build-tools 34, platform android-34) and `adb`:
+
+```bash
+git clone https://github.com/vitoramaral10/marquise && cd marquise
+./build.sh                     # the first run creates config.properties
+adb connect 192.168.1.50:5555  # your TV's IP; accept the prompt on the TV
+adb install -r marquise.apk
+```
+
+`config.properties` can pre-fill the setup (server, API key, city) and sets what only a build can: the default app
+row, the language and the extra apps to turn off. **Keep `marquise.keystore`**: updates must be signed with the same
+key.
 
 > Prefer to have an AI do it? Open the folder in [Claude Code](https://claude.com/claude-code) and say *"Install
 > Marquise on my TV at 192.168.1.50. My Jellyfin is at http://192.168.1.10:8096. I live in Lisbon."*
@@ -71,29 +73,24 @@ About ten minutes.
 
 ## Settings
 
-Everything lives in `config.properties`, created by the first build and kept out of git.
+**On the TV**, in Marquise's settings (its icon, or the gear at the top of Home): the Jellyfin server and account,
+your city, the Home screen (Marquise or Original) and a screensaver preview.
+
+**The app row:** hold OK on an app of the row to *Move* it (← →, then OK), *Remove* it or *Restore the default row*,
+and hold OK on any app in *All Apps* to *Add it to Home* (up to 8). Apps you installed also get *Uninstall*, which
+opens Android's own confirmation. All of that is saved on the TV and survives updates.
+
+**When building**, `config.properties` (created by the first build, kept out of git):
 
 | Key | What it does | Default |
 |---|---|---|
-| `jellyfin_url` | Your server as the TV reaches it, e.g. `http://192.168.1.10:8096` | empty (no posters) |
-| `jellyfin_key` | A Jellyfin API key | empty |
-| `jellyfin_user` | Whose "recently added" (libraries and parental controls) | the server's first user |
-| `shelf` | The app row, in order: `jellyfin`, `live`, `youtube`, `netflix`, `prime`, `disney`, `max`, `appletv`, `hulu`, `paramount`, `peacock`, `globoplay`, `spotify`, `f1tv` | `jellyfin,live,youtube,netflix,prime,disney,max,spotify` |
-| `latitude`, `longitude` | Your city, for the weather and the sunset | New York |
-| `city` | The name on the weather card | `Weather` |
+| `jellyfin_url`, `jellyfin_key`, `jellyfin_user` | Pre-fill the server, an API key and the user (skips the setup) | empty |
+| `shelf` | The default app row: `jellyfin`, `live`, `youtube`, `netflix`, `prime`, `disney`, `max`, `appletv`, `hulu`, `paramount`, `peacock`, `globoplay`, `spotify`, `f1tv` | `jellyfin,live,youtube,netflix,prime,disney,max,spotify` |
+| `latitude`, `longitude`, `city` | Pre-fill the city | New York |
 | `language` | `auto` (follows the TV), `en` or `pt` | `auto` |
 | `temperature` | `C`, `F` or `auto` | `auto` |
 | `disable_assistant` | Also turn off Google Assistant (the mic button stops) | `false` |
 | `extra_disable` | More packages to turn off while Marquise is on, comma-separated | empty |
-
-`shelf` is only the starting row: on the TV, **hold OK** on an app of the row to *Move* it (← →, then OK), *Remove* it
-or *Restore the default row*, and hold OK on any app in *All Apps* to *Add it to Home* (up to 8). That's saved on the
-TV and survives updates. Apps you installed also get *Uninstall*, which opens Android's own confirmation.
-
-Changed something? Run `./build.sh` and install again. **Keep `marquise.keystore`**: updates must be signed with the
-same key.
-
-A plain-HTTP Jellyfin address is fine on your network: the build allows unencrypted traffic **only** to that host.
 
 ## Going back
 

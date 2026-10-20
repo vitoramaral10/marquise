@@ -49,7 +49,6 @@ final class Recs {
     interface Listener { void onRecs(); }
 
     static final String JELLYFIN_PKG = "org.jellyfin.androidtv";
-    private static final String SERVER = Config.JELLYFIN_URL.trim().replaceAll("/+$", "");
     private static final long LIST_EVERY = 20 * 60_000L;
     private static final long ROTATE_EVERY = 30 * 60_000L;
     /** Bump when what is saved for each title changes (the saved list is discarded and fetched again). */
@@ -99,7 +98,11 @@ final class Recs {
     void removeListener(Listener l) { listeners.remove(l); }
 
     static boolean hasKey(Context c) {
-        return !Config.JELLYFIN_KEY.trim().isEmpty() && !SERVER.isEmpty();
+        return Prefs.jellyfinReady(c);
+    }
+
+    private String server() {
+        return Prefs.server(context);
     }
 
     /** Last fetch, for the settings screen: {count, error, at}. Written by the home screen (another process). */
@@ -201,7 +204,7 @@ final class Recs {
     void refreshIfStale() {
         if (!hasKey(context) || fetching) return;
         long now = System.currentTimeMillis();
-        long stamp = (SERVER + "\n" + Config.JELLYFIN_KEY + "\n" + Config.JELLYFIN_USER).hashCode();
+        long stamp = (server() + "\n" + Prefs.token(context) + "\n" + Prefs.userId(context) + "\n" + Prefs.userName(context)).hashCode();
         boolean newKey = stamp != keyStamp;
         long sinceFail = now - failedAt;    // negative = the clock went back: don't wait
         if (!newKey && failedAt != 0 && sinceFail >= 0 && sinceFail < 5 * 60_000L) return;
@@ -348,9 +351,11 @@ final class Recs {
 
     /** The configured user ("jellyfin_user"), or the server's first one. */
     private String user() throws Exception {
+        String signedIn = Prefs.userId(context);   // signed in on the TV: that user
+        if (!signedIn.isEmpty()) return signedIn;
         if (userId != null) return userId;
         JSONArray users = new JSONArray(get("/Users"));
-        String wanted = Config.JELLYFIN_USER.trim();
+        String wanted = Prefs.userName(context);
         for (int i = 0; i < users.length(); i++) {
             JSONObject u = users.getJSONObject(i);
             if (wanted.isEmpty() || wanted.equalsIgnoreCase(u.optString("Name"))) {
@@ -453,7 +458,7 @@ final class Recs {
     }
 
     private String get(String path) throws IOException {
-        HttpURLConnection c = open(SERVER + path);
+        HttpURLConnection c = open(server() + path);
         c.setReadTimeout(8000);
         c.setRequestProperty("Accept", "application/json");
         try {
@@ -466,11 +471,10 @@ final class Recs {
         }
     }
 
-    private static HttpURLConnection open(String url) throws IOException {
+    private HttpURLConnection open(String url) throws IOException {
         HttpURLConnection c = (HttpURLConnection) new URL(url).openConnection();
         c.setConnectTimeout(8000);
-        c.setRequestProperty("Authorization", "MediaBrowser Client=\"Marquise\", Device=\"TV\", DeviceId=\"marquise\", "
-                + "Version=\"1.0\", Token=\"" + Config.JELLYFIN_KEY.trim() + "\"");
+        c.setRequestProperty("Authorization", Jellyfin.authorization(Prefs.deviceId(context), Prefs.token(context)));
         return c;
     }
 
@@ -484,7 +488,7 @@ final class Recs {
         f.getParentFile().mkdirs();
         File part = new File(f.getPath() + ".part");
         boolean poster = path.contains("/Images/Primary");
-        HttpURLConnection c = open(SERVER + path + (poster ? "&maxHeight=840&quality=92" : "&maxWidth=1920&quality=90"));
+        HttpURLConnection c = open(server() + path + (poster ? "&maxHeight=840&quality=92" : "&maxWidth=1920&quality=90"));
         c.setReadTimeout(20000);
         try (InputStream in = c.getInputStream(); FileOutputStream out = new FileOutputStream(part)) {
             byte[] buffer = new byte[16384];

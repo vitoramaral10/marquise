@@ -34,39 +34,39 @@ O que acabou de chegar no seu servidor, logo na frente. Seus apps, nas cores del
 - Uma **Google TV ou Android TV com Android 12 ou mais novo** (TCL, Sony, Hisense, Philips, Chromecast com Google TV,
   Google TV Streamer, onn 4K, NVIDIA Shield…). Samsung, LG ou outra marca: ligue um Google TV Streamer nela.
 - Um **servidor Jellyfin** que a TV alcance, e o **app do Jellyfin** na TV.
-- Um computador na mesma rede, com JDK 17+, as ferramentas de linha de comando do Android SDK e `adb`.
+
+Não precisa de computador.
 
 ## Instalar
 
-Uns dez minutos.
+Uns cinco minutos, tudo pelo controle.
 
-1. **Na TV**, ative o modo desenvolvedor: *Configurações → Sistema → Sobre →* aperte 7 vezes em *Build do Android TV
-   OS*. Depois *Configurações → Sistema → Opções do desenvolvedor →* ative **Depuração USB**. Anote o IP da TV
-   (*Configurações → Rede*).
-2. **Instale as ferramentas.** No Mac:
-   ```bash
-   brew install --cask temurin android-commandlinetools android-platform-tools
-   sdkmanager "build-tools;34.0.0" "platforms;android-34"
-   ```
-   No Linux, instale OpenJDK 17, as ferramentas de linha de comando do Android e o `adb` pelo gerenciador de pacotes, e
-   rode a mesma linha do `sdkmanager`. No Windows, use o WSL.
-3. **Baixe o código e compile uma vez** (isso cria o `config.properties`):
-   ```bash
-   git clone https://github.com/vitoramaral10/marquise && cd marquise
-   ./build.sh
-   ```
-4. **Preencha o `config.properties`**: o endereço do Jellyfin e uma chave de API (*Painel do Jellyfin → Chaves de API
-   → +*), as coordenadas da sua cidade e os apps da fileira. Veja [Configurações](#configurações). Compile de novo:
-   `./build.sh`.
-5. **Instale:**
-   ```bash
-   adb connect 192.168.1.50:5555      # o IP da sua TV; aceite o aviso na TV e marque "Sempre permitir"
-   adb install -r marquise.apk
-   ```
-   Em algumas TVs TCL, libere também o funcionamento em segundo plano:
-   `adb shell appops set br.dev.vitormelo.marquise AUTO_START allow`.
-6. **Na TV**, abra *Marquise → Home Screen → Marquise* e aceite mais uma vez o aviso de depuração (o Marquise usa a
-   depuração da própria TV para trocar o Início).
+1. **Ative a Depuração USB.** *Configurações → Sistema → Sobre →* aperte 7 vezes em *Build do Android TV OS*. Depois
+   *Configurações → Sistema → Opções do desenvolvedor →* ative **Depuração USB**. (O Marquise usa isso para trocar o
+   Início e desligar os apps de propaganda; o Android não tem outro caminho.)
+2. **Instale o Downloader** pela Play Store (da AFTVnews). Abra e permita que ele instale apps quando pedir.
+3. **No Downloader, digite** `github.com/vitoramaral10/marquise/releases/latest/download/marquise.apk` e instale.
+4. **Abra o Marquise.** Uma configuração rápida acha seu servidor Jellyfin na rede, faz o login por **Quick Connect**
+   (um código que você aprova no celular, em Jellyfin → seu perfil → Quick Connect) ou com usuário e senha, e pergunta
+   sua cidade. Depois é só **Ativar o Marquise** e aceitar o aviso de depuração da TV (marque *Sempre permitir*).
+
+Atualizações: instale o APK novo do mesmo jeito, por cima do antigo. Em algumas TVs TCL, o Marquise também precisa
+rodar em segundo plano: de um computador, `adb shell appops set br.dev.vitormelo.marquise AUTO_START allow`.
+
+### Compilar você mesmo
+
+Precisa de JDK 17+, das ferramentas de linha de comando do Android SDK (build-tools 34, platform android-34) e do `adb`:
+
+```bash
+git clone https://github.com/vitoramaral10/marquise && cd marquise
+./build.sh                     # a primeira vez cria o config.properties
+adb connect 192.168.1.50:5555  # o IP da sua TV; aceite o aviso na TV
+adb install -r marquise.apk
+```
+
+O `config.properties` pode deixar a configuração pronta (servidor, chave de API, cidade) e define o que só o build
+define: a fileira padrão, o idioma e os apps extras para desligar. **Guarde o `marquise.keystore`**: as atualizações
+precisam da mesma chave.
 
 > Prefere que uma IA faça? Abra a pasta no [Claude Code](https://claude.com/claude-code) e diga *"Instale o Marquise na
 > minha TV em 192.168.1.50. Meu Jellyfin está em http://192.168.1.10:8096. Moro em Curitiba."* O
@@ -74,31 +74,25 @@ Uns dez minutos.
 
 ## Configurações
 
-Tudo fica no `config.properties`, criado no primeiro build e fora do git.
+**Na TV**, nas configurações do Marquise (o ícone dele, ou a engrenagem no topo do Início): servidor e conta do
+Jellyfin, sua cidade, o Início (Marquise ou Original) e uma prévia da tela de descanso.
+
+**A fileira de apps:** segure OK num app da fileira para *Mover* (← → e OK), *Remover do Início* ou *Restaurar fileira
+padrão*, e segure OK em qualquer app de *Todos os Apps* para *Adicionar ao Início* (até 8). Apps que você instalou
+também têm *Desinstalar*, que abre a confirmação do próprio Android. Tudo isso fica salvo na TV e continua depois das
+atualizações.
+
+**Ao compilar**, o `config.properties` (criado no primeiro build, fora do git):
 
 | Chave | O que faz | Padrão |
 |---|---|---|
-| `jellyfin_url` | Seu servidor como a TV o alcança, ex. `http://192.168.1.10:8096` | vazio (sem pôsteres) |
-| `jellyfin_key` | Uma chave de API do Jellyfin | vazio |
-| `jellyfin_user` | De quem é o "adicionados recentemente" (bibliotecas e controle parental) | o primeiro usuário |
-| `shelf` | A fileira de apps, em ordem: `jellyfin`, `live`, `youtube`, `netflix`, `prime`, `disney`, `max`, `appletv`, `hulu`, `paramount`, `peacock`, `globoplay`, `spotify`, `f1tv` | `jellyfin,live,youtube,netflix,prime,disney,max,spotify` |
-| `latitude`, `longitude` | Sua cidade, para o clima e o pôr do sol | Nova York |
-| `city` | O nome no cartão do clima | `Clima` |
+| `jellyfin_url`, `jellyfin_key`, `jellyfin_user` | Deixam servidor, chave de API e usuário prontos (pula a configuração) | vazio |
+| `shelf` | A fileira padrão: `jellyfin`, `live`, `youtube`, `netflix`, `prime`, `disney`, `max`, `appletv`, `hulu`, `paramount`, `peacock`, `globoplay`, `spotify`, `f1tv` | `jellyfin,live,youtube,netflix,prime,disney,max,spotify` |
+| `latitude`, `longitude`, `city` | Deixam a cidade pronta | Nova York |
 | `language` | `auto` (segue a TV), `en` ou `pt` | `auto` |
 | `temperature` | `C`, `F` ou `auto` | `auto` |
 | `disable_assistant` | Também desliga o Google Assistente (o botão do microfone para) | `false` |
 | `extra_disable` | Mais pacotes para desligar enquanto o Marquise estiver ligado, separados por vírgula | vazio |
-
-O `shelf` é só a fileira inicial: na TV, **segure OK** num app da fileira para *Mover* (← → e OK), *Remover do Início*
-ou *Restaurar fileira padrão*, e segure OK em qualquer app de *Todos os Apps* para *Adicionar ao Início* (até 8). Isso
-fica salvo na TV e continua depois das atualizações. Apps que você instalou também têm *Desinstalar*, que abre a
-confirmação do próprio Android.
-
-Mudou algo? Rode `./build.sh` e instale de novo. **Guarde o `marquise.keystore`**: as atualizações precisam da mesma
-chave.
-
-Um endereço HTTP sem criptografia para o Jellyfin funciona na sua rede: o build libera tráfego sem criptografia
-**só** para esse endereço.
 
 ## Voltar ao original
 
