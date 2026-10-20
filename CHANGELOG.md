@@ -5,6 +5,12 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.9.1] - 2026-10-20
+
+### Fixed
+
+- Original puts back the screensaver the person had chosen (#13).
+
 ## [1.9.0] - 2026-10-20
 
 ### Added
