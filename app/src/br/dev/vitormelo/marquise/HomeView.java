@@ -220,8 +220,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
     private static final long TAB_FADE_MS = 220;
     private long tabFadeAt;                   // switching tabs: the new posters fade in and rise a little
     private float cardsAlpha = 1;
-    private final LinearGradient velvet = new LinearGradient(0, 0, 0, 1, 0xFF7A1830, 0xFF280E2E, Shader.TileMode.CLAMP);
-    private Paint emptyTitle, emptyBody, bulb;
+    private Paint emptyTitle, emptyBody;
     // Until a poster's image is ready: its BlurHash, decoded once (tiny) and drawn stretched, in the poster's colors.
     private final android.graphics.BitmapShader[] cardPreviews = new android.graphics.BitmapShader[Recs.PER_TAB];
     private final int[][] cardPreviewSize = new int[Recs.PER_TAB][2];
@@ -1855,7 +1854,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
             cards = list;
             fitCardText();
             cardIndex = Math.min(cardIndex, Math.max(0, list.size() - 1));
-            if (zone == Z_CARDS && list.isEmpty() && Prefs.jellyfinReady(getContext())) {
+            if (zone == Z_CARDS && list.isEmpty() && Recs.hasKey(getContext())) {
                 zone = Z_SHELF;
                 retarget(false);
             }
@@ -2022,50 +2021,53 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
     }
 
     /**
-     * No posters: a marquee-style card in their place. Not connected yet, it's focusable and OK opens the setup;
-     * connected, it says the titles are on their way.
+     * No posters yet: quiet placeholders in their place, the size of the posters, with bars where the title and its
+     * line go (as Apple TV does while loading). Not connected yet, the first one is focusable (OK opens the setup) and
+     * one short line says so; on an error, that line says what went wrong.
      */
     private void drawEmptyCard(Canvas c) {
         if (emptyTitle == null) {
-            emptyTitle = Ui.text(Ui.displaySemibold, 46 * k, 0xFFFFF4E2);
+            emptyTitle = Ui.text(Ui.displaySemibold, 34 * k, 0xFFFFFFFF);
             emptyTitle.setTextAlign(Paint.Align.CENTER);
-            emptyBody = Ui.text(Ui.regular, 27 * k, 0xCCFFF4E2);
+            emptyBody = Ui.text(Ui.regular, 25 * k, 0xFFFFFFFF);
             emptyBody.setTextAlign(Paint.Align.CENTER);
-            bulb = new Paint(Paint.ANTI_ALIAS_FLAG);
-            bulb.setColor(0xFFFFD68C);
         }
         boolean ready = Recs.hasKey(getContext()), tmdb = Recs.tmdb(getContext());
-        float v = cardFocus[0].value, f = Ui.clamp(v), s = 1 + 0.02f * v;
-        float left = MARGIN * k, right = CONTENT_R * k, top = L_CARDS_TOP * k, bottom = top + L_POSTER_H * k;
-        float cx = (left + right) / 2, cy = (top + bottom) / 2, w = (right - left) * s, h = (bottom - top) * s;
-        cell.set(cx - w / 2, cy - h / 2, cx + w / 2, cy + h / 2);
-        float r = 24 * k * s;
-        tmp.set(cell);
-        tmp.offset(0, (12 + 10 * f) * k);
-        softShadow(c, right - left, bottom - top, 24 * k, 30 * k, tmp, Ui.alpha(0xFF000000, 0.3f + 0.2f * f));
-        c.drawRoundRect(cell, r, r, placed(fill, velvet, cell, 1));
-        fill.setShader(null);
-        fill.setAlpha(255);
-        // The marquee's bulbs along the top and bottom edges.
-        float inset = 30 * k * s, step = 58 * k * s, br = 6 * k * s;
-        int n = (int) ((cell.width() - 2 * inset) / step);
-        float x0 = cell.centerX() - n * step / 2;
-        for (int i = 0; i <= n; i++) {
-            c.drawCircle(x0 + i * step, cell.top + inset, br, bulb);
-            c.drawCircle(x0 + i * step, cell.bottom - inset, br, bulb);
-        }
-        if (f > 0.01f) c.drawRoundRect(cell, r, r, placed(rim, cardRim, cell, f));
         String error = ready ? recs.error() : "";
+        fill.setShader(null);
+        for (int i = 0; i < CARDS; i++) {
+            RectF base = cardRects[i];
+            float v = !ready && i == 0 ? cardFocus[0].value : 0, f = Ui.clamp(v), s = 1 + 0.08f * v;
+            float bw = base.width(), bh = base.height(), cx = base.centerX(), cy = base.centerY() - 10 * k * v;
+            cell.set(cx - bw * s / 2, cy - bh * s / 2, cx + bw * s / 2, cy + bh * s / 2);
+            float r = 18 * k * s;
+            fill.setColor(tone(0x12000000, 0x17FFFFFF));
+            c.drawRoundRect(cell, r, r, fill);
+            if (f > 0.01f) {
+                rim.setStrokeWidth(3.5f * k);
+                c.drawRoundRect(cell, r, r, placed(rim, cardRim, cell, f));
+                rim.setStrokeWidth(2.5f * k);
+            }
+            fill.setColor(tone(0x0F000000, 0x12FFFFFF));
+            float t = base.bottom + 28 * k;
+            tmp.set(base.left, t, base.left + bw * 0.72f, t + 20 * k);
+            c.drawRoundRect(tmp, 10 * k, 10 * k, fill);
+            tmp.set(base.left, t + 36 * k, base.left + bw * 0.46f, t + 52 * k);
+            c.drawRoundRect(tmp, 8 * k, 8 * k, fill);
+        }
+        if (ready && error.isEmpty()) return;   // fetching: the placeholders say it
         String title = !error.isEmpty() ? Ui.tr("Nada para mostrar agora", "Nothing to show right now")
-                : ready ? Ui.tr("Buscando os títulos…", "Fetching titles…") : Ui.tr("Escolha seus títulos", "Choose your titles");
+                : Ui.tr("Escolha seus filmes e séries", "Choose your movies and shows");
         String body = !error.isEmpty() ? error.substring(0, 1).toUpperCase(java.util.Locale.ROOT) + error.substring(1)
-                : !ready ? Ui.tr("Aperte OK para conectar o Jellyfin ou o TMDB.", "Press OK to connect Jellyfin or TMDB.")
-                : tmdb ? Ui.tr("O que está em alta nos seus streamings aparece aqui.", "What's popular on your streaming apps shows up here.")
-                : Ui.tr("Os pôsteres do que chegou no seu servidor aparecem aqui.", "Posters of what just arrived on your server show up here.");
-        c.drawText(title, cell.centerX(), cell.centerY() - 6 * k, emptyTitle);
-        body = android.text.TextUtils.ellipsize(body, new android.text.TextPaint(emptyBody), cell.width() - 120 * k,
+                : tmdb ? Ui.tr("Aperte OK para pôr sua chave do TMDB.", "Press OK to add your TMDB key.")
+                : Ui.tr("Aperte OK para conectar o Jellyfin ou o TMDB.", "Press OK to connect Jellyfin or TMDB.");
+        float mid = (MARGIN * k + CONTENT_R * k) / 2, y = (L_CARDS_TOP + L_POSTER_H / 2f) * k;
+        emptyTitle.setColor(tone(0xFF1C1C1E, 0xFFFFFFFF));
+        emptyBody.setColor(tone(0x991C1C1E, 0xB3FFFFFF));
+        c.drawText(title, mid, y - 4 * k, emptyTitle);
+        body = android.text.TextUtils.ellipsize(body, new android.text.TextPaint(emptyBody), (CONTENT_R - MARGIN) * k - 160 * k,
                 android.text.TextUtils.TruncateAt.END).toString();
-        c.drawText(body, cell.centerX(), cell.centerY() + 46 * k, emptyBody);
+        c.drawText(body, mid, y + 40 * k, emptyBody);
     }
 
     /**
@@ -2256,8 +2258,8 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         switch (zone) {
             case Z_SHELF:
                 if (dy >= 0 || shelf.isEmpty()) return false;
-                if (cards.isEmpty() && !Prefs.jellyfinReady(getContext())) {
-                    zone = Z_CARDS;   // the "Connect your Jellyfin" card
+                if (cards.isEmpty() && !Recs.hasKey(getContext())) {
+                    zone = Z_CARDS;   // the first placeholder: OK opens the setup
                     cardIndex = 0;
                 } else if (cards.isEmpty()) {
                     zone = Z_TOP;
