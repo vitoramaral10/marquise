@@ -3,6 +3,24 @@
 All notable changes to Marquise are listed here. The format follows [Keep a Changelog](https://keepachangelog.com/),
 and versions follow [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Changed
+
+- Much lighter and smoother on TV chips: memory with Home on screen from ~264 MB to ~120 MB, and hidden from ~240 MB
+  to ~110 MB; 1 frame in 150 late instead of 1 in 20; the frame loop sleeps while nothing moves.
+  - Drawing makes no objects per frame (gradients, paints and cut titles are made once).
+  - Soft shadows are blurred once per size instead of on every frame (the GPU kept ~45 MB of scratch surfaces).
+  - Poster corners are rounded once, when the poster is prepared, instead of clipped on every frame.
+  - Hidden Home gives back its layers' GPU memory and most of the poster cache.
+- APK from 1.4 MB to under 800 KB: the font is cut to Latin and the symbols Marquise draws (other scripts use the
+  system font), and the settings logo is smaller.
+
+### Removed
+
+- Leftovers of earlier designs (the large "hero" card, the glass bar behind the apps, the corner clock capsule), unused
+  symbols, strings and the ACCESS_NETWORK_STATE permission.
+
 ## [1.2.0] - 2026-10-20
 
 ### Added

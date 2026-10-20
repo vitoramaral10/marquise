@@ -119,7 +119,7 @@ if __name__ == "__main__":
     res = os.path.join(ROOT, "app/res/drawable-nodpi")
     os.makedirs(res, exist_ok=True)
     mark(192).save(os.path.join(res, "icon.png"))
-    mark(512).save(os.path.join(res, "logo.png"))   # the settings screen's big mark
+    mark(320).save(os.path.join(res, "logo.png"))   # the settings screen's big mark (shown at 260 px)
     repo_qr(os.path.join(res, "qr_repo.png"))
     banner().save(os.path.join(res, "banner.png"))
     gh = os.path.join(ROOT, ".github")

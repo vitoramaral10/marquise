@@ -134,13 +134,6 @@ final class Scene {
         if (liquid != null) liquid.setFloatUniform("mixB", Math.max(0, Math.min(1, t)));
     }
 
-    /** The liquid glass goes back to the frosted aurora. */
-    void clearGlass() {
-        if (!imageGlass) return;
-        imageGlass = false;
-        advance(time);
-    }
-
     private static Bitmap fill(Bitmap b, int[] pixels) {
         if (b == null) b = Bitmap.createBitmap(Backdrop.GW, Backdrop.GH, Bitmap.Config.ARGB_8888);
         b.setPixels(pixels, 0, Backdrop.GW, 0, 0, Backdrop.GW, Backdrop.GH);
@@ -187,19 +180,6 @@ final class Scene {
         s.setFilterMode(BitmapShader.FILTER_MODE_LINEAR);
         glass.setInputShader("frost", s);
         setFrostScale();
-    }
-
-    /** Back to the frosted aurora. */
-    void clearFrost() {
-        if (!imageFrost) return;
-        imageFrost = false;
-        setFrostScale();
-        advance(time);
-    }
-
-    /** The current blurred image (so the bottom drawer can blur the background), or null with the aurora. */
-    Bitmap frostImage() {
-        return imageFrost ? frostImage : null;
     }
 
     /** Offset (px) of the layer that will draw glass, if it was moved on screen without being redrawn. */

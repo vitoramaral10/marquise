@@ -47,7 +47,7 @@ import java.util.regex.Pattern;
  * What shows up on the home screen and in the "All Apps" sheet, and how to open each thing.
  *
  * On the home shelf, each app is its colored logo on a dark card: the official logo in assets/logos/<key>.png
- * (downloaded from Wikimedia Commons by tools/logos.py) or, without one, the logo lifted from the app's TV art (the
+ * (rendered by hand from the official vector logo) or, without one, the logo lifted from the app's TV art (the
  * Android TV "banner"), saved to disk after the first time. In "All Apps", 16:9 cards with the whole TV art (or the
  * icon on a dark card). Shortcuts (live TV, inputs, All Apps, settings) are icon buttons.
  */
@@ -209,17 +209,6 @@ final class HomeApps {
         c.getSharedPreferences(ORDER_PREFS, Context.MODE_PRIVATE).edit().remove("order").apply();
     }
 
-    /** Live TV, the HDMI inputs with a device sending a signal, and All Apps. */
-    static List<Item> shortcuts(Context c) {
-        List<Item> items = new ArrayList<>();
-        if (liveTv(c) != null) {
-            items.add(shortcut(LIVE_TV, "live", Ui.tr("TV ao Vivo", "Live TV"), "tv"));
-        }
-        items.addAll(inputs(c));
-        items.add(shortcut(ALL_APPS, "all", Ui.tr("Todos os Apps", "All Apps"), "apps"));
-        return items;
-    }
-
     private static Item shortcut(int kind, String key, String label, String symbol) {
         Item it = new Item();
         it.kind = kind;
@@ -232,11 +221,6 @@ final class HomeApps {
     /** Icon button (the ones in the corner of the home screen). */
     static Item action(int kind, String key, String label, String symbol) {
         return shortcut(kind, key, label, symbol);
-    }
-
-    /** Marquise settings, in the corner of the home screen. */
-    static Item settings() {
-        return shortcut(SETTINGS, "settings", Ui.tr("Ajustes", "Settings"), "settings");
     }
 
     /** Shortcuts in the bottom drawer. */
@@ -264,10 +248,6 @@ final class HomeApps {
         if (liveTv(c) != null) items.add(shortcut(LIVE_TV, "live", Ui.tr("TV ao Vivo", "Live TV"), "tv"));
         items.addAll(inputs(c, true));
         return items;
-    }
-
-    private static List<Item> inputs(Context c) {
-        return inputs(c, false);
     }
 
     /**
@@ -809,7 +789,6 @@ final class HomeApps {
         return b;
     }
 
-    /** Official logo (tools/logos.py): trims the transparent margins and scales it down to at most 512 px. */
     /** The bundled logo, read once per process: reading it again on every load made a new image and filled caches. */
     private static Bitmap ownLogoCached(Context c, String key) {
         synchronized (LOGOS) {
@@ -822,6 +801,7 @@ final class HomeApps {
         return b;
     }
 
+    /** Official logo (assets/logos): trims the transparent margins and scales it down to at most 512 px. */
     private static Bitmap ownLogo(Context c, String key) {
         try {
             BitmapFactory.Options bounds = new BitmapFactory.Options();

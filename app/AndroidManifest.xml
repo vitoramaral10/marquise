@@ -7,7 +7,6 @@
     <!-- Home Jellyfin servers usually answer plain HTTP on the LAN, at an address chosen on the TV; the app's other
          sources (the weather) are fixed HTTPS addresses. -->
     <uses-permission android:name="android.permission.INTERNET" />
-    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <!-- After the TV boots (and after a TV update), checks that Marquise mode is still as you left it. -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <!-- "Uninstall" in an app's menu (hold OK): opens Android's own confirmation; nothing is removed without it. -->

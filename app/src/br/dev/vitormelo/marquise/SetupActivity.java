@@ -1,7 +1,6 @@
 package br.dev.vitormelo.marquise;
 
 import android.app.Activity;
-import android.content.Context;
 import android.content.Intent;
 import android.content.res.ColorStateList;
 import android.graphics.drawable.GradientDrawable;

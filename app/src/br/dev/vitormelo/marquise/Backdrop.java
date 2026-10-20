@@ -2,65 +2,43 @@ package br.dev.vitormelo.marquise;
 
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
-import android.graphics.LinearGradient;
 import android.graphics.Paint;
 import android.graphics.RectF;
 import android.graphics.Shader;
 
 /**
- * The home screen background made from the recommendation's image, built once in the background:
- *  - the photo cropped to 16:9 at 1920×1080 (the TV's UI size), with the dark scrims already applied (on the left,
- *    where the hero text sits; at the bottom, behind the shelf; a faint one at the top, behind the buttons); the left
- *    scrim gets stronger when the photo is bright there;
- *  - the frosted version (192×108, heavily blurred) of the same image: the background of the frosted glass and of the
- *    bottom drawer;
- *  - the Liquid Glass version (480×270, lightly blurred): the photo shows through the shelf and the cards;
- *  - with forLight: the cards (the photo without scrims, cropped wide and tall, already at the focused card size) and
- *    the frosted and glass versions blended with white (by day) and with near-black (at night).
- * Only what is needed gets built (with forLight, no full photo: the cards are lightweight, so all 9 for the three tabs
- * fit in memory, ready); the other fields stay null.
- * The final image lives only in GPU memory (HARDWARE): drawing it costs one texture, and the process doesn't hold 8 MB.
+ * A recommendation's images, built once in the background from its poster:
+ *  - the poster card (center-cropped to 2:3, already at the focused card size), with its rounded corners baked in;
+ *  - the frosted version (192×108, heavily blurred) of the same poster: the background and the bottom drawer's
+ *    frosted glass;
+ *  - the Liquid Glass version (480×270, lightly blurred): what shows through the glass buttons;
+ *  - both blended with white (by day) and with near-black (at night).
+ * The card lives only in GPU memory (HARDWARE): drawing it costs one texture, and the process doesn't hold its pixels.
  */
 final class Backdrop {
     static final int W = 1920, H = 1080, FW = 192, FH = 108, GW = 480, GH = 270;
-    /** The cards at their focused size (1.05×): the wide one and the two tall ones. */
-    static final int WIDE_W = 1092, WIDE_H = 464, TALL_W = 336, TALL_H = 464;
     /** A poster card at its focused size (1.05× of 267×400, 2:3). */
     static final int POSTER_W = 280, POSTER_H = 420;
-    final Bitmap image;
-    final int[] frost;      // heavily blurred (frosted glass, bottom drawer)
-    final int[] glass;      // lightly blurred (Liquid Glass: the photo shows through the glass)
-    final Bitmap wide, tall;            // the photo on the cards
-    final int[] light, lightGlass;      // by day: the frosted and glass versions, lightened
+    final int[] frost;                  // heavily blurred (frosted glass, bottom drawer)
+    final Bitmap tall;                  // the poster card
+    final int[] lightGlass;             // by day: the glass version, lightened
     final Bitmap lightImage;            // by day: the background (the lightened frosted version, scaled up on screen)
     final int[] nightFrost, nightGlass; // at night: frosted (the bottom drawer's frosted glass) and glass, darkened
     final Bitmap nightImage;            // at night: the background (the darkened frosted version)
 
-    private Backdrop(Bitmap image, int[] frost, int[] glass, Bitmap wide, Bitmap tall, int[] light, int[] lightGlass,
-                     int[] night, int[] nightGlass) {
-        this.image = image;
+    private Backdrop(int[] frost, Bitmap tall, int[] light, int[] lightGlass, int[] night, int[] nightGlass) {
         this.frost = frost;
-        this.glass = glass;
-        this.wide = wide;
         this.tall = tall;
-        this.light = light;
         this.lightGlass = lightGlass;
         this.nightFrost = night;
         this.nightGlass = nightGlass;
-        lightImage = light == null ? null : Bitmap.createBitmap(light, FW, FH, Bitmap.Config.ARGB_8888);
-        nightImage = night == null ? null : Bitmap.createBitmap(night, FW, FH, Bitmap.Config.ARGB_8888);
+        lightImage = Bitmap.createBitmap(light, FW, FH, Bitmap.Config.ARGB_8888);
+        nightImage = Bitmap.createBitmap(night, FW, FH, Bitmap.Config.ARGB_8888);
     }
 
-    static Backdrop make(Bitmap src, boolean forLight) {
-        return make(src, forLight, false);
-    }
-
-    /**
-     * With `poster` (light design only): the card is the whole poster (center-cropped to 2:3, never to 16:9), and the
-     * background's frosted versions come from the same poster.
-     */
-    static Backdrop make(Bitmap src, boolean forLight, boolean poster) {
-        Bitmap posterCard = poster && forLight ? card(src, POSTER_W, POSTER_H) : null;
+    /** The card is the whole poster (never cropped to 16:9); the frosted versions come from the same poster. */
+    static Backdrop make(Bitmap src) {
+        Bitmap tall = rounded(card(src, POSTER_W, POSTER_H), POSTER_W * 18f / 267);
         Bitmap out = Bitmap.createBitmap(W, H, Bitmap.Config.ARGB_8888);
         Canvas c = new Canvas(out);
         Paint photo = new Paint(Paint.FILTER_BITMAP_FLAG | Paint.DITHER_FLAG);
@@ -68,45 +46,14 @@ final class Backdrop {
         float sw = src.getWidth() * scale, sh = src.getHeight() * scale;
         c.drawBitmap(src, null, new RectF((W - sw) / 2, (H - sh) / 2, (W + sw) / 2, (H + sh) / 2), photo);
         src.recycle();
-        if (forLight) {
-            // Light design: everything comes from the photo without scrims.
-            Bitmap wide = posterCard != null ? null : card(out, WIDE_W, WIDE_H);
-            Bitmap tall = posterCard != null ? posterCard : card(out, TALL_W, TALL_H);
-            int[] frost = reduce(out, FW, FH, 3, 3);
-            int[] light = whiten(frost.clone(), 0.82f);
-            int[] glass = reduce(out, GW, GH, 2, 2);
-            int[] lightGlass = whiten(glass.clone(), 0.74f);
-            int[] night = darken(frost.clone(), 0.76f);
-            int[] nightGlass = darken(glass, 0.56f);
-            out.recycle();
-            return new Backdrop(null, frost, null, wide, tall, light, lightGlass, night, nightGlass);
-        }
-
-        float boost = Math.max(0, Math.min(0.3f, (luminance(out, 0, 0.22f, 0.5f, 0.62f) - 0.22f) * 1.1f));
-        Paint scrim = new Paint(Paint.DITHER_FLAG);
-        scrim.setShader(new LinearGradient(0, 0, W * 0.68f, 0,
-                new int[] {black(0.66f + boost), black(0.52f + boost * 0.8f), black(0.26f + boost * 0.4f), black(0.07f), 0},
-                new float[] {0, 0.25f, 0.55f, 0.8f, 1}, Shader.TileMode.CLAMP));
-        c.drawRect(0, 0, W, H, scrim);
-        // At the bottom, a faint scrim: the photo must show through the glass shelf (the glass provides the contrast).
-        scrim.setShader(new LinearGradient(0, H, 0, H * 0.4f,
-                new int[] {black(0.38f), black(0.3f), black(0.18f), black(0.05f), 0},
-                new float[] {0, 0.25f, 0.55f, 0.8f, 1}, Shader.TileMode.CLAMP));
-        c.drawRect(0, H * 0.4f, W, H, scrim);
-        // Behind the prices (above the shelf, on the right), a localized scrim for the small text.
-        scrim.setShader(new android.graphics.RadialGradient(W * 0.8f, H * 0.65f, W * 0.24f,
-                new int[] {black(0.42f), black(0.18f), 0}, new float[] {0, 0.55f, 1}, Shader.TileMode.CLAMP));
-        c.save();
-        c.scale(1, 0.32f, W * 0.8f, H * 0.65f);
-        c.drawCircle(W * 0.8f, H * 0.65f, W * 0.24f, scrim);
-        c.restore();
-        scrim.setShader(new LinearGradient(0, 0, 0, H * 0.24f, new int[] {black(0.34f), black(0.1f), 0},
-                new float[] {0, 0.5f, 1}, Shader.TileMode.CLAMP));
-        c.drawRect(0, 0, W, H * 0.24f, scrim);
-
         int[] frost = reduce(out, FW, FH, 3, 3);
+        int[] light = whiten(frost.clone(), 0.82f);
         int[] glass = reduce(out, GW, GH, 2, 2);
-        return new Backdrop(gpu(out), frost, glass, null, null, null, null, null, null);
+        int[] lightGlass = whiten(glass.clone(), 0.74f);
+        int[] night = darken(frost.clone(), 0.76f);
+        int[] nightGlass = darken(glass, 0.56f);
+        out.recycle();
+        return new Backdrop(frost, tall, light, lightGlass, night, nightGlass);
     }
 
     /** How many times smaller the screensaver photo's frosted version is (the glass math uses the same number). */
@@ -169,6 +116,21 @@ final class Backdrop {
         // Already the right size (a poster decoded at the card size): gpu() recycles its input, and the caller still
         // needs the original.
         if (out == full) out = full.copy(Bitmap.Config.ARGB_8888, false);
+        return gpu(out);
+    }
+
+    /**
+     * The card with its corners cut round (transparent), once: the home screen then draws it without clipping. `radius`
+     * matches the card's on-screen corner (18 px on a 267 px wide poster).
+     */
+    private static Bitmap rounded(Bitmap card, float radius) {
+        Bitmap soft = card.getConfig() == Bitmap.Config.HARDWARE ? card.copy(Bitmap.Config.ARGB_8888, false) : card;
+        Bitmap out = Bitmap.createBitmap(soft.getWidth(), soft.getHeight(), Bitmap.Config.ARGB_8888);
+        Paint p = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
+        p.setShader(new android.graphics.BitmapShader(soft, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP));
+        new Canvas(out).drawRoundRect(new RectF(0, 0, out.getWidth(), out.getHeight()), radius, radius, p);
+        if (soft != card) soft.recycle();
+        card.recycle();
         return gpu(out);
     }
 
@@ -262,9 +224,5 @@ final class Backdrop {
             }
         }
         return sum / count;
-    }
-
-    private static int black(float a) {
-        return Math.round(Math.max(0, Math.min(1, a)) * 255) << 24;
     }
 }

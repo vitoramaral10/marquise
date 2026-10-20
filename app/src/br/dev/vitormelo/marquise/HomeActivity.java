@@ -55,6 +55,12 @@ public class HomeActivity extends Activity {
         if (home != null) home.reset(true);
     }
 
+    /** Out of sight (an app opened over Home): give back what is cheap to rebuild. */
+    @Override public void onTrimMemory(int level) {
+        super.onTrimMemory(level);
+        if (home != null && level >= TRIM_MEMORY_UI_HIDDEN) home.trim();
+    }
+
     @Override protected void onDestroy() {
         if (home != null) home.destroy();
         super.onDestroy();

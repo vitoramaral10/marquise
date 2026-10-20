@@ -18,7 +18,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -43,7 +42,6 @@ final class Recs {
         String title, backdrop, meta = "", app, pkg;
         String poster;          // the card image (2:3); the backdrop is only for the screensaver
         String badge = "";      // the short line under the poster: "2025 · ★ 7,2 · 16", "Novo episódio · ★ 8,8"
-        boolean detailed;
     }
 
     interface Listener { void onRecs(); }
@@ -75,7 +73,6 @@ final class Recs {
     private volatile long listAt;
     private volatile boolean fetching;
     private volatile String error = "";
-    private volatile boolean light;     // light design: builds only the cards (all three tabs' cards fit in memory)
     private volatile long failedAt, keyStamp;
     private volatile String userId;
     private volatile String serverName = "", serverVersion = "";   // for the settings screen
@@ -125,15 +122,8 @@ final class Recs {
         }
     }
 
-    String error() { return error; }
-
     static String periodLabel() {
         return Ui.tr("ADICIONADOS RECENTEMENTE", "RECENTLY ADDED");
-    }
-
-    /** The newest picks (the first is the featured one; the arrows switch to the others). */
-    List<Pick> now() {
-        return now(null);
     }
 
     /**
@@ -246,12 +236,12 @@ final class Recs {
         });
     }
 
-    /** Home screen design: the ready images are rebuilt for it (the light design uses cards, not the whole photo). */
-    void setLight(boolean value) {
-        if (value == light) return;
-        light = value;
+    /** Home is hidden: keeps only the given posters' ready images (the ones on screen); the rest is rebuilt on demand. */
+    void trim(List<Pick> keep) {
+        java.util.Set<String> wanted = new java.util.HashSet<>();
+        for (Pick p : keep) if (p.poster != null) wanted.add(p.poster);
         synchronized (images) {
-            images.clear();
+            images.keySet().retainAll(wanted);
         }
     }
 
@@ -422,7 +412,6 @@ final class Recs {
             if (!age.isEmpty()) badge.add(age);
         }
         p.badge = String.join(" · ", badge);
-        p.detailed = true;
         return p;
     }
 
@@ -517,9 +506,7 @@ final class Recs {
             while (bounds.outHeight / (opts.inSampleSize * 2) >= Backdrop.POSTER_H) opts.inSampleSize *= 2;
             Bitmap b = BitmapFactory.decodeFile(f.getPath(), opts);
             if (b == null) throw new IOException("unreadable image");
-            boolean forLight = light;
-            Backdrop backdrop = Backdrop.make(b, forLight, true);
-            if (forLight != light) return;   // the design changed midway: this one is stale
+            Backdrop backdrop = Backdrop.make(b);
             synchronized (images) {
                 images.put(p.poster, backdrop);
                 while (images.size() > 3 * PER_TAB + 2) images.remove(images.keySet().iterator().next());
@@ -574,8 +561,7 @@ final class Recs {
             p.meta = o.optString("meta");
             p.app = o.optString("app").isEmpty() ? null : o.optString("app");
             p.pkg = o.optString("pkg").isEmpty() ? null : o.optString("pkg");
-            p.detailed = true;
-            out.add(p);
+                out.add(p);
         }
         return out;
     }

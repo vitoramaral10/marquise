@@ -223,14 +223,4 @@ final class HomeData {
         return Ui.en ? new SimpleDateFormat("h a", Locale.US).format(new java.util.Date(at))
                 : new SimpleDateFormat("HH'h'", PT).format(new java.util.Date(at));
     }
-
-    /** How long ago the data was fetched, if it's stale (no internet): "12 min ago". */
-    static String staleness(long at, long every) {
-        if (at == 0) return "";
-        long age = System.currentTimeMillis() - at;
-        if (age < every * 2) return "";
-        long minutes = age / 60_000;
-        if (Ui.en) return minutes < 60 ? minutes + " min ago" : (minutes / 60) + " h ago";
-        return minutes < 60 ? "há " + minutes + " min" : "há " + (minutes / 60) + " h";
-    }
 }

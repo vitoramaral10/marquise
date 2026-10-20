@@ -32,7 +32,6 @@ final class HomeMode {
 
     static final String PKG = "br.dev.vitormelo.marquise";
     static final String HOME_ACTIVITY = PKG + "/" + PKG + ".HomeActivity";
-    static final String SETTINGS_ACTIVITY = PKG + "/" + PKG + ".SettingsActivity";
     static final String DREAM = PKG + "/" + PKG + ".Screensaver";
     static final String FREE = "free", ORIGINAL = "original";
 
