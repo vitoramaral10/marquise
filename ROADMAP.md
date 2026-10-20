@@ -33,10 +33,16 @@ Today a merge goes straight to every TV that accepts the update, and nothing but
 
   Android's classes are stubs on the JVM, so parsing (`org.json`) and anything drawn are covered by the emulator check
   below instead.
-- **An emulator check on every PR.** A Google TV AVD on the CI runner (KVM). It installs the APK, switches Marquise
-  on, and checks the home screen and the disabled packages. Then it switches back to Original and checks that the
-  list and the screensaver are exactly as they were. A screenshot of Home goes on the PR. *Done when* this is a
-  required check next to `apk` and `title`.
+- **An emulator check on every PR.** `tools/emulator_check.sh`, run by the `emulator` workflow on a Google TV
+  emulator (Android 14, KVM):
+  - it installs the APK and switches Marquise on with the remote's keys, accepting the debugging prompt;
+  - it checks the home screen, the screensaver and the packages turned off, with nothing protected among them;
+  - it switches back to Original and checks that all three are exactly as they were;
+  - it fails on any crash.
+
+  The screenshots of Home, its memory and the log are the run's artifact. *Done when* `emulator` is a required check
+  next to `apk` and `title`.
+  - Still to cover there: the TMDB and Jellyfin parsing, with recorded responses served to the emulator.
 - **A beta channel.** A label on the PR (`beta`) releases a pre-release instead of a release. Settings → *Updates* lets
   a TV opt in to betas. Everyone else keeps getting only the latest stable release (`releases/latest`, as today).
   *Done when* a risky change can run on a couple of TVs for a few days before it reaches everyone.
