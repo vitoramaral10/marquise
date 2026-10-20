@@ -255,7 +255,7 @@ final class DreamView extends View implements HomeData.Listener {
                 new float[] {0, 0.55f, 1}, Shader.TileMode.CLAMP));
         shadow = new Paint(Paint.ANTI_ALIAS_FLAG);
         shadow.setColor(FRAME);
-        shadow.setShadowLayer(54 * k, 0, 30 * k, 0xB0000000);
+        shadow.setShadowLayer(70 * k, 0, 40 * k, 0xE0000000);
         frame = new Paint(Paint.ANTI_ALIAS_FLAG);
         frame.setColor(FRAME);
         frameEdge = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -342,6 +342,31 @@ final class DreamView extends View implements HomeData.Listener {
         if (art != null && art.bitmap != null && alpha > 0) drawArt(c, art, alpha);
         drawClock(c);
         c.restore();
+
+        // At night the room is dark: the whole scene dims, like a frame with a light sensor.
+        int dim = Math.round(nightDim(minuteOfDay(t)) * 255);
+        if (dim > 0) {
+            night.setColor(0xFF0E0905);   // a warm black, like a lamp turned down
+            night.setAlpha(dim);
+            c.drawRect(0, 0, w, h, night);
+        }
+    }
+
+    private final java.util.Calendar calendar = java.util.Calendar.getInstance();
+    private final Paint night = new Paint();
+
+    private int minuteOfDay(long t) {
+        calendar.setTimeInMillis(t);
+        return calendar.get(java.util.Calendar.HOUR_OF_DAY) * 60 + calendar.get(java.util.Calendar.MINUTE);
+    }
+
+    /** How much to darken (0–0.6): an hour's ramp down from 22:00, full until 05:30, back up by 06:30. */
+    static float nightDim(int minute) {
+        final float most = 0.6f;
+        if (minute >= 22 * 60) return most * ease(Math.min(1, (minute - 22 * 60) / 60f));
+        if (minute < 5 * 60 + 30) return most;
+        if (minute < 6 * 60 + 30) return most * (1 - ease((minute - (5 * 60 + 30)) / 60f));
+        return 0;
     }
 
     private static float ease(float x) {

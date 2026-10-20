@@ -14,7 +14,8 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 - A new screensaver, Gallery: one painting at a time from the Art Institute of Chicago's public-domain collection
   (64 curated works, CC0), framed with a mat under a spotlight, with a museum label and the time; a new work every
-  75 s, a slow drift against burn-in, and the works already seen kept on disk so it also works offline.
+  75 s, a slow drift against burn-in, and the works already seen kept on disk so it also works offline. At night
+  (from 22:00 to 06:30) the scene dims gradually so it doesn't light up a dark room.
 - Icons redrawn from the official Material Symbols Rounded SVGs (`tools/make_symbols.sh`, pinned version): the
   partly cloudy night icon was broken, sunrise and sunset were the same, and a few were outlined among filled ones.
 
