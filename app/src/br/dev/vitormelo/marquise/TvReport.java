@@ -34,7 +34,7 @@ final class TvReport {
 
     private static final String NEW_ISSUE = "https://github.com/vitoramaral10/marquise/issues/new?template=tv_support.yml";
     /** Past this, the QR code gets too dense for a phone to read off the TV (version 20, 97 modules): the app list is cut. */
-    private static final int MAX_URL = 850;
+    static final int MAX_URL = 850;
 
     static String brandModel() {
         String brand = Build.BRAND == null ? "" : Build.BRAND.toUpperCase(java.util.Locale.ROOT);
@@ -51,13 +51,16 @@ final class TvReport {
         home.append("screensaver: ").append(or(s.optString("originalDream"),
                 or(Settings.Secure.getString(c.getContentResolver(), "screensaver_default_component"), "?"))).append('\n');
         home.append("tuner: ").append(or(tuners(c), "none"));
-        List<String> apps = factoryApps(c, s);
-        String notes = "";
-        String link = link(tv, home.toString(), String.join("\n", apps), notes);
-        while (link.length() > MAX_URL && apps.size() > 3) {   // a scannable code over the whole list
-            apps = new ArrayList<>(apps.subList(0, apps.size() - 1));
-            notes = Ui.tr("(lista de apps cortada para caber no QR code)", "(app list cut to fit the QR code)");
-            link = link(tv, home.toString(), String.join("\n", apps) + "\n…", notes);
+        return fit(brandModel(), tv, home.toString(), factoryApps(c, s),
+                Ui.tr("(lista de apps cortada para caber no QR code)", "(app list cut to fit the QR code)"));
+    }
+
+    /** The link with these apps, cut from the end (never under three) until it fits MAX_URL: a scannable code over the whole list. */
+    static String fit(String brandModel, String tv, String home, List<String> apps, String cutNote) {
+        String link = link(brandModel, tv, home, String.join("\n", apps), "");
+        while (link.length() > MAX_URL && apps.size() > 3) {
+            apps = apps.subList(0, apps.size() - 1);
+            link = link(brandModel, tv, home, String.join("\n", apps) + "\n…", cutNote);
         }
         return link;
     }
@@ -82,8 +85,8 @@ final class TvReport {
         return off == null ? 0 : off.length();
     }
 
-    private static String link(String tv, String home, String packages, String notes) {
-        return NEW_ISSUE + "&title=" + enc("Support for my TV: " + brandModel()) + "&tv=" + enc(tv) + "&home=" + enc(home)
+    private static String link(String brandModel, String tv, String home, String packages, String notes) {
+        return NEW_ISSUE + "&title=" + enc("Support for my TV: " + brandModel) + "&tv=" + enc(tv) + "&home=" + enc(home)
                 + "&packages=" + enc(packages) + (notes.isEmpty() ? "" : "&notes=" + enc(notes));
     }
 

@@ -22,17 +22,17 @@ These hold for every item below. A feature that breaks one of them doesn't ship.
 
 Today a merge goes straight to every TV that accepts the update, and nothing but a human checks it first.
 
-- **Unit tests for the logic that can't fail quietly.** The JVM tests run in `build.sh` and in the `apk` check. They
-  cover:
-  - `HomeMode.mayTurnOff`: which packages may be turned off, for each brand;
-  - restoring the disabled list and the screensaver;
-  - parsing of the Jellyfin and TMDB responses;
-  - the deep links to each streaming app;
-  - the length of the TV-report URL;
-  - sunrise and sunset;
-  - `release.py plan` (`feat` → minor, `fix` → patch, `!` → major).
+- ~~**Unit tests for the logic that can't fail quietly.**~~ Done: `app/test` runs on the JVM in `build.sh` (so in
+  the `apk` check), and `.github/scripts/test_release.py` runs in CI. They cover:
+  - `HomeMode.mayTurnOff` and the switch's targets, per brand;
+  - the screensaver's restore command;
+  - the TV-report link, which has to fit the QR code;
+  - the TMDB services and their search links;
+  - Jellyfin addresses and headers, update versions, age ratings;
+  - `release.py` (`plan`, `apply`, `notes`).
 
-  *Done when* a PR that breaks any of these is red.
+  Android's classes are stubs on the JVM, so parsing (`org.json`) and anything drawn are covered by the emulator check
+  below instead.
 - **An emulator check on every PR.** A Google TV AVD on the CI runner (KVM). It installs the APK, switches Marquise
   on, and checks the home screen and the disabled packages. Then it switches back to Original and checks that the
   list and the screensaver are exactly as they were. A screenshot of Home goes on the PR. *Done when* this is a

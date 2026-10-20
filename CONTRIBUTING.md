@@ -24,7 +24,10 @@ adb install -r marquise.apk
 adb logcat -s Marquise
 ```
 
-`./build.sh` must end with `Built marquise.apk`. CI builds every push and pull request the same way.
+`./build.sh` must end with `Built marquise.apk`. It runs the unit tests in `app/test` first and stops if one fails;
+a change to logic that runs without a TV (what gets turned off, links, versions) comes with its test there. CI builds
+every push and pull request the same way, and also tests the release script
+(`python3 -m unittest discover -s .github/scripts`).
 
 ## Rules of the road
 

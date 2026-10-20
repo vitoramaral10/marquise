@@ -72,6 +72,19 @@ EOF
   --min-sdk-version 31 --target-sdk-version 33 -A app/assets -0 ttf
 "$JAVAC" -nowarn -Xlint:-options -source 8 -target 8 -bootclasspath "$AJ:$BT/core-lambda-stubs.jar" -classpath "$AJ" \
   -d out/classes $(find app/src out/gen -name '*.java')
+# --- Unit tests (app/test), on this computer's JVM, against fixed settings instead of config.properties' (Config's
+# constants are compiled into the classes that read them, so the app is compiled again with these).
+mkdir -p out/test-gen/br/dev/vitormelo/marquise out/test-classes
+sed -e 's/^\(    static final String [A-Z_]* = \)".*";$/\1"";/' \
+    -e 's/^\(    static final String VERSION = \)"";$/\1"0.0.0";/' \
+    -e 's/^\(    static final String EXTRA_DISABLE = \)"";$/\1"com.tcl.browser, com.example.extra";/' \
+    -e 's/^\(    static final String LANGUAGE = \)"";$/\1"en";/' \
+    -e 's/^\(    static final boolean DISABLE_ASSISTANT = \).*;$/\1true;/' \
+    out/gen/br/dev/vitormelo/marquise/Config.java > out/test-gen/br/dev/vitormelo/marquise/Config.java
+"$JAVAC" -nowarn -Xlint:-options -source 8 -target 8 -bootclasspath "$AJ:$BT/core-lambda-stubs.jar" -classpath "$AJ" \
+  -d out/test-classes $(find app/src app/test out/test-gen -name '*.java') $(find out/gen -name '*.java' ! -name Config.java)
+"${JAVA_HOME:+$JAVA_HOME/bin/}java" -cp "out/test-classes:$AJ" br.dev.vitormelo.marquise.Tests
+
 "$BT/d8" --release --min-api 31 --lib "$AJ" --output out $(find out/classes -name '*.class')
 (cd out && zip -qj base.apk classes.dex)
 "$BT/zipalign" -f -p 4 out/base.apk out/aligned.apk

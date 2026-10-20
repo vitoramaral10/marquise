@@ -108,7 +108,9 @@ TVs that don't run Google TV or Android TV (Samsung, LG and others): the way is 
 - Art: `python3 tools/make_art.py` draws the icon, the TV banner and the repository images.
   `tools/make_symbols.sh` renders `assets/symbols` from the pinned Material Symbols SVGs (sunrise and sunset come
   from `tools/symbols/`); add an icon to its map, never hand-edit the PNGs.
-- After any change, `./build.sh` must end with `Built marquise.apk`.
+- After any change, `./build.sh` must end with `Built marquise.apk`. It runs the unit tests (`app/test`, plain JVM, a
+  fixed `Config`; see `Tests.java` for what they can't touch) and stops on a failure. `release.py` has its own:
+  `python3 -m unittest discover -s .github/scripts`.
 
 ## Always
 

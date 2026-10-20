@@ -155,7 +155,7 @@ final class Recs {
     }
 
     /** "Law & Order: Special Victims Unit" → "law & order" (what comes before ":" or " - "). */
-    private static String franchise(String title) {
+    static String franchise(String title) {
         String t = title == null ? "" : title.toLowerCase(Locale.ROOT);
         int cut = t.indexOf(':');
         if (cut < 0) cut = t.indexOf(" - ");
@@ -363,7 +363,7 @@ final class Recs {
     }
 
     /** "BR-16" → "16", "BR-L" → "L"; other countries' ratings ("R", "PG-13") as they come. */
-    private static String ageRating(String r) {
+    static String ageRating(String r) {
         if (r == null || r.isEmpty() || r.equals("null")) return "";
         return r.startsWith("BR-") ? r.substring(3) : r;
     }
