@@ -140,8 +140,9 @@ Google TV e TCL. Para outra marca, acrescente os apps de propaganda dela em `DEB
 os comandos `adb` de leitura que mostram o que sua TV tem. Pull requests com outras marcas são muito bem-vindos.
 
 Sem computador por perto? Na TV, *Marquise → Esta TV* mostra um QR code: aponte o celular e ele abre no GitHub um
-relatório da TV já preenchido (marca, modelo, Android, o Início e a tela de descanso de fábrica e os apps que vieram
-nela; nada pessoal).
+relatório da TV já preenchido (marca, modelo, Android, o Início e a tela de descanso de fábrica, os apps que vieram
+nela e os últimos erros que o Marquise viu, sem endereços nem chaves; nada pessoal). Os mesmos erros aparecem listados
+sob o código.
 
 ## Como funciona
 

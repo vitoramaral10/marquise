@@ -5,6 +5,13 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Settings → *This TV* shows the last errors Marquise saw (the weather that didn't load, a switch that failed, an
+  update that didn't go). The report's QR code carries the latest ones, so whoever has no computer can still say what
+  went wrong. Addresses, links and anything key-like are taken out of what is kept; nothing leaves the TV unless
+  the person scans the code and sends the report.
+
 ## [1.10.0] - 2026-10-20
 
 ### Added

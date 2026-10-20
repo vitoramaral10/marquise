@@ -133,6 +133,7 @@ public class SettingsActivity extends Activity {
         private String tmdbApps = "";
         private final String tvName = TvReport.brandModel();
         private Bitmap reportQr;               // made the first time "This TV" opens
+        private String[] errorLines = new String[0];   // the last problems AppLog kept, newest first, as lines
         private final Paint qrPaint = new Paint();   // no filtering: the modules stay sharp when scaled up   // the installed streaming apps TMDB titles open in (looked up on resume)
         private int screen = MAIN, focus;
         /** Whether the Updates screen has had the "Install" row: when it appears, focus moves down with the rows. */
@@ -470,11 +471,40 @@ public class SettingsActivity extends Activity {
                     "Point your phone's camera at the code, up close: it opens a report of this TV on GitHub, already filled "
                     + "in, so Marquise can learn its brand. Sending it needs a GitHub account."), tx, ty + rowLabel.getTextSize() + gap,
                     width, notice, 0xB3FFFFFF);
-            drawWrapped(c, Ui.tr("Vai junto: marca, modelo, Android, o Início e a tela de descanso de fábrica e os apps que "
-                    + "vieram na TV. Nada pessoal: nenhum app seu, conta, rede ou local.",
-                    "It holds: brand, model, Android, the factory home screen and screensaver, and the apps that came with "
-                    + "the TV. Nothing personal: none of your apps, accounts, network or location."), tx,
-                    ty + notice.getTextSize() * 1.45f + gap, width, notice, 0x80FFFFFF);
+            drawWrapped(c, Ui.tr("Vai junto: marca, modelo, Android, o Início e a tela de descanso de fábrica, os apps que "
+                    + "vieram na TV e os últimos erros, sem endereços nem chaves. Nada pessoal: nenhum app seu, conta, rede ou local.",
+                    "It holds: brand, model, Android, the factory home screen and screensaver, the apps that came with "
+                    + "the TV and the last errors, without addresses or keys. Nothing personal: none of your apps, accounts, "
+                    + "network or location."), tx, ty + notice.getTextSize() * 1.45f + gap, width, notice, 0x80FFFFFF);
+            // The last problems Marquise saw, under the code: what to say when something didn't work.
+            float ey = top + q + 56 * k;
+            c.drawText(Ui.tr("ÚLTIMOS ERROS", "LAST ERRORS"), x, ey, header);
+            if (errorLines.length == 0) c.drawText(Ui.tr("Nenhum erro recente.", "No recent errors."), x, ey + 42 * k, notice);
+            for (int i = 0; i < errorLines.length; i++) c.drawText(errorLines[i], x, ey + (42 + 34 * i) * k, notice);
+        }
+
+        /**
+         * The last three problems, newest first, each on up to two lines the width of the code (made once, not per
+         * frame); a second line is indented, and the end of a long one is cut with "…".
+         */
+        private String[] loadErrors() {
+            java.util.List<AppLog.Entry> last = AppLog.recent(3);
+            java.util.List<String> lines = new java.util.ArrayList<>();
+            TextPaint p = new TextPaint(notice);
+            float width = 460 * k;   // under the code, not under the text beside it
+            for (int i = last.size() - 1; i >= 0; i--) {
+                String text = ago(last.get(i).at) + " · " + last.get(i).text;
+                int first = p.breakText(text, true, width, null);
+                if (first >= text.length()) {
+                    lines.add(text);
+                    continue;
+                }
+                int cut = text.lastIndexOf(' ', first);
+                if (cut <= 0) cut = first;
+                lines.add(text.substring(0, cut));
+                lines.add("  " + TextUtils.ellipsize(text.substring(cut).trim(), p, width - p.measureText("  "), TextUtils.TruncateAt.END));
+            }
+            return lines.toArray(new String[0]);
         }
 
         /** Text wrapped to a width, from the first line's baseline; returns the last line's baseline. */
@@ -664,6 +694,7 @@ public class SettingsActivity extends Activity {
                 focus = Updater.available.isEmpty() ? (Prefs.betas(c) ? 1 : 0) : 0;
             } else if (focus == THIS_TV) {
                 if (reportQr == null) reportQr = TvReport.qr(TvReport.url(c));
+                errorLines = loadErrors();
                 screen = REPORT;
             } else if (focus == 3) {
                 pause();

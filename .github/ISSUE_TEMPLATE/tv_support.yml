@@ -25,6 +25,12 @@ body:
       description: The output of `adb shell pm list packages -s`.
       render: text
   - type: textarea
+    id: errors
+    attributes:
+      label: Recent errors
+      description: Filled in by the QR code on the TV (the last problems Marquise saw, with addresses and keys taken out). Delete anything you'd rather not share.
+      render: text
+  - type: textarea
     id: notes
     attributes:
       label: Anything else

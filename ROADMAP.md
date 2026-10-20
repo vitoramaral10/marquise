@@ -47,8 +47,9 @@ Today a merge goes straight to every TV that accepts the update, and nothing but
   lets a TV opt in to betas, and everyone else keeps getting only the latest stable release (`releases/latest`).
 - **Budgets in CI.** The build fails if the APK goes over 1 MB. The emulator check also records Home's memory and
   fails if it goes over 150 MB.
-- **What went wrong, without telemetry.** Settings → *This TV* shows the last errors from `AppLog`. The QR report
-  carries their summary, within the URL limit. Nothing leaves the TV unless the person scans it.
+- ~~**What went wrong, without telemetry.**~~ Done: `AppLog` keeps the last dozen problems in a file on the TV
+  (addresses, links and key-like strings taken out), *This TV* lists the latest four, and the QR report carries the
+  latest two, dropped before the app list when the link gets long. Nothing leaves the TV unless the person scans it.
 
 ## Next: everything from the TV (1.12–1.14)
 
