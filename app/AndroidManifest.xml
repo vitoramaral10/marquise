@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="br.dev.vitormelo.marquise"
-    android:versionCode="9"
-    android:versionName="1.6.0">
+    android:versionCode="10"
+    android:versionName="1.7.0">
 
     <!-- Home Jellyfin servers usually answer plain HTTP on the LAN, at an address chosen on the TV; the app's other
          sources (the weather) are fixed HTTPS addresses. -->
@@ -34,6 +34,9 @@
         <package android:name="com.google.android.tv" />
         <package android:name="com.mediatek.wwtv.tvcenter" />
         <package android:name="com.sony.dtv.tvx" />
+        <package android:name="com.android.tv" />
+        <package android:name="org.droidtv.playtv" />
+        <package android:name="com.xiaomi.mitv.tvplayer" />
         <intent>
             <action android:name="android.intent.action.MAIN" />
             <category android:name="android.intent.category.LEANBACK_LAUNCHER" />

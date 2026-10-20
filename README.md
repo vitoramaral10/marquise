@@ -126,10 +126,13 @@ rest while Marquise is on.
 
 ## Other TVs
 
-Marquise ships with the lists for Google TV and TCL. For another brand, add its promo apps to `DEBLOAT` and its system
-pieces to `PROTECTED` in [`HomeMode.java`](app/src/br/dev/vitormelo/marquise/HomeMode.java), and its live TV app to
-`LIVE_TV_APPS` in [`HomeApps.java`](app/src/br/dev/vitormelo/marquise/HomeApps.java). [CLAUDE.md](CLAUDE.md) lists the
-read-only `adb` commands that tell you what your TV has. Pull requests for more brands are very welcome.
+Marquise works on any Google TV or Android TV with Android 12 or newer: the home screen and screensaver it replaces
+are found on the TV itself, whatever the brand, and it never turns off a TV maker's system app that wasn't checked by
+hand. What's brand-specific is the extra cleanup: it ships with the lists for Google TV and TCL. For another brand,
+add its promo apps to `DEBLOAT` and its system pieces to `PROTECTED` in
+[`HomeMode.java`](app/src/br/dev/vitormelo/marquise/HomeMode.java), and its live TV app to `LIVE_TV_APPS` in
+[`HomeApps.java`](app/src/br/dev/vitormelo/marquise/HomeApps.java). [CLAUDE.md](CLAUDE.md) lists the read-only `adb`
+commands that tell you what your TV has. Pull requests for more brands are very welcome.
 
 No computer at hand? On the TV, *Marquise → This TV* shows a QR code: point your phone at it and it opens a report of
 the TV on GitHub, already filled in (brand, model, Android, the factory home screen and screensaver, and the apps that
