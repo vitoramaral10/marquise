@@ -111,7 +111,8 @@ public class SettingsActivity extends Activity {
         // The marquee's velvet: the same colors as the icon (tools/make_art.py).
         private static final int VELVET_TOP = 0xFF7A1830, VELVET_BOTTOM = 0xFF280E2E, CREAM = 0xFFFFF4E2;
         private final Paint velvet = new Paint(), glow = new Paint(), logoPaint = new Paint(Paint.FILTER_BITMAP_FLAG);
-        private final Bitmap logo;
+        private final Bitmap logo, qr;
+        private static final String REPO = "github.com/vitoramaral10/marquise", AUTHOR = "vitoramaral10";
         private final Handler handler = new Handler(Looper.getMainLooper());
         private final Spring[] pop = new Spring[5];
         private final RectF tmp = new RectF(), rowRect = new RectF();
@@ -142,6 +143,7 @@ public class SettingsActivity extends Activity {
             activity = a;
             for (int i = 0; i < pop.length; i++) pop[i] = new Spring(0.28f, 0.85f, 0);
             logo = BitmapFactory.decodeResource(a.getResources(), R.drawable.logo);
+            qr = BitmapFactory.decodeResource(a.getResources(), R.drawable.qr_repo);
             setFocusable(true);
         }
 
@@ -237,7 +239,17 @@ public class SettingsActivity extends Activity {
             }
             c.drawText("Marquise", cx, 622 * k, title);
             c.drawText(Ui.tr("O Início da sua biblioteca Jellyfin", "Your Jellyfin library's home screen"), cx, 672 * k, subtitle);
-            c.drawText(versionName(getContext()), cx, 716 * k, version);
+            c.drawText(versionName(getContext()) + Ui.tr(" · por ", " · by ") + AUTHOR, cx, 716 * k, version);
+            // The GPL's "appropriate legal notices": copyright, the license, no warranty.
+            c.drawText(Ui.tr("© 2026 " + AUTHOR + " · GPL-3.0 · sem garantia", "© 2026 " + AUTHOR + " · GPL-3.0 · no warranty"),
+                    cx, 750 * k, version);
+            // The project's page, as a QR code for the phone: source, issues, what's new.
+            if (qr != null) {
+                float q = 168 * k, top = 800 * k;
+                tmp.set(cx - q / 2, top, cx + q / 2, top + q);
+                c.drawBitmap(qr, null, tmp, logoPaint);
+                c.drawText(REPO, cx, top + q + 40 * k, version);
+            }
 
             if (screen == MAIN) drawMain(c, seconds); else drawChoice(c);
         }
@@ -286,6 +298,8 @@ public class SettingsActivity extends Activity {
                 y += 46 * k;
             }
             y = drawJellyfin(c, y + 10 * k);
+            y = drawTv(c, y + 56 * k);
+            y = drawTips(c, y + 56 * k);
             drawNotices(c, y + 56 * k);
         }
 
@@ -312,12 +326,45 @@ public class SettingsActivity extends Activity {
             c.drawText(TextUtils.ellipsize(line, new TextPaint(paint), 790 * k, TextUtils.TruncateAt.END).toString(), x, y + 42 * k, paint);
             String server = Config.JELLYFIN_URL.trim().replaceFirst("^[a-zA-Z]+://", "").replaceAll("/+$", "");
             if (!server.isEmpty()) {
+                // "HomeLab · Jellyfin 10.10 · 192.168.1.10:8096": which server, when it answered.
+                String name = recs.optString("server"), ver = recs.optString("version");
+                String about = (name.isEmpty() ? "" : name + " · ") + (ver.isEmpty() ? "" : "Jellyfin " + ver + " · ") + server;
                 version.setTextAlign(Paint.Align.LEFT);
-                c.drawText(server, x, y + 80 * k, version);
+                c.drawText(TextUtils.ellipsize(about, new TextPaint(version), 790 * k, TextUtils.TruncateAt.END).toString(), x, y + 80 * k, version);
                 version.setTextAlign(Paint.Align.CENTER);
                 return y + 80 * k;
             }
             return y + 42 * k;
+        }
+
+        /** This TV: brand, model and Android version, and how many apps Marquise keeps turned off. */
+        private float drawTv(Canvas c, float y) {
+            float x = LIST_X * k + 30 * k;
+            c.drawText(Ui.tr("ESTA TV", "THIS TV"), x, y, header);
+            String brand = android.os.Build.BRAND == null ? "" : android.os.Build.BRAND.toUpperCase(java.util.Locale.ROOT);
+            String model = android.os.Build.MODEL == null ? "" : android.os.Build.MODEL;
+            String line = (brand + " " + model).trim() + " · Android " + android.os.Build.VERSION.RELEASE;
+            c.drawText(TextUtils.ellipsize(line, notice, 790 * k, TextUtils.TruncateAt.END).toString(), x, y + 42 * k, notice);
+            JSONArray off = state.optJSONArray("disabled");
+            int n = off == null ? 0 : off.length();
+            String sub = !freeActive() ? Ui.tr("Marquise desligado: tudo como veio de fábrica.", "Marquise is off: everything as it came.")
+                    : n == 1 ? Ui.tr("1 app desligado pelo Marquise.", "1 app turned off by Marquise.")
+                    : Ui.tr(n + " apps desligados pelo Marquise.", n + " apps turned off by Marquise.");
+            version.setTextAlign(Paint.Align.LEFT);
+            c.drawText(sub, x, y + 80 * k, version);
+            version.setTextAlign(Paint.Align.CENTER);
+            return y + 80 * k;
+        }
+
+        /** What the remote can do that nothing else on screen tells. */
+        private float drawTips(Canvas c, float y) {
+            float x = LIST_X * k + 30 * k;
+            c.drawText(Ui.tr("DICAS", "TIPS"), x, y, header);
+            c.drawText(Ui.tr("Segure OK num app para mover, remover ou desinstalar.", "Hold OK on an app to move, remove or uninstall it."),
+                    x, y + 42 * k, notice);
+            c.drawText(Ui.tr("Em Todos os Apps, segure OK para adicionar ao Início.", "In All Apps, hold OK to add one to Home."),
+                    x, y + 80 * k, notice);
+            return y + 80 * k;
         }
 
         /** List row: no background; focused, white with a shadow (the Apple TV focus). Returns how focused it is. */
@@ -344,7 +391,7 @@ public class SettingsActivity extends Activity {
             c.drawText(Ui.tr("AVISOS", "NOTICES"), x, y, header);
             JSONArray notices = state.optJSONArray("notices");
             int shown = 0;
-            for (int i = 0; notices != null && i < notices.length() && shown < 2; i++) {
+            for (int i = 0; notices != null && i < notices.length() && shown < 1; i++) {
                 JSONObject o = notices.optJSONObject(i);
                 if (o == null) continue;
                 String line = ago(o.optLong("at")) + " · " + o.optString("text");

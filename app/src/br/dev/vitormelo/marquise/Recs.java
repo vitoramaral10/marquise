@@ -53,7 +53,7 @@ final class Recs {
     private static final long LIST_EVERY = 20 * 60_000L;
     private static final long ROTATE_EVERY = 30 * 60_000L;
     /** Bump when what is saved for each title changes (the saved list is discarded and fetched again). */
-    private static final int CACHE_VERSION = 7;
+    private static final int CACHE_VERSION = 8;
     private static final int MAX = 24;
     /** Posters per tab on the home screen. */
     static final int PER_TAB = 6;
@@ -79,6 +79,7 @@ final class Recs {
     private volatile boolean light;     // light design: builds only the cards (all three tabs' cards fit in memory)
     private volatile long failedAt, keyStamp;
     private volatile String userId;
+    private volatile String serverName = "", serverVersion = "";   // for the settings screen
 
     private Recs(Context c) {
         context = c;
@@ -115,6 +116,7 @@ final class Recs {
     private void writeStatus() {
         try (FileOutputStream out = new FileOutputStream(new File(context.getFilesDir(), "recs-status.json"))) {
             out.write(new JSONObject().put("count", picks.size()).put("error", error).put("at", System.currentTimeMillis())
+                    .put("server", serverName).put("version", serverVersion)
                     .toString().getBytes(StandardCharsets.UTF_8));
         } catch (Exception ignored) {
         }
@@ -319,6 +321,12 @@ final class Recs {
     // MARK: - Jellyfin
 
     private void fetchList() throws Exception {
+        try {   // the server's name and version (public, no key): shown on the settings screen
+            JSONObject info = new JSONObject(get("/System/Info/Public"));
+            serverName = info.optString("ServerName");
+            serverVersion = info.optString("Version");
+        } catch (Exception ignored) {
+        }
         String uid = user();
         JSONArray items = new JSONArray(get("/Users/" + uid + "/Items/Latest?IncludeItemTypes=Movie,Episode&GroupItems=true"
                 + "&Limit=" + (MAX + 12) + "&Fields=Genres,ProductionYear,ChildCount&EnableImageTypes=Primary,Backdrop,Thumb&ImageTypeLimit=1"));

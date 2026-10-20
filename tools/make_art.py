@@ -1,4 +1,4 @@
-"""Draws Marquise's art (Pillow): the app icon, the TV banner and the repository images.
+"""Draws Marquise's art (Pillow): the app icon, the TV banner, the repository images and the repository's QR code.
 
 The mark is a cinema marquee: a warm board ringed with lit bulbs and a big "M".
 Usage: python3 tools/make_art.py
@@ -101,11 +101,26 @@ def banner(w=640, h=360, scale=4):
     return img.resize((w, h), Image.LANCZOS)
 
 
+REPO = "https://github.com/vitoramaral10/marquise"
+
+
+def repo_qr(path):
+    """The repository's address as a QR code (qrencode): plum modules on cream, for the settings screen."""
+    import shutil
+    import subprocess
+    if not shutil.which("qrencode"):
+        print("qrencode not found: kept the existing QR code")
+        return
+    subprocess.run(["qrencode", "-o", path, "-s", "12", "-m", "2", "-l", "M",
+                    "--foreground=280E2E", "--background=FFF4E2", REPO], check=True)
+
+
 if __name__ == "__main__":
     res = os.path.join(ROOT, "app/res/drawable-nodpi")
     os.makedirs(res, exist_ok=True)
     mark(192).save(os.path.join(res, "icon.png"))
     mark(512).save(os.path.join(res, "logo.png"))   # the settings screen's big mark
+    repo_qr(os.path.join(res, "qr_repo.png"))
     banner().save(os.path.join(res, "banner.png"))
     gh = os.path.join(ROOT, ".github")
     os.makedirs(gh, exist_ok=True)
