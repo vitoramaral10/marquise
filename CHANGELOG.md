@@ -5,6 +5,8 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.6.0] - 2026-10-20
+
 ### Changed
 
 - On TCL TVs where TclAppBoot blocks background jobs, switching Marquise on now lets Marquise run in the background
