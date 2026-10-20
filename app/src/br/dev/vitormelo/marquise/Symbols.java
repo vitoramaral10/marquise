@@ -15,14 +15,14 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Material Symbols Rounded icons (Apache 2.0), rendered by tools/make_symbols.py as white PNGs in assets/symbols. Drawn
+ * Material Symbols Rounded icons (Apache 2.0), rendered by tools/make_symbols.sh from the official SVGs as white PNGs in assets/symbols. Drawn
  * like text: `pointSize` is the size of the font next to the icon, and the icon is centered on that font's cap height.
  */
 final class Symbols {
     private Symbols() {}
 
     /**
-     * PNG pixels per em of `pointSize` (a 96 pt × 1.5 px/pt reference scale). tools/make_symbols.py renders a 172 px
+     * PNG pixels per em of `pointSize` (a 96 pt × 1.5 px/pt reference scale). tools/make_symbols.sh renders a 172 px
      * em, so an icon's em is drawn at ~1.2 × `pointSize`.
      */
     private static final float PX_PER_POINT = 96 * 1.5f;
