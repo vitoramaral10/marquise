@@ -5,6 +5,8 @@ name: Release
 # manifest's version goes up, CHANGELOG's [Unreleased] becomes the new version, that goes to main as a
 # "chore(release)" commit with its tag, and the APK is built, signed with the project's key (repository secrets) and
 # published with that CHANGELOG section as the notes. Installs on top of earlier releases (same key).
+# main only takes pull requests (the "main" ruleset); this job pushes the release commit and tag with a deploy key
+# (secret RELEASE_DEPLOY_KEY), the one actor the ruleset lets through.
 on:
   push:
     branches: [main]
@@ -25,6 +27,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ssh-key: ${{ secrets.RELEASE_DEPLOY_KEY }}
 
       - name: What this merge asks for
         id: plan
