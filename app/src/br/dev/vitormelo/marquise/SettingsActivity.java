@@ -169,7 +169,8 @@ public class SettingsActivity extends Activity {
         private String[][] updatesCache;
         private String cachedAvailable = "", cachedError = "";
         private int cachedProgress = -2;
-        private boolean cachedBetas, cachedEn;
+        private boolean cachedBetas;
+        private String cachedLang = "";
         private boolean running, okDown, backDown;
         private long startedAt, lastNanos, pendingAt;
         private int w, h;
@@ -312,7 +313,8 @@ public class SettingsActivity extends Activity {
             c.drawText(Ui.tr("Seus filmes e séries no Início", "Your movies and shows, up front"), cx, 672 * k, subtitle);
             c.drawText(versionName(getContext()) + Ui.tr(" · por ", " · by ") + AUTHOR, cx, 716 * k, version);
             // The GPL's "appropriate legal notices": copyright, the license, no warranty.
-            c.drawText(Ui.tr("© 2026 " + AUTHOR + " · GPL-3.0 · sem garantia", "© 2026 " + AUTHOR + " · GPL-3.0 · no warranty"),
+            c.drawText(Ui.tr("© 2026 " + AUTHOR + " · GPL-3.0 · sem garantia", "© 2026 " + AUTHOR + " · GPL-3.0 · no warranty",
+                    "© 2026 " + AUTHOR + " · GPL-3.0 · sin garantía"),
                     cx, 750 * k, version);
             // The project's page, as a QR code for the phone: source, issues, what's new.
             if (qr != null) {
@@ -522,7 +524,8 @@ public class SettingsActivity extends Activity {
         private String prefValue(int row) {
             if (row == 0) {
                 String l = Prefs.language.trim().toLowerCase(java.util.Locale.ROOT);
-                return l.startsWith("pt") ? "Português" : l.startsWith("en") ? "English" : Ui.tr("Automático (da TV)", "Automatic (the TV's)");
+                return l.startsWith("pt") ? "Português" : l.startsWith("en") ? "English" : l.startsWith("es") ? "Español"
+                        : Ui.tr("Automático (da TV)", "Automatic (the TV's)");
             }
             if (row == 1) {
                 String t = Prefs.temperature.trim().toUpperCase(java.util.Locale.ROOT);
@@ -532,12 +535,13 @@ public class SettingsActivity extends Activity {
             return assistantOff ? Ui.tr("Desligar com o Marquise", "Turn off with Marquise") : Ui.tr("Manter ligado", "Leave on");
         }
 
-        /** The next option of a preferences row: Automatic → Português → English, Automatic → °C → °F, on ⇄ off. */
+        /** The next option of a preferences row: Automatic → Português → English → Español, Automatic → °C → °F, on ⇄ off. */
         private void nextPref(int row) {
             Context c = getContext();
             if (row == 0) {
                 String l = Prefs.language.trim().toLowerCase(java.util.Locale.ROOT);
-                Prefs.setLanguage(c, l.startsWith("pt") ? "en" : l.startsWith("en") ? "auto" : "pt");
+                // Automatic → Português → English → Español → Automatic.
+                Prefs.setLanguage(c, l.startsWith("pt") ? "en" : l.startsWith("en") ? "es" : l.startsWith("es") ? "auto" : "pt");
             } else if (row == 1) {
                 String t = Prefs.temperature.trim().toUpperCase(java.util.Locale.ROOT);
                 Prefs.setTemperature(c, t.startsWith("F") ? "auto" : t.startsWith("C") ? "F" : "C");
@@ -552,7 +556,7 @@ public class SettingsActivity extends Activity {
         /** "None" or "3 chosen", for Preferences' fourth row; made when the count changes, not per frame. */
         private void updateAppsSummary() {
             int n = appPicked.size();
-            appsSummary = n == 0 ? Ui.tr("Nenhum", "None") : n + Ui.tr(n == 1 ? " escolhido" : " escolhidos", " chosen");
+            appsSummary = n == 0 ? Ui.tr("Nenhum", "None") : n + Ui.tr(n == 1 ? " escolhido" : " escolhidos", " chosen", n == 1 ? " elegida" : " elegidas");
         }
 
         private static int byLabel(String[] x, String[] y) {
@@ -657,7 +661,8 @@ public class SettingsActivity extends Activity {
             }
             if (!Updater.available.isEmpty()) {
                 return !Updater.error.isEmpty() ? Ui.tr("Não deu, tente de novo", "Didn't work, try again")
-                        : Ui.tr("Versão " + Updater.available + " disponível", "Version " + Updater.available + " available");
+                        : Ui.tr("Versão " + Updater.available + " disponível", "Version " + Updater.available + " available",
+                                "Versión " + Updater.available + " disponible");
             }
             return Prefs.betas(getContext()) ? Ui.tr("Estáveis e betas", "Stable and betas") : Ui.tr("Estáveis", "Stable");
         }
@@ -681,9 +686,9 @@ public class SettingsActivity extends Activity {
                 paint = warn;
             } else if (count > 0 && tmdb) {
                 String apps = tmdbApps;
-                line = Ui.tr(count + " em alta", count + " popular") + " · " + Prefs.regionName(ctx) + (apps.isEmpty() ? "" : " · " + apps);
+                line = Ui.tr(count + " em alta", count + " popular", count + " populares") + " · " + Prefs.regionName(ctx) + (apps.isEmpty() ? "" : " · " + apps);
             } else if (count > 0) {
-                line = Ui.tr(count + " títulos recentes", count + " recent titles") + (ver.isEmpty() ? "" : " · Jellyfin " + ver) + " · " + server;
+                line = Ui.tr(count + " títulos recentes", count + " recent titles", count + " títulos recientes") + (ver.isEmpty() ? "" : " · Jellyfin " + ver) + " · " + server;
             } else {
                 line = Ui.tr("Buscando os títulos…", "Fetching titles…");
             }
@@ -745,7 +750,8 @@ public class SettingsActivity extends Activity {
         private String reportLine() {
             int off = TvReport.turnedOff(getContext());
             String apps = !freeActive() ? Ui.tr("tudo de fábrica", "all as it came")
-                    : Ui.tr(off + (off == 1 ? " app de fábrica desligado" : " apps de fábrica desligados"), off + (off == 1 ? " factory app off" : " factory apps off"));
+                    : Ui.tr(off + (off == 1 ? " app de fábrica desligado" : " apps de fábrica desligados"), off + (off == 1 ? " factory app off" : " factory apps off"),
+                    off + (off == 1 ? " app de fábrica desactivada" : " apps de fábrica desactivadas"));
             return tvName + " · Android " + android.os.Build.VERSION.RELEASE + " · " + apps;
         }
 
@@ -875,14 +881,14 @@ public class SettingsActivity extends Activity {
             int progress = Updater.progress;
             boolean betas = Prefs.betas(getContext());
             if (updatesCache != null && available.equals(cachedAvailable) && error.equals(cachedError)
-                    && progress == cachedProgress && betas == cachedBetas && Ui.en == cachedEn) {
+                    && progress == cachedProgress && betas == cachedBetas && Ui.lang.equals(cachedLang)) {
                 return updatesCache;
             }
             cachedAvailable = available;
             cachedError = error;
             cachedProgress = progress;
             cachedBetas = betas;
-            cachedEn = Ui.en;
+            cachedLang = Ui.lang;
             updatesCache = buildUpdateOptions();
             return updatesCache;
         }
@@ -935,9 +941,9 @@ public class SettingsActivity extends Activity {
         private static String ago(long at) {
             long minutes = Math.max(0, (System.currentTimeMillis() - at) / 60_000);
             if (minutes < 1) return Ui.tr("agora", "now");
-            if (minutes < 60) return Ui.tr("há " + minutes + " min", minutes + " min ago");
-            if (minutes < 48 * 60) return Ui.tr("há " + (minutes / 60) + " h", (minutes / 60) + " h ago");
-            return Ui.tr("há " + (minutes / 1440) + " dias", (minutes / 1440) + " days ago");
+            if (minutes < 60) return Ui.tr("há " + minutes + " min", minutes + " min ago", "hace " + minutes + " min");
+            if (minutes < 48 * 60) return Ui.tr("há " + (minutes / 60) + " h", (minutes / 60) + " h ago", "hace " + (minutes / 60) + " h");
+            return Ui.tr("há " + (minutes / 1440) + " dias", (minutes / 1440) + " days ago", "hace " + (minutes / 1440) + " días");
         }
 
         private static String versionName(Context c) {

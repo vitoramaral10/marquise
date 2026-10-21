@@ -356,7 +356,7 @@ final class Recs {
         if (p == null) return null;
         JSONObject data = o.optJSONObject("UserData");
         int left = Resume.minutesLeft(o.optLong("RunTimeTicks"), data == null ? 0 : data.optLong("PlaybackPositionTicks"));
-        p.badge = Resume.badge(Ui.en, next, o.optString("Type").equals("Episode"),
+        p.badge = Resume.badge(Ui.lang, next, o.optString("Type").equals("Episode"),
                 o.optInt("ParentIndexNumber"), o.optInt("IndexNumber"), left);
         if (data != null && data.optBoolean("Played")) p.badge = "✓ " + p.badge;   // watched before, started again
         p.resume = true;
@@ -413,7 +413,7 @@ final class Recs {
         double rating = o.optDouble("CommunityRating", Double.NaN);
         if (o.optInt("ChildCount") <= 1) {   // "3 episódios novos" alone: it's all that fits under a poster
             if (!Double.isNaN(rating) && rating > 0) {
-                badge.add("★ " + String.format(Ui.en ? Locale.US : new Locale("pt", "BR"), "%.1f", rating));
+                badge.add("★ " + String.format(Ui.local(), "%.1f", rating));
             }
             String age = ageRating(o.optString("OfficialRating"));
             if (!age.isEmpty()) badge.add(age);

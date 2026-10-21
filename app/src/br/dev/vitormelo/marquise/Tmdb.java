@@ -69,6 +69,11 @@ final class Tmdb {
             new Service("Pluto TV", new int[] {300}, null, "tv.pluto.android"),
     };
 
+    /** TMDB's language for titles and country names: English, Brazilian Portuguese or Latin American Spanish. */
+    private static String tmdbLanguage() {
+        return Ui.en ? "en-US" : Ui.es ? "es-MX" : "pt-BR";
+    }
+
     /** The installed app of a service, or null. */
     static String installed(PackageManager pm, Service s) {
         for (String pkg : s.pkgs) if (HomeApps.launchIntent(pm, pkg) != null) return pkg;
@@ -119,7 +124,7 @@ final class Tmdb {
 
     private static List<Recs.Pick> discover(Context c, String key, String region, String kind, String providers,
                                             Map<Integer, Service> services) throws IOException {
-        String lang = Ui.en ? "en-US" : "pt-BR";
+        String lang = tmdbLanguage();
         JSONArray results = json(key, "/discover/" + kind + "?watch_region=" + region + "&with_watch_providers=" + Uri.encode(providers)
                 + "&with_watch_monetization_types=" + Uri.encode("flatrate|free|ads") + "&sort_by=popularity.desc"
                 + "&vote_count.gte=20&include_adult=false&language=" + lang + "&page=1").optJSONArray("results");
@@ -144,7 +149,7 @@ final class Tmdb {
             String date = o.optString(kind.equals("movie") ? "release_date" : "first_air_date");
             if (date.length() >= 4) badge.add(date.substring(0, 4));
             double rating = o.optDouble("vote_average", 0);
-            if (rating > 0) badge.add("★ " + String.format(Ui.en ? Locale.US : Ui.PT, "%.1f", rating));
+            if (rating > 0) badge.add("★ " + String.format(Ui.local(), "%.1f", rating));
             p.badge = String.join(" · ", badge);
             out.add(p);
         }
@@ -179,7 +184,7 @@ final class Tmdb {
 
     /** The countries TMDB has streaming catalogs for: {code, name}, sorted by name, in the TV's language. */
     static List<String[]> regions(String key) throws IOException {
-        JSONArray results = json(key, "/watch/providers/regions?language=" + (Ui.en ? "en-US" : "pt-BR")).optJSONArray("results");
+        JSONArray results = json(key, "/watch/providers/regions?language=" + tmdbLanguage()).optJSONArray("results");
         List<String[]> out = new ArrayList<>();
         for (int i = 0; results != null && i < results.length(); i++) {
             JSONObject o = results.optJSONObject(i);
@@ -187,7 +192,7 @@ final class Tmdb {
             String name = o.optString("native_name", o.optString("english_name"));
             out.add(new String[] {o.optString("iso_3166_1"), name});
         }
-        final Collator collator = Collator.getInstance(Ui.en ? Locale.US : Ui.PT);
+        final Collator collator = Collator.getInstance(Ui.local());
         Collections.sort(out, (a, b) -> collator.compare(a[1], b[1]));
         return out;
     }

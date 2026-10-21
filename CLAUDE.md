@@ -110,7 +110,10 @@ TVs that don't run Google TV or Android TV (Samsung, LG and others): the way is 
   `UpdateReceiver` gets the installer's answer. Bump `versionCode` and `versionName` in the manifest for every release.
 - `HomeMode` runs every switch as a background job (`ModeJob`) in the main process; the UI is in the `:home` process.
   `Watchdog` goes back to the stock home screen after 3 crashes in 5 minutes.
-- On-screen text is bilingual, `Ui.tr("pt", "en")`: add both. Comments in English, short, only where the why isn't
+- On-screen text is trilingual: `Ui.tr("pt", "en")` for a fixed text (its Spanish goes in `Es.java`, keyed by the
+  English text; `.github/scripts/test_spanish.py` fails the build without it) and `Ui.tr("pt", "en", "es")` for a text
+  built with a number or a name. Formats that depend on the language (clock, dates, decimal comma, country names) use
+  `Ui.local()`; weather words and the tabs have their own Spanish branch. Add all of them. Comments in English, short, only where the why isn't
   obvious.
 - What's chosen on the TV (server, token, user, city, language, temperature unit, assistant) lives in `Prefs`;
   `config.properties` only gives defaults. `Prefs.load` runs at the start of every process (`App`), of the screensaver

@@ -33,7 +33,6 @@ final class HomeData {
             + "&daily=temperature_2m_max,temperature_2m_min,sunrise,sunset"
             + "&hourly=temperature_2m,weather_code,is_day&timezone=auto&forecast_days=2";
     private static final long WEATHER_EVERY = 30 * 60_000L;
-    private static final Locale PT = new Locale("pt", "BR");
 
     interface Listener { void onData(); }
 
@@ -194,6 +193,18 @@ final class HomeData {
             if (code >= 95) return "Thunderstorms";
             return "Rain";
         }
+        if (Ui.es) {
+            if (code == 0) return day ? "Despejado" : "Noche despejada";
+            if (code == 1) return "Poco nublado";
+            if (code == 2) return "Parcialmente nublado";
+            if (code == 3) return "Nublado";
+            if (code == 45 || code == 48) return "Niebla";
+            if (code >= 51 && code <= 57) return "Llovizna";
+            if (code == 65 || code == 67 || code == 82) return "Lluvia fuerte";
+            if (code >= 71 && code <= 77 || code == 85 || code == 86) return "Nieve";
+            if (code >= 95) return "Tormenta";
+            return "Lluvia";
+        }
         if (code == 0) return day ? "Céu limpo" : "Noite limpa";
         if (code == 1) return "Poucas nuvens";
         if (code == 2) return "Parcialmente nublado";
@@ -221,6 +232,6 @@ final class HomeData {
 
     static String hour(long at) {
         return Ui.en ? new SimpleDateFormat("h a", Locale.US).format(new java.util.Date(at))
-                : new SimpleDateFormat("HH'h'", PT).format(new java.util.Date(at));
+                : new SimpleDateFormat("HH'h'", Ui.local()).format(new java.util.Date(at));
     }
 }

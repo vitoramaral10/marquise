@@ -26,27 +26,30 @@ final class ResumeTest {
 
     /** A movie says the minutes left. */
     static void aMovieSaysHowLongIsLeft() {
-        eq("Resume · 42 min", Resume.badge(true, false, false, 0, 0, 42));
-        eq("Continuar · 42 min", Resume.badge(false, false, false, 0, 0, 42));
-        eq("Resume", Resume.badge(true, false, false, 0, 0, 0));
+        eq("Resume · 42 min", Resume.badge("en", false, false, 0, 0, 42));
+        eq("Continuar · 42 min", Resume.badge("pt", false, false, 0, 0, 42));
+        eq("Continuar · 42 min", Resume.badge("es", false, false, 0, 0, 42));
+        eq("Resume", Resume.badge("en", false, false, 0, 0, 0));
     }
 
     /** An episode says which one: S2 E4 in English, T2 E4 in Portuguese. */
     static void anEpisodeSaysWhichOne() {
-        eq("Resume · S2 E4", Resume.badge(true, false, true, 2, 4, 30));
-        eq("Continuar · T2 E4", Resume.badge(false, false, true, 2, 4, 30));
+        eq("Resume · S2 E4", Resume.badge("en", false, true, 2, 4, 30));
+        eq("Continuar · T2 E4", Resume.badge("pt", false, true, 2, 4, 30));
+        eq("Continuar · T2 E4", Resume.badge("es", false, true, 2, 4, 30));
     }
 
     /** The next episode of a show being followed says so. */
     static void theNextEpisode() {
-        eq("Next · S2 E5", Resume.badge(true, true, true, 2, 5, 0));
-        eq("Próximo · T2 E5", Resume.badge(false, true, true, 2, 5, 0));
+        eq("Next · S2 E5", Resume.badge("en", true, true, 2, 5, 0));
+        eq("Próximo · T2 E5", Resume.badge("pt", true, true, 2, 5, 0));
+        eq("Siguiente · T2 E5", Resume.badge("es", true, true, 2, 5, 0));
     }
 
     /** Without the numbers (specials have none), only the word. */
     static void withoutNumbersOnlyTheWord() {
-        eq("Next", Resume.badge(true, true, true, 0, 0, 0));
-        eq("Próximo", Resume.badge(false, true, true, 2, 0, 0));
-        eq("Continuar", Resume.badge(false, false, true, 0, 3, 0));
+        eq("Next", Resume.badge("en", true, true, 0, 0, 0));
+        eq("Próximo", Resume.badge("pt", true, true, 2, 0, 0));
+        eq("Continuar", Resume.badge("pt", false, true, 0, 3, 0));
     }
 }

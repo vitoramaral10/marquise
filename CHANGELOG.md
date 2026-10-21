@@ -5,6 +5,12 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Spanish (Latin American). *Español* is a choice in *Preferences → Language*, and it is picked by itself when the TV
+  is set to Spanish: every text, the greeting and the tabs, the weather words, the date and the clock, the title lists
+  from TMDB, and the *Resume / Next* lines under a poster.
+
 ## [1.16.1] - 2026-10-21
 
 ### Changed

@@ -8,7 +8,7 @@ This is a plan, not a promise. Items move when the reports from real TVs say the
 something that isn't? Open an issue.
 
 **Where it stands (1.13.0):** the safe-releases stretch is done, and "everything from the TV" is well along. What is
-left is TalkBack, Spanish and the compatibility table (which waits for reports from other brands), then the
+left is the compatibility table (which waits for reports from other brands), then the
 "better titles" and "reach" stretches below.
 
 | Version | What it brought |
@@ -95,8 +95,11 @@ exist.
   - the brand lists in `HomeMode` (`MAKER_PREFIXES`, Live TV apps).
 
   *Done when* Sony, Hisense, Philips and Xiaomi each have at least one TV confirmed by someone who has one.
-- **Spanish.** Latin America has the same TVs and the same streaming apps. The strings are `Ui.en ? … : …` pairs
-  inline, so a third language first needs them moved to one table per language.
+- ~~**Spanish.**~~ Done (Latin American): *Español* is a choice in *Preferences → Language* and the automatic one when
+  the TV is set to Spanish. The 182 fixed texts are in `Es.java`, found by their English; the 12 built with a number or
+  a name pass theirs to `Ui.tr` as a third argument; a test in CI fails a new text without Spanish. The weather words, the
+  tabs, the date and the clock follow it, and TMDB answers in `es-MX`. Not done: the install page (`docs/`) and the
+  README are not translated, and the museum labels of the screensaver are the Art Institute's own English.
 
 ## Then: better titles (1.15+)
 

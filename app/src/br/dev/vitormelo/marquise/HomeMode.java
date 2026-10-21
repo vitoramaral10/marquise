@@ -214,7 +214,8 @@ final class HomeMode {
                     .put("disabled", new JSONArray(sorted(disabled)));
             save(c, s);
             notice(c, Ui.tr("Marquise ligado: Início e tela de descanso novos, " + disabled.size() + " apps desligados.",
-                    "Marquise is on: new home screen and screensaver, " + disabled.size() + " apps turned off."));
+                    "Marquise is on: new home screen and screensaver, " + disabled.size() + " apps turned off.",
+                    "Marquise activado: Inicio y protector de pantalla nuevos, " + disabled.size() + " apps desactivadas."));
             done(c, null);
             adb.shell("am start -a android.intent.action.MAIN -c android.intent.category.HOME");
         } catch (Exception e) {

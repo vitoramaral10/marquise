@@ -23,8 +23,12 @@ final class Ui {
     private Ui() {}
 
     static final Locale PT = new Locale("pt", "BR");
-    /** English or Portuguese, from config.properties ("language") or, with "auto", the TV's own language. */
-    static volatile boolean en = english();
+    private static final Locale ES = new Locale("es", "MX");
+    /** "en", "pt" or "es": from Settings → Preferences or config.properties ("language"), or, with "auto", the TV's own language. */
+    static volatile String lang = language();
+    /** English (its own words and formats: 12 h clock, US dates). Portuguese and Spanish share the other formats. */
+    static volatile boolean en = lang.equals("en");
+    static volatile boolean es = lang.equals("es");
     static Typeface thin, light, displayMedium, displaySemibold, regular, medium, semibold;
     private static boolean loaded;
     private static final Rect BOUNDS = new Rect();
@@ -58,12 +62,29 @@ final class Ui {
 
     private static final String FONT = "fonts/InterVariable.ttf";
 
-    /** "en"/"pt" (Settings → Preferences, or config.properties), or "auto": Portuguese when the TV is set to Portuguese, English otherwise. */
-    static boolean english() {
-        String lang = Prefs.language.trim().toLowerCase(Locale.ROOT);
-        if (lang.startsWith("pt")) return false;
-        if (lang.startsWith("en")) return true;
-        return !"pt".equals(Locale.getDefault().getLanguage());
+    /**
+     * "en"/"pt"/"es" (Settings → Preferences, or config.properties), or "auto": Portuguese or Spanish when the TV is set
+     * to one of them, English otherwise.
+     */
+    static String language() {
+        String chosen = Prefs.language.trim().toLowerCase(Locale.ROOT);
+        if (chosen.startsWith("pt")) return "pt";
+        if (chosen.startsWith("es")) return "es";
+        if (chosen.startsWith("en")) return "en";
+        String tv = Locale.getDefault().getLanguage();
+        return "pt".equals(tv) ? "pt" : "es".equals(tv) ? "es" : "en";
+    }
+
+    /** Reads the language again (the person changed it, or a process started). */
+    static void refreshLanguage() {
+        lang = language();
+        en = lang.equals("en");
+        es = lang.equals("es");
+    }
+
+    /** The locale of the words and numbers of the current language (month names, decimal comma, country names). */
+    static Locale local() {
+        return en ? Locale.US : es ? ES : PT;
     }
 
     private static boolean has(AssetManager a, String path) {
@@ -120,26 +141,32 @@ final class Ui {
         return Math.max(0, Math.min(1, v));
     }
 
+    /** The Portuguese or the English text; in Spanish, the English text's line in {@link Es} (English if it has none). */
     static String tr(String pt, String english) {
-        return en ? english : pt;
+        return en ? english : es ? Es.of(english) : pt;
+    }
+
+    /** For a text made with a number or a name in it, which can't be looked up: the Spanish is given at the call. */
+    static String tr(String pt, String english, String spanish) {
+        return en ? english : es ? spanish : pt;
     }
 
     /** "21:47" (in English, "9:47", like the iPhone in the US). */
     static String clock(long now) {
         return en ? new SimpleDateFormat("h:mm", Locale.US).format(new Date(now))
-                : new SimpleDateFormat("HH:mm", PT).format(new Date(now));
+                : new SimpleDateFormat("HH:mm", local()).format(new Date(now));
     }
 
     /** "5:21" (sunrise and sunset; in English, "5:21 AM"). */
     static String time(long at) {
         return en ? new SimpleDateFormat("h:mm a", Locale.US).format(new Date(at))
-                : new SimpleDateFormat("H:mm", PT).format(new Date(at));
+                : new SimpleDateFormat("H:mm", local()).format(new Date(at));
     }
 
-    /** "domingo, 18 de outubro" (lowercase, like the iPhone in Portuguese); "Sunday, October 18" in English. */
+    /** "domingo, 18 de outubro" (lowercase, like the iPhone in Portuguese; "domingo, 18 de octubre" in Spanish); "Sunday, October 18" in English. */
     static String date(long now) {
         return en ? new SimpleDateFormat("EEEE, MMMM d", Locale.US).format(new Date(now))
-                : new SimpleDateFormat("EEEE, d 'de' MMMM", PT).format(new Date(now));
+                : new SimpleDateFormat("EEEE, d 'de' MMMM", local()).format(new Date(now));
     }
 
     /** Spinning arc (work in progress). */

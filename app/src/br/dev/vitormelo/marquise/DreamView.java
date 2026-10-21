@@ -276,7 +276,7 @@ final class DreamView extends View implements HomeData.Listener {
         date = Ui.text(Ui.regular, 24 * k, 0x99F3EDE2);
         date.setTextAlign(Paint.Align.RIGHT);
         timeFormat = android.text.format.DateFormat.getTimeFormat(getContext());
-        dateFormat = Ui.en ? new SimpleDateFormat("EEEE, MMMM d", java.util.Locale.US) : new SimpleDateFormat("EEEE, d 'de' MMMM", Ui.PT);
+        dateFormat = Ui.en ? new SimpleDateFormat("EEEE, MMMM d", java.util.Locale.US) : new SimpleDateFormat("EEEE, d 'de' MMMM", Ui.local());
         if (current != null) layout(current);
         if (pending != null) layout(pending);
         loadNext();
@@ -405,7 +405,7 @@ final class DreamView extends View implements HomeData.Listener {
     /** "Segunda-feira, 20 de outubro · 16°" (the temperature when known). */
     private String dateLine() {
         String day = dateFormat.format(now);
-        day = day.substring(0, 1).toUpperCase(Ui.en ? java.util.Locale.US : Ui.PT) + day.substring(1);
+        day = day.substring(0, 1).toUpperCase(Ui.local()) + day.substring(1);
         HomeData.Weather wx = data.weather;
         return Double.isNaN(wx.temp) ? day : day + "  ·  " + HomeData.degrees(wx.temp);
     }

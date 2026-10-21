@@ -94,7 +94,7 @@ final class Prefs {
     /** "Brasil", for the settings screen. */
     static String regionName(Context c) {
         String code = region(c);
-        String name = new Locale("", code).getDisplayCountry(Ui.en ? Locale.US : Ui.PT);
+        String name = new Locale("", code).getDisplayCountry(Ui.local());
         return p(c).getString("regionName", name.isEmpty() ? code : name);
     }
 
@@ -132,7 +132,7 @@ final class Prefs {
 
     // MARK: - Preferences (what only config.properties could set before; its values are the defaults)
 
-    /** "auto" (follows the TV), "en" or "pt". Read at every start of a process and when the person changes it. */
+    /** "auto" (follows the TV), "en", "pt" or "es". Read at every start of a process and when the person changes it. */
     static volatile String language = Config.LANGUAGE;
     /** "auto" (Fahrenheit when the TV is set to the US), "C" or "F". */
     static volatile String temperature = Config.TEMPERATURE;
@@ -141,7 +141,7 @@ final class Prefs {
     static void load(Context c) {
         language = p(c).getString("language", Config.LANGUAGE);
         temperature = p(c).getString("temperature", Config.TEMPERATURE);
-        Ui.en = Ui.english();
+        Ui.refreshLanguage();
     }
 
     static void setLanguage(Context c, String value) {

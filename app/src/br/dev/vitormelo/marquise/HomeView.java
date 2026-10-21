@@ -76,6 +76,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
     private static final int L_INK = 0xFF1D1D1F, L_DIM = 0xFF6E6E73, L_FAINT = 0xFF8E8E93;
     private static final String[] TABS = {"Explorar", "Filmes", "Séries"};
     private static final String[] TABS_EN = {"Explore", "Movies", "Shows"};
+    private static final String[] TABS_ES = {"Explorar", "Películas", "Series"};
     private static final String[] TAB_KIND = {null, "movie", "tv"};
 
     private final Activity activity;
@@ -453,7 +454,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
     }
 
     private static String[] tabs() {
-        return Ui.en ? TABS_EN : TABS;
+        return Ui.en ? TABS_EN : Ui.es ? TABS_ES : TABS;
     }
 
     @Override public void onData() {
@@ -1858,7 +1859,8 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         keys.remove(it.key);
         HomeApps.saveShelfOrder(getContext(), keys);
         reload();
-        showToast(Ui.tr(it.label + " saiu do Início. Volta por Todos os Apps.", it.label + " left Home. Add it back from All Apps."));
+        showToast(Ui.tr(it.label + " saiu do Início. Volta por Todos os Apps.", it.label + " left Home. Add it back from All Apps.",
+                it.label + " salió del Inicio. Vuelve desde Todas las apps."));
     }
 
     private void addToShelf(HomeApps.Item it) {
@@ -1871,7 +1873,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         HomeApps.saveShelfOrder(getContext(), keys);
         closeSheet();
         reload();
-        showToast(Ui.tr(it.label + " está no Início.", it.label + " is on Home."));
+        showToast(Ui.tr(it.label + " está no Início.", it.label + " is on Home.", it.label + " está en el Inicio."));
     }
 
     private void resetShelf() {

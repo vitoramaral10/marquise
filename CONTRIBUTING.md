@@ -14,7 +14,10 @@ that keep it that way are the easiest to merge.
   `adb` commands that show what a TV has. Please say which model and Android version you tested on.
 - **Another app on the row.** Add it to `HomeApps.SHELF` (key, name, package, color), its colors to
   `HomeView.TILE_STYLE`, and, if its TV art makes a poor logo, a PNG in `app/assets/logos/<key>.png`.
-- **Translations.** On-screen text uses `Ui.tr("pt", "en")`.
+- **Translations.** On-screen text uses `Ui.tr("pt", "en")`; Spanish is looked up by the English text in
+  [`Es.java`](app/src/br/dev/vitormelo/marquise/Es.java), so a new text comes with its line there (CI fails without
+  it). A text made with a number or a name in it passes its Spanish as a third argument. A fourth language starts in
+  `Ui.language()`.
 
 ## Building
 
