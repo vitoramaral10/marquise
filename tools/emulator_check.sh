@@ -35,6 +35,11 @@ choose() {
   e shell am force-stop "$PKG"
   e shell am start -W -n "$PKG/.SettingsActivity" > /dev/null
   sleep 6
+  # What a screen reader sees of the settings: the rows are named, with their value, and clickable.
+  e shell uiautomator dump /sdcard/ui.xml > /dev/null 2>&1 || true
+  e exec-out cat /sdcard/ui.xml > "$OUT/accessibility-settings.xml" || true
+  grep -Eq 'text="(Home Screen|Início)[^"]*"[^>]*clickable="true"' "$OUT/accessibility-settings.xml" \
+    || fail "a screen reader can't find the Home Screen row in the settings"
   key DPAD_CENTER 2   # the Home row is focused first: open its choices
   key "$1"
   key DPAD_CENTER 1

@@ -78,15 +78,17 @@ exist.
   Fahrenheit, Google Assistant and *Factory apps* (`config.properties` only sets where they start, as it does for
   Jellyfin and the city). Only the default app row (`shelf`) is still build-only, and the row itself is already
   edited from Home (*Restore the default row* goes back to the build's).
-- **TalkBack.** *First slice done (Home); the settings screens are next.* Home was drawn on a canvas, so a screen
-  reader saw nothing. `HomeView` now has an `AccessibilityNodeProvider` (`HomeAccess`): the tabs, the corner buttons,
-  the time and weather, the posters, the app row, the drawer, *All Apps* and the app menu are nodes with a name, a
-  place and OK, and an app of the row or of *All Apps* takes a long click (its menu: Remove, Uninstall, Add to Home,
-  Restore the default row). Tried on the emulator with Google's own TalkBack: its focus walks the tabs, the buttons
-  and the row, and OK switches a tab or opens the drawer and *All Apps*; the emulator check on every PR now reads the
-  accessibility tree too. Not covered yet: *Move* in the app menu (it needs the arrow keys), the settings and setup
-  screens, and the audio side (the emulator has none). *Done when* someone who uses TalkBack has used Home and the
-  settings with the screen off.
+- **TalkBack.** *Done in the code, not yet by a person who uses it.* Home and the settings were drawn on a canvas, so
+  a screen reader saw nothing. `HomeView` and `SettingsView` now have an `AccessibilityNodeProvider` (`HomeAccess`):
+  on Home, the tabs, the corner buttons, the time and weather, the posters, the app row, the drawer, *All Apps* and
+  the app menu are nodes with a name, a place and OK, and an app of the row or of *All Apps* takes a long click (its
+  menu: Remove, Uninstall, Add to Home, Restore the default row); in the settings, every row of every screen
+  (the main list, *Home Screen*, *Updates*, *Preferences*, *Factory apps*) says its name and its value, OK changes it,
+  and *This TV* reads as one block of text. The setup wizard uses ordinary views and was already readable. Tried on
+  the emulator with Google's own TalkBack, with the arrow keys and OK; the emulator check on every PR reads the
+  accessibility tree of Home and the settings. Not covered: *Move* in the app menu (it needs the arrow keys), the
+  Jellyfin and notices text under the settings list, and the audio side (the emulator has none). *Done when* someone
+  who uses TalkBack has used Home and the settings with the screen off.
 - **Compatibility, from the reports.** The *This TV* QR reports (issue template `tv_support`) feed:
   - a compatibility table on the install page, with brand, model, Android version, what works and what was turned
     off;

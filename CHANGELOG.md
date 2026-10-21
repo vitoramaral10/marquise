@@ -5,6 +5,12 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- The settings work with TalkBack (and other screen readers) too: every row of every screen (the main list, *Home
+  Screen*, *Updates*, *Preferences*, *Factory apps*) is announced by name and value and can be chosen with OK, and
+  *This TV* reads as one block of text. The setup wizard was already readable.
+
 ## [1.14.0] - 2026-10-21
 
 ### Added

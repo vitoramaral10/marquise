@@ -22,9 +22,13 @@ import android.text.TextUtils;
 import android.view.Choreographer;
 import android.view.KeyEvent;
 import android.view.View;
+import android.view.accessibility.AccessibilityNodeProvider;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Marquise's settings (the app's icon, "All Apps", or the gear on the home screen), in the style of Apple TV's
@@ -147,6 +151,18 @@ public class SettingsActivity extends Activity {
         private String appsTitle = "", appsSummary = "";
         private final Paint qrPaint = new Paint();   // no filtering: the modules stay sharp when scaled up   // the installed streaming apps TMDB titles open in (looked up on resume)
         private int screen = MAIN, focus;
+        // For a screen reader (TalkBack): the rows of the screen on show, as virtual nodes. Built only when asked.
+        private int a11yLast = View.NO_ID, a11yScreenSeen = MAIN;
+        private String a11ySig = "";
+        private final HomeAccess access = new HomeAccess(this, this::a11yNodes);
+        private final Runnable a11yNotify = () -> {
+            access.changed();
+            // Another screen (OK on a row, Back): say where the focus is, not only that the screen changed.
+            if (screen != a11yScreenSeen) {
+                a11yScreenSeen = screen;
+                a11yMoved();
+            }
+        };
         /** Whether the Updates screen has had the "Install" row: when it appears, focus moves down with the rows. */
         private boolean updatesHadInstall;
         // The Updates screen's choices, built again only when what they say changes (nothing is made per frame).
@@ -168,6 +184,12 @@ public class SettingsActivity extends Activity {
                 hasKey = Recs.hasKey(getContext());
                 recs = Recs.status(getContext());
                 if (!state.optString("busy").isEmpty()) pendingAt = 0;
+                String sig = state.optString("mode") + "|" + state.optString("busy") + "|" + state.optString("error") + "|"
+                        + Updater.available + "|" + Updater.progress + "|" + Updater.error;
+                if (!sig.equals(a11ySig)) {
+                    a11ySig = sig;
+                    a11yChanged();
+                }
                 invalidate();
                 handler.postDelayed(this, 500);
             }
@@ -180,6 +202,7 @@ public class SettingsActivity extends Activity {
             logo = BitmapFactory.decodeResource(a.getResources(), R.drawable.logo);
             qr = BitmapFactory.decodeResource(a.getResources(), R.drawable.qr_repo);
             setFocusable(true);
+            setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_YES);
         }
 
         void resume() {
@@ -312,9 +335,105 @@ public class SettingsActivity extends Activity {
             else drawReport(c);
         }
 
-        private void drawMain(Canvas c, float seconds) {
-            boolean working = busy();
-            String busyText = state.optString("busy");
+        // MARK: - Screen reader (TalkBack)
+
+        @Override public AccessibilityNodeProvider getAccessibilityNodeProvider() {
+            return access;
+        }
+
+        /** What is on screen changed: the reader asks again, a moment later (several things change together). */
+        private void a11yChanged() {
+            if (!access.on()) return;
+            removeCallbacks(a11yNotify);
+            postDelayed(a11yNotify, 150);
+        }
+
+        /** The focus may have moved: say where it is now, if it is somewhere else. */
+        private void a11yMoved() {
+            if (!access.on()) return;
+            int id = screen * 1000 + focus;
+            if (id == a11yLast) return;
+            a11yLast = id;
+            access.focusMoved(id);
+        }
+
+        private RectF a11yRect(float top, float rowH, int i) {
+            float y = top + i * (rowH + ROW_GAP);
+            return new RectF(LIST_X * k, y * k, LIST_R * k, (y + rowH) * k);
+        }
+
+        private HomeAccess.Node a11yRow(int index, String text, RectF rect, boolean selected) {
+            final int at = index;
+            HomeAccess.Node n = new HomeAccess.Node(screen * 1000 + index, text, rect);
+            n.selected = selected;
+            n.click = () -> {
+                focus = at;
+                activate();
+            };
+            n.focus = () -> {
+                focus = at;
+                a11yLast = screen * 1000 + at;
+                invalidate();
+            };
+            return n;
+        }
+
+        /** The rows of the screen on show, in reading order: what a person can choose here. */
+        private List<HomeAccess.Node> a11yNodes() {
+            List<HomeAccess.Node> out = new ArrayList<>();
+            if (screen == MAIN) {
+                boolean working = busy();
+                String[] labels = mainLabels(), values = mainValues(working);
+                for (int i = 0; i < ROWS; i++) {
+                    String value = i == 0 && working ? (state.optString("busy").isEmpty() ? Ui.tr("Começando…", "Starting…") : state.optString("busy")) : values[i];
+                    out.add(a11yRow(i, labels[i] + (value.isEmpty() ? "" : ", " + value), a11yRect(LIST_TOP, ROW_H, i), false));
+                }
+            } else if (screen == HOME_CHOICE) {
+                String[][] options = homeOptions();
+                for (int i = 0; i < options.length; i++) {
+                    out.add(a11yRow(i, options[i][0] + ", " + options[i][1], a11yRect(LIST_TOP + 20, CHOICE_H, i), i == (freeActive() ? 0 : 1)));
+                }
+            } else if (screen == UPDATES) {
+                String[][] options = updateOptions();
+                int current = options.length - 2 + (Prefs.betas(getContext()) ? 1 : 0);
+                for (int i = 0; i < options.length; i++) {
+                    out.add(a11yRow(i, options[i][0] + ", " + options[i][1], a11yRect(LIST_TOP + 20, CHOICE_H, i), i == current));
+                }
+            } else if (screen == PREFS) {
+                for (int i = 0; i < PREF_ROWS; i++) {
+                    out.add(a11yRow(i, prefLabel(i) + ", " + prefValue(i), a11yRect(LIST_TOP + 20, ROW_H, i), false));
+                }
+            } else if (screen == APPS) {
+                if (appItems == null || appItems.length == 0) {
+                    HomeAccess.Node n = new HomeAccess.Node(screen * 1000, appItems == null ? Ui.tr("Procurando os apps…", "Looking for the apps…")
+                            : Ui.tr("Nenhum app de fábrica para escolher.", "No factory apps to choose from."), a11yRect(LIST_TOP + 20, ROW_H, 0));
+                    out.add(n);
+                } else {
+                    for (int i = appScroll; i < appItems.length && i < appScroll + APP_ROWS; i++) {
+                        out.add(a11yRow(i, appItems[i][1], a11yRect(LIST_TOP + 20, ROW_H, i - appScroll), appPicked.contains(appItems[i][0])));
+                    }
+                }
+            } else {   // the report: one block of text to read, and the code is for a phone's camera
+                StringBuilder text = new StringBuilder(Ui.tr("Esta TV. ", "This TV. ")).append(reportLine()).append(". ")
+                        .append(reportHow()).append(' ').append(reportHolds()).append(' ');
+                if (errorLines != null) {
+                    text.append(errorLines.length == 0 ? Ui.tr("Nenhum erro recente.", "No recent errors.")
+                            : Ui.tr("Últimos erros: ", "Last errors: ") + String.join(". ", errorLines));
+                }
+                out.add(new HomeAccess.Node(screen * 1000, text.toString(), new RectF(LIST_X * k, LIST_TOP * k, LIST_R * k, 900 * k)));
+            }
+            return out;
+        }
+
+        /** The names of the main list's rows. */
+        private static String[] mainLabels() {
+            return new String[] {Ui.tr("Início", "Home Screen"), Ui.tr("Títulos", "Titles"), Ui.tr("Cidade", "City"),
+                    Ui.tr("Tela de Descanso", "Screensaver"), Ui.tr("Esta TV", "This TV"), Ui.tr("Atualizações", "Updates"),
+                    Ui.tr("Preferências", "Preferences"), Ui.tr("Ajustes da TV", "TV Settings")};
+        }
+
+        /** What each main row says on its right (the first one is empty while a switch is working: it shows the step). */
+        private String[] mainValues(boolean working) {
             String mode = freeActive() ? "Marquise" : Ui.tr("Original", "Original");
             Context ctx = getContext();
             String who = Prefs.userName(ctx), where = Prefs.serverName(ctx);
@@ -322,11 +441,14 @@ public class SettingsActivity extends Activity {
                     : "Jellyfin" + (who.isEmpty() ? "" : " · " + who) + (where.isEmpty() ? "" : " · " + where);
             if (Recs.tmdb(ctx)) jellyfin = Prefs.tmdbReady(ctx) ? "TMDB · " + Prefs.regionName(ctx) : Ui.tr("Configurar", "Set up");
             String city = Prefs.city(ctx);
-            String[] labels = {Ui.tr("Início", "Home Screen"), Ui.tr("Títulos", "Titles"), Ui.tr("Cidade", "City"), Ui.tr("Tela de Descanso", "Screensaver"),
-                    Ui.tr("Esta TV", "This TV"), Ui.tr("Atualizações", "Updates"), Ui.tr("Preferências", "Preferences"),
-                    Ui.tr("Ajustes da TV", "TV Settings")};
-            String[] values = {working ? "" : mode, jellyfin, city.isEmpty() ? Ui.tr("Escolher", "Choose") : city,
+            return new String[] {working ? "" : mode, jellyfin, city.isEmpty() ? Ui.tr("Escolher", "Choose") : city,
                     Ui.tr("Ver agora", "Preview"), tvName, updateStatus(), "", ""};
+        }
+
+        private void drawMain(Canvas c, float seconds) {
+            boolean working = busy();
+            String busyText = state.optString("busy");
+            String[] labels = mainLabels(), values = mainValues(working);
             for (int i = 0; i < ROWS; i++) {
                 float y = (LIST_TOP + i * (ROW_H + ROW_GAP)) * k;
                 rowRect.set(LIST_X * k, y, LIST_R * k, y + ROW_H * k);
@@ -476,6 +598,7 @@ public class SettingsActivity extends Activity {
                     if (token != appLoadToken || screen != APPS) return;
                     appItems = items;
                     updateAppsTitle();
+                    a11yChanged();
                     invalidate();
                 });
             }, "marquise-apps").start();
@@ -618,13 +741,33 @@ public class SettingsActivity extends Activity {
          * This TV: brand, model, Android, how many factory apps Marquise keeps off, and a QR code to a pre-filled GitHub
          * report (TvReport), so a TV of another brand can be supported with what it really has.
          */
-        private void drawReport(Canvas c) {
-            float x = LIST_X * k + 30 * k;
-            c.drawText(Ui.tr("Esta TV", "This TV"), x, (LIST_TOP - 24) * k, heading);
+        /** "TCL 55C735 · Android 12 · 5 factory apps off": the line under the report's title. */
+        private String reportLine() {
             int off = TvReport.turnedOff(getContext());
             String apps = !freeActive() ? Ui.tr("tudo de fábrica", "all as it came")
                     : Ui.tr(off + (off == 1 ? " app de fábrica desligado" : " apps de fábrica desligados"), off + (off == 1 ? " factory app off" : " factory apps off"));
-            c.drawText(tvName + " · Android " + android.os.Build.VERSION.RELEASE + " · " + apps, x, (LIST_TOP + 30) * k, notice);
+            return tvName + " · Android " + android.os.Build.VERSION.RELEASE + " · " + apps;
+        }
+
+        private static String reportHow() {
+            return Ui.tr("Aponte a câmera do celular para o código, de perto: ele abre no GitHub um relatório "
+                    + "desta TV, já preenchido, para o Marquise aprender a marca dela. Para enviar, precisa de uma conta no GitHub.",
+                    "Point your phone's camera at the code, up close: it opens a report of this TV on GitHub, already filled "
+                    + "in, so Marquise can learn its brand. Sending it needs a GitHub account.");
+        }
+
+        private static String reportHolds() {
+            return Ui.tr("Vai junto: marca, modelo, Android, o Início e a tela de descanso de fábrica, os apps que "
+                    + "vieram na TV e os últimos erros, sem endereços nem chaves. Nada pessoal: nenhum app seu, conta, rede ou local.",
+                    "It holds: brand, model, Android, the factory home screen and screensaver, the apps that came with "
+                    + "the TV and the last errors, without addresses or keys. Nothing personal: none of your apps, accounts, "
+                    + "network or location.");
+        }
+
+        private void drawReport(Canvas c) {
+            float x = LIST_X * k + 30 * k;
+            c.drawText(Ui.tr("Esta TV", "This TV"), x, (LIST_TOP - 24) * k, heading);
+            c.drawText(reportLine(), x, (LIST_TOP + 30) * k, notice);
             float q = 460 * k, top = (LIST_TOP + 80) * k;
             if (reportQr != null) {
                 tmp.set(x, top, x + q, top + q);
@@ -633,16 +776,8 @@ public class SettingsActivity extends Activity {
             float tx = x + q + 48 * k, width = LIST_R * k - tx - 10 * k, gap = 22 * k;
             float ty = drawWrapped(c, Ui.tr("Outra marca, ou algo não funcionou?", "Another brand, or something didn't work?"),
                     tx, top + 30 * k, width, rowLabel, 0xF2FFFFFF);
-            ty = drawWrapped(c, Ui.tr("Aponte a câmera do celular para o código, de perto: ele abre no GitHub um relatório "
-                    + "desta TV, já preenchido, para o Marquise aprender a marca dela. Para enviar, precisa de uma conta no GitHub.",
-                    "Point your phone's camera at the code, up close: it opens a report of this TV on GitHub, already filled "
-                    + "in, so Marquise can learn its brand. Sending it needs a GitHub account."), tx, ty + rowLabel.getTextSize() + gap,
-                    width, notice, 0xB3FFFFFF);
-            drawWrapped(c, Ui.tr("Vai junto: marca, modelo, Android, o Início e a tela de descanso de fábrica, os apps que "
-                    + "vieram na TV e os últimos erros, sem endereços nem chaves. Nada pessoal: nenhum app seu, conta, rede ou local.",
-                    "It holds: brand, model, Android, the factory home screen and screensaver, the apps that came with "
-                    + "the TV and the last errors, without addresses or keys. Nothing personal: none of your apps, accounts, "
-                    + "network or location."), tx, ty + notice.getTextSize() * 1.45f + gap, width, notice, 0x80FFFFFF);
+            ty = drawWrapped(c, reportHow(), tx, ty + rowLabel.getTextSize() + gap, width, notice, 0xB3FFFFFF);
+            drawWrapped(c, reportHolds(), tx, ty + notice.getTextSize() * 1.45f + gap, width, notice, 0x80FFFFFF);
             // The last problems Marquise saw, under the code: what to say when something didn't work.
             float ey = top + q + 56 * k;
             c.drawText(Ui.tr("ÚLTIMOS ERROS", "LAST ERRORS"), x, ey, header);
@@ -671,6 +806,7 @@ public class SettingsActivity extends Activity {
                         reportUrl = url;
                     }
                     errorLines = lines;
+                    a11yChanged();
                     invalidate();
                 });
             }, "marquise-report").start();
@@ -723,10 +859,13 @@ public class SettingsActivity extends Activity {
             return y;
         }
 
-        private void drawHomeChoice(Canvas c) {
-            String[][] options = {{"Marquise", Ui.tr("Seus pôsteres do Jellyfin, sem anúncios", "Your Jellyfin posters, no ads")},
+        private static String[][] homeOptions() {
+            return new String[][] {{"Marquise", Ui.tr("Seus pôsteres do Jellyfin, sem anúncios", "Your Jellyfin posters, no ads")},
                     {"Original", Ui.tr("O Início de fábrica da TV", "The TV's factory home screen")}};
-            drawChoice(c, Ui.tr("Início", "Home Screen"), options, freeActive() ? 0 : 1,
+        }
+
+        private void drawHomeChoice(Canvas c) {
+            drawChoice(c, Ui.tr("Início", "Home Screen"), homeOptions(), freeActive() ? 0 : 1,
                     Ui.tr("A troca leva alguns segundos.", "Switching takes a few seconds."));
         }
 
@@ -818,6 +957,7 @@ public class SettingsActivity extends Activity {
                         scrollToFocus();
                         updateAppsTitle();
                     }
+                    a11yMoved();
                     invalidate();
                     return true;
                 case KeyEvent.KEYCODE_DPAD_DOWN:
@@ -826,6 +966,7 @@ public class SettingsActivity extends Activity {
                         scrollToFocus();
                         updateAppsTitle();
                     }
+                    a11yMoved();
                     invalidate();
                     return true;
                 case KeyEvent.KEYCODE_DPAD_LEFT:
@@ -847,6 +988,7 @@ public class SettingsActivity extends Activity {
                         if (e.getRepeatCount() == 0) backDown = true;
                     } else {
                         if (backDown && !e.isCanceled()) {
+                            a11yChanged();
                             if (screen == APPS) {
                                 screen = PREFS;
                                 focus = PREF_ROWS - 1;
@@ -865,6 +1007,7 @@ public class SettingsActivity extends Activity {
         }
 
         private void activate() {
+            a11yChanged();
             Context c = getContext();
             if (screen == REPORT) {
                 return;

@@ -31,7 +31,7 @@ What just arrived on your server, up front. Your apps, in their own colors. One 
 - **No ads, no sponsored rows, no tracking.** It talks to your Jellyfin server (or TMDB), Open-Meteo for the weather,
   the Art Institute of Chicago for the paintings and GitHub for updates, and nothing else.
 - **Works with a screen reader.** Home speaks to TalkBack: tabs, buttons, posters and apps are named and chosen with
-  OK (the settings screens come next).
+  OK, and so do the settings.
 - **Safe.** No root. Nothing is uninstalled. *Original* brings the factory home screen back, and a watchdog does it by
   itself if Marquise ever crashes.
 
