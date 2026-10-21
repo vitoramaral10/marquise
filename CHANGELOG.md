@@ -5,6 +5,8 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.12.0] - 2026-10-21
+
 ### Added
 
 - Settings → *Preferences*: the language (automatic, Português or English), Celsius or Fahrenheit, and whether Marquise
