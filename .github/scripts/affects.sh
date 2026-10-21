@@ -7,10 +7,16 @@
 # is the pull request; on a push to main, it is the squash commit and its parent. When it can't tell (no parent, an
 # empty diff), the change counts: a check skipped when it should have run is worse than one that ran for nothing.
 # The job still runs and passes when nothing matters (a required check has to report), it only skips the heavy steps.
-set -uo pipefail
-if files=$(git diff --name-only HEAD^1 HEAD 2>/dev/null) && [ -n "$files" ]; then
-  { echo "Changed in this commit:"; echo "$files"; } >&2
-  if echo "$files" | grep -Eq "$1"; then echo "app=true"; else echo "app=false"; fi
+#
+# Two details that would let a change through unseen: a file moved out of app/ shows up as a rename and --name-only
+# lists only where it went, so renames are off (the removal from app/ is listed); and Git quotes and escapes a name
+# like app/Árvore.java unless the list is NUL-separated (-z), so the paths are matched as NUL-terminated records.
+# (No pipefail: grep -q ends early, and the git behind it getting SIGPIPE would turn a match into a failure.)
+set -u
+changed() { git diff --no-renames --name-only -z HEAD^1 HEAD 2>/dev/null; }
+if [ "$(changed | head -c 1 | wc -c)" -gt 0 ]; then
+  { echo "Changed in this commit:"; changed | tr '\0' '\n'; } >&2
+  if changed | grep -zEq "$1"; then echo "app=true"; else echo "app=false"; fi
 else
   echo "Couldn't tell what changed: running." >&2
   echo "app=true"

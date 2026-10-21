@@ -98,6 +98,44 @@ class Affects(unittest.TestCase):
         self.assertTrue(self.affects(BUILD))
         self.assertTrue(self.affects(EMULATOR))
 
+    def test_a_file_moved_out_of_the_app_runs(self):
+        """A rename from app/ to docs/ lists only the destination unless renames are off: the removal must show."""
+        self.git("mv", "app/A.java", "docs/A.java")
+        self.commit("move out of app")
+        self.assertTrue(self.affects(BUILD))
+        self.assertTrue(self.affects(EMULATOR))
+
+    def test_a_file_moved_into_docs_from_elsewhere_still_skips(self):
+        """Moving a doc around is still only docs."""
+        self.git("mv", "README.md", "docs/README.md")
+        self.commit("move a doc")
+        self.assertFalse(self.affects(BUILD))
+        self.assertFalse(self.affects(EMULATOR))
+
+    def test_names_with_accents_spaces_and_quotes_are_matched(self):
+        """Git quotes such names in its default listing; each one alone in its commit must still match app/."""
+        for name in ("app/Árvore.java", "app/with space.java", 'app/quote"d.java', "app/tab\there.java"):
+            with self.subTest(name=name):
+                self.touch(name, "x")
+                self.commit("one odd name: " + name.replace("\t", " "))
+                self.assertTrue(self.affects(BUILD))
+                self.assertTrue(self.affects(EMULATOR))
+
+    def test_odd_names_in_docs_skip(self):
+        """And such names outside of what the jobs are made of skip as usual."""
+        self.touch("docs/Árvore genealógica.md", "x")
+        self.commit("odd names in docs")
+        self.assertFalse(self.affects(BUILD))
+        self.assertFalse(self.affects(EMULATOR))
+
+    def test_a_path_that_only_looks_like_app_skips(self):
+        """The patterns are anchored: an apps/ folder or a file ending in build.sh is not app/ or build.sh."""
+        self.touch("apps/notes.md", "x")
+        self.touch("docs/build.sh.md", "x")
+        self.commit("lookalikes")
+        self.assertFalse(self.affects(BUILD))
+        self.assertFalse(self.affects(EMULATOR))
+
     def test_when_it_cannot_tell_it_runs(self):
         """No parent (a first commit) or an empty diff: running is safer than skipping a check that should have run."""
         with tempfile.TemporaryDirectory() as lone:
