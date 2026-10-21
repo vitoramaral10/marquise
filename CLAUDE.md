@@ -56,7 +56,7 @@ adb shell pm list packages -s     # system apps (-3 for the ones they installed)
 Then, in the code:
 
 - `HomeMode.DEBLOAT`: add the brand's promo, demo, store-mode and telemetry apps, one comment per line. Only those.
-  Personal choices (an app they just don't use) go in their `extra_disable`, not here.
+  Personal choices (an app they just don't use) go in *Preferences → Factory apps* (or their `extra_disable`), not here.
 - `HomeMode.PROTECTED`: add the brand's system pieces: picture, sound, inputs and HDMI-CEC, the tuner and live TV,
   remote and Bluetooth pairing, setup, updates, system UI. When in doubt, protect it.
 - `HomeApps.LIVE_TV_APPS` and `HIDDEN`: the brand's live TV app, apps to hide from All Apps.

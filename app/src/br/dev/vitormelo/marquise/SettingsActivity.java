@@ -112,14 +112,14 @@ public class SettingsActivity extends Activity {
     }
 
     static final class SettingsView extends View implements Choreographer.FrameCallback {
-        private static final int MAIN = 0, HOME_CHOICE = 1, REPORT = 2, UPDATES = 3, PREFS = 4;
+        private static final int MAIN = 0, HOME_CHOICE = 1, REPORT = 2, UPDATES = 3, PREFS = 4, APPS = 5;
         /**
          * The "This TV" row: opens the report screen. "Updates": the update, if any, and stable or beta releases.
          * "Preferences": language, temperature and the assistant (what only config.properties could set before).
          */
         private static final int THIS_TV = 4, UPDATES_ROW = 5, PREFS_ROW = 6;
         private static final float LIST_X = 1000, LIST_R = 1824, LIST_TOP = 150, ROW_H = 64, ROW_GAP = 6, CHOICE_H = 104;
-        private static final int ROWS = 8, PREF_ROWS = 3;
+        private static final int ROWS = 8, PREF_ROWS = 4, APP_ROWS = 8;
         private static final int AMBER = 0xFFFFC266, INK = 0xFF1C1C1E;
 
         private final SettingsActivity activity;
@@ -139,6 +139,12 @@ public class SettingsActivity extends Activity {
         private String reportUrl;              // the link reportQr is of
         private String[] errorLines;           // the last problems AppLog kept, newest first, as lines; null until read
         private boolean assistantOff;          // Preferences' third row, read when the screen opens
+        // Factory apps (Preferences' fourth row): the system apps to choose from, built off the UI thread when it opens.
+        private String[][] appItems;           // {package, label cut to fit}; null while it is being built
+        private final java.util.Set<String> appPicked = new java.util.LinkedHashSet<>();
+        private int appLoadToken;              // which opening of the list a background load belongs to
+        private int appScroll;                 // the first row shown
+        private String appsTitle = "", appsSummary = "";
         private final Paint qrPaint = new Paint();   // no filtering: the modules stay sharp when scaled up   // the installed streaming apps TMDB titles open in (looked up on resume)
         private int screen = MAIN, focus;
         /** Whether the Updates screen has had the "Install" row: when it appears, focus moves down with the rows. */
@@ -245,6 +251,7 @@ public class SettingsActivity extends Activity {
 
         private int rowCount() {
             if (screen == UPDATES) syncUpdatesFocus();
+            if (screen == APPS) return appItems == null ? 0 : appItems.length;
             return screen == MAIN ? ROWS : screen == HOME_CHOICE ? 2 : screen == PREFS ? PREF_ROWS : screen == UPDATES ? (Updater.available.isEmpty() ? 2 : 3) : 0;   // as updateOptions()
         }
 
@@ -261,8 +268,10 @@ public class SettingsActivity extends Activity {
             long now = System.nanoTime();
             float dt = lastNanos == 0 ? 1 / 60f : Math.min(0.05f, (now - lastNanos) / 1e9f);
             lastNanos = now;
+            // The rows of a long list are drawn from the first one shown: the springs are of the rows on screen.
+            int selected = screen == APPS ? focus - appScroll : focus, shown = screen == APPS ? Math.min(APP_ROWS, rowCount() - appScroll) : rowCount();
             for (int i = 0; i < pop.length; i++) {
-                pop[i].target = i == focus && i < rowCount() ? 1 : 0;
+                pop[i].target = i == selected && i < shown ? 1 : 0;
                 pop[i].step(dt);
             }
             long up = SystemClock.uptimeMillis();
@@ -299,6 +308,7 @@ public class SettingsActivity extends Activity {
             else if (screen == HOME_CHOICE) drawHomeChoice(c);
             else if (screen == UPDATES) drawUpdates(c);
             else if (screen == PREFS) drawPrefs(c);
+            else if (screen == APPS) drawApps(c);
             else drawReport(c);
         }
 
@@ -384,7 +394,7 @@ public class SettingsActivity extends Activity {
 
         private static String prefLabel(int row) {
             return row == 0 ? Ui.tr("Idioma", "Language") : row == 1 ? Ui.tr("Temperatura", "Temperature")
-                    : Ui.tr("Google Assistente", "Google Assistant");
+                    : row == 2 ? Ui.tr("Google Assistente", "Google Assistant") : Ui.tr("Apps de fábrica", "Factory apps");
         }
 
         private String prefValue(int row) {
@@ -396,6 +406,7 @@ public class SettingsActivity extends Activity {
                 String t = Prefs.temperature.trim().toUpperCase(java.util.Locale.ROOT);
                 return t.startsWith("F") ? "°F" : t.startsWith("C") ? "°C" : Ui.tr("Automático (da TV)", "Automatic (the TV's)");
             }
+            if (row == 3) return appsSummary;
             return assistantOff ? Ui.tr("Desligar com o Marquise", "Turn off with Marquise") : Ui.tr("Manter ligado", "Leave on");
         }
 
@@ -408,10 +419,106 @@ public class SettingsActivity extends Activity {
             } else if (row == 1) {
                 String t = Prefs.temperature.trim().toUpperCase(java.util.Locale.ROOT);
                 Prefs.setTemperature(c, t.startsWith("F") ? "auto" : t.startsWith("C") ? "F" : "C");
-            } else {
+            } else if (row == 2) {
                 assistantOff = !assistantOff;
                 Prefs.setAssistantOff(c, assistantOff);
+            } else {
+                openApps();
             }
+        }
+
+        /** "None" or "3 chosen", for Preferences' fourth row; made when the count changes, not per frame. */
+        private void updateAppsSummary() {
+            int n = appPicked.size();
+            appsSummary = n == 0 ? Ui.tr("Nenhum", "None") : n + Ui.tr(n == 1 ? " escolhido" : " escolhidos", " chosen");
+        }
+
+        private static int byLabel(String[] x, String[] y) {
+            return String.CASE_INSENSITIVE_ORDER.compare(x[1], y[1]);
+        }
+
+        /**
+         * Factory apps: the TV's system apps with an icon (never a protected one, Marquise, or what Marquise already
+         * turns off by itself), and what was picked before even if it has no icon now. OK on one picks it or not,
+         * saved at once; it takes effect the next time Marquise is switched on. Built off the UI thread: it asks the
+         * package manager for every app's name.
+         */
+        private void openApps() {
+            final Context c = getContext();
+            appItems = null;
+            appScroll = 0;
+            appPicked.clear();
+            appPicked.addAll(Prefs.extraDisable(c));
+            final int token = ++appLoadToken;   // a load of an earlier opening, still running, must not show its list
+            final java.util.Set<String> picked = new java.util.LinkedHashSet<>(appPicked);   // its own copy: the screen edits appPicked
+            screen = APPS;
+            focus = 0;
+            appsTitle = Ui.tr("Apps de fábrica", "Factory apps");
+            new Thread(() -> {
+                java.util.TreeSet<String> pkgs = new java.util.TreeSet<>(TvReport.systemApps(c));
+                pkgs.addAll(picked);
+                android.content.pm.PackageManager pm = c.getPackageManager();
+                java.util.List<String[]> list = new java.util.ArrayList<>();
+                TextPaint p = new TextPaint(rowLabel);
+                for (String pkg : pkgs) {
+                    if (!HomeMode.canPick(pkg)) continue;
+                    String label = pkg;
+                    try {
+                        label = String.valueOf(pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)));
+                    } catch (android.content.pm.PackageManager.NameNotFoundException ignored) {
+                        // A picked app that is gone from the TV: listed by its package name.
+                    }
+                    list.add(new String[] {pkg, TextUtils.ellipsize(label, p, 640 * k, TextUtils.TruncateAt.END).toString()});
+                }
+                list.sort(SettingsView::byLabel);
+                final String[][] items = list.toArray(new String[0][]);
+                post(() -> {
+                    if (token != appLoadToken || screen != APPS) return;
+                    appItems = items;
+                    updateAppsTitle();
+                    invalidate();
+                });
+            }, "marquise-apps").start();
+        }
+
+        private void updateAppsTitle() {
+            appsTitle = Ui.tr("Apps de fábrica", "Factory apps")
+                    + (appItems == null || appItems.length == 0 ? "" : " · " + (focus + 1) + "/" + appItems.length);
+        }
+
+        /** Keeps the focused row inside the eight shown. */
+        private void scrollToFocus() {
+            if (focus < appScroll) appScroll = focus;
+            if (focus >= appScroll + APP_ROWS) appScroll = focus - APP_ROWS + 1;
+        }
+
+        private void drawApps(Canvas c) {
+            float x = LIST_X * k + 30 * k;
+            c.drawText(appsTitle, x, (LIST_TOP - 24) * k, heading);
+            if (appItems == null || appItems.length == 0) {
+                c.drawText(appItems == null ? Ui.tr("Procurando os apps…", "Looking for the apps…")
+                        : Ui.tr("Nenhum app de fábrica para escolher.", "No factory apps to choose from."), x, (LIST_TOP + 60) * k, hint);
+                return;
+            }
+            int n = Math.min(APP_ROWS, appItems.length - appScroll);
+            for (int i = 0; i < n; i++) {
+                String[] item = appItems[appScroll + i];
+                float y = (LIST_TOP + 20 + i * (ROW_H + ROW_GAP)) * k;
+                rowRect.set(LIST_X * k, y, LIST_R * k, y + ROW_H * k);
+                float f = drawRowBackground(c, i);
+                rowLabel.setColor(blend(0xF2FFFFFF, INK, f));
+                c.drawText(item[1], rowRect.left + 30 * k, rowRect.centerY() + Ui.halfCap(rowLabel), rowLabel);
+                if (appPicked.contains(item[0])) {
+                    float cw = Symbols.width(getContext(), "check", 26 * k);
+                    Symbols.draw(getContext(), c, "check", rowRect.right - 30 * k - cw / 2, rowRect.centerY(), 26 * k, blend(0xFFFFFFFF, INK, f));
+                }
+            }
+            float ny = (LIST_TOP + 20 + APP_ROWS * (ROW_H + ROW_GAP) + 36) * k;
+            c.drawText(appItems[focus][0], x, ny, hint);
+            c.drawText(Ui.tr("OK escolhe o app para desligar; vale na próxima vez que o Marquise for ligado.",
+                    "OK picks the app to turn off; it takes effect the next time Marquise is switched on."), x, ny + 34 * k, hint);
+            c.drawText(Ui.tr("Apps do fabricante podem ter funções da TV. O Original liga tudo de volta.",
+                    "A maker's apps may hold TV functions. Original mode turns it all back on."), x, ny + 68 * k, hint);
         }
 
         /** Whether "Updates" has news: a new version, its download, or what went wrong. */
@@ -707,10 +814,18 @@ public class SettingsActivity extends Activity {
             switch (e.getKeyCode()) {
                 case KeyEvent.KEYCODE_DPAD_UP:
                     if (down && focus > 0) focus--;
+                    if (screen == APPS) {
+                        scrollToFocus();
+                        updateAppsTitle();
+                    }
                     invalidate();
                     return true;
                 case KeyEvent.KEYCODE_DPAD_DOWN:
                     if (down && focus < rowCount() - 1) focus++;
+                    if (screen == APPS) {
+                        scrollToFocus();
+                        updateAppsTitle();
+                    }
                     invalidate();
                     return true;
                 case KeyEvent.KEYCODE_DPAD_LEFT:
@@ -732,8 +847,13 @@ public class SettingsActivity extends Activity {
                         if (e.getRepeatCount() == 0) backDown = true;
                     } else {
                         if (backDown && !e.isCanceled()) {
-                            focus = screen == REPORT ? THIS_TV : screen == UPDATES ? UPDATES_ROW : screen == PREFS ? PREFS_ROW : 0;
-                            screen = MAIN;
+                            if (screen == APPS) {
+                                screen = PREFS;
+                                focus = PREF_ROWS - 1;
+                            } else {
+                                focus = screen == REPORT ? THIS_TV : screen == UPDATES ? UPDATES_ROW : screen == PREFS ? PREFS_ROW : 0;
+                                screen = MAIN;
+                            }
                         }
                         backDown = false;
                     }
@@ -756,6 +876,15 @@ public class SettingsActivity extends Activity {
                 }
                 screen = MAIN;
                 focus = 0;
+            } else if (screen == APPS) {
+                if (appItems != null && focus < appItems.length) {
+                    String pkg = appItems[focus][0];
+                    if (!appPicked.remove(pkg)) appPicked.add(pkg);
+                    Prefs.setExtraDisable(c, appPicked);
+                    updateAppsSummary();
+                }
+                invalidate();
+                return;
             } else if (screen == PREFS) {
                 nextPref(focus);
                 invalidate();
@@ -784,6 +913,9 @@ public class SettingsActivity extends Activity {
                 focus = Updater.available.isEmpty() ? (Prefs.betas(c) ? 1 : 0) : 0;
             } else if (focus == PREFS_ROW) {
                 assistantOff = Prefs.assistantOff(c);
+                appPicked.clear();
+                appPicked.addAll(Prefs.extraDisable(c));
+                updateAppsSummary();
                 screen = PREFS;
                 focus = 0;
             } else if (focus == THIS_TV) {

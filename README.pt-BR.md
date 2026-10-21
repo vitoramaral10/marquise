@@ -88,7 +88,8 @@ precisam da mesma chave.
 de onde vêm os pôsteres (*Títulos*: seu servidor e conta do Jellyfin, ou o TMDB com sua chave e país), sua cidade, o
 Início (Marquise ou Original), uma prévia da tela de descanso e *Atualizações*: a versão nova, quando houver, e só
 versões estáveis (o padrão) ou também betas; e *Preferências*: o idioma (automático, Português ou English), Celsius ou
-Fahrenheit, e se o modo Marquise também desliga o Google Assistente.
+Fahrenheit, se o modo Marquise também desliga o Google Assistente, e *Apps de fábrica*: escolha, na lista dos apps da
+própria TV, os que o modo Marquise também deve desligar.
 
 **A fileira de apps:** segure OK num app da fileira para *Mover* (← → e OK), *Remover do Início* ou *Restaurar fileira
 padrão*, e segure OK em qualquer app de *Todos os Apps* para *Adicionar ao Início* (até 8). Apps que você instalou
@@ -105,7 +106,7 @@ atualizações.
 | `language` | `auto` (segue a TV), `en` ou `pt`; o valor inicial de *Preferências → Idioma* | `auto` |
 | `temperature` | `C`, `F` ou `auto`; o valor inicial de *Preferências → Temperatura* | `auto` |
 | `disable_assistant` | Também desliga o Google Assistente (o botão do microfone para); o valor inicial de *Preferências → Google Assistente* | `false` |
-| `extra_disable` | Mais pacotes para desligar enquanto o Marquise estiver ligado, separados por vírgula | vazio |
+| `extra_disable` | Mais pacotes para desligar enquanto o Marquise estiver ligado, separados por vírgula; de onde parte *Preferências → Apps de fábrica* | vazio |
 
 ## Voltar ao original
 
@@ -123,7 +124,7 @@ Para remover de vez, primeiro mude para *Original* e depois desinstale o Marquis
     patrocinados) e os relatórios de feedback;
   - nas TVs TCL, o TCL Channel, mensagens, modo demonstração, menu de hotel, manuais, espelhamento, logs e apps de
     propaganda;
-  - o Google Assistente, só quando você pede (*Preferências*, ou `disable_assistant=true`), e o que você listar em `extra_disable`.
+  - o Google Assistente, só quando você pede (*Preferências*, ou `disable_assistant=true`), e o que você escolher em *Preferências → Apps de fábrica* (ou listar em `extra_disable`).
 - Imagem, som, entradas, pareamento do controle, serviços do Google e a Play Store ficam numa lista protegida,
   conferida antes de cada mudança.
 

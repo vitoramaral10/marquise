@@ -25,4 +25,15 @@ final class PrefsTest {
     static void noTemperatureIsADash() {
         eq("\u2014", HomeData.degrees(Double.NaN));
     }
+
+    /** Only valid package names get through: what goes into a `pm` command is never anything else. */
+    static void onlyPackageNamesAreKept() {
+        eq("[com.tcl.browser, com.example.extra]", Prefs.parsePackages(" com.tcl.browser , com.example.extra ,, ").toString());
+        eq("[]", Prefs.parsePackages("com.x.y; reboot").toString());
+        eq("[]", Prefs.parsePackages("com.x.y$(reboot)").toString());
+        eq("[]", Prefs.parsePackages("../../etc, nodots, 1.2.3, -rf.x").toString());
+        eq("[com.a.b]", Prefs.parsePackages("com.a.b,com.a.b").toString());
+        eq("[]", Prefs.parsePackages(null).toString());
+        eq("[]", Prefs.parsePackages("").toString());
+    }
 }
