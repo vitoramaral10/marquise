@@ -68,11 +68,12 @@ until_dream() {
   fail "the screensaver is $(run settings get secure screensaver_components), not $1"
 }
 
-# Waits for the switch's closing notice in the log ("Marquise is on…", "Original mode…").
+# Waits for the switch's closing notice in the log, as a regular expression: it is in the language of the TV's
+# Marquise settings ("Marquise is on…" / "Marquise ligado…", "Original mode…" / "Modo original…").
 until_notice() {
   local i
   for i in $(seq 1 30); do
-    run logcat -d -s Marquise | grep -q "notice: $1" && return 0
+    run logcat -d -s Marquise | grep -Eq "notice: $1" && return 0
     sleep 2
   done
   fail "no \"$1\" notice from the switch"
@@ -94,7 +95,7 @@ step "switching Marquise on"
 choose DPAD_UP
 until_home "$PKG/.HomeActivity"
 until_dream "$PKG/$PKG.Screensaver"
-until_notice "Marquise is on"
+until_notice "(Marquise is on|Marquise ligado)"
 disabled > "$OUT/disabled-marquise.txt"
 for pkg in com.google.android.apps.tv.launcherx com.google.android.apps.tv.dreamx; do
   grep -qx "$pkg" "$OUT/disabled-marquise.txt" || fail "$pkg wasn't turned off"
@@ -122,7 +123,7 @@ step "back to Original"
 choose DPAD_DOWN
 until_home "$GOOGLE_HOME"
 until_dream "$PERSONS_DREAM"
-until_notice "Original mode"
+until_notice "(Original mode|Modo original)"
 disabled > "$OUT/disabled-after.txt"
 diff -u "$OUT/disabled-before.txt" "$OUT/disabled-after.txt" || fail "the apps turned off differ from before"
 

@@ -22,6 +22,7 @@ public class ModeJob extends JobService {
         final Context app = getApplicationContext();
         new Thread(() -> {
             try {
+                Prefs.load(app);   // the notices it writes are in the language the person picked
                 switch (action) {
                     case APPLY: HomeMode.applyNow(app, mode); break;
                     case VERIFY: HomeMode.verifyNow(app); break;

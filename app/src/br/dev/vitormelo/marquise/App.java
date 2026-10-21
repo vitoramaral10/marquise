@@ -7,5 +7,6 @@ public final class App extends Application {
     @Override public void onCreate() {
         super.onCreate();
         AppLog.init(this);
+        Prefs.load(this);
     }
 }
