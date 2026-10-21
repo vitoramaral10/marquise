@@ -19,6 +19,8 @@ What just arrived on your server, up front. Your apps, in their own colors. One 
 - **Your library, not an ad feed.** Six posters of what was just added to your Jellyfin server, with year, rating and
   age rating, rotating every half hour. Movies and Shows have their own tabs.
 - **One press to watch.** Select a poster and it opens on that movie or show in the Jellyfin app.
+- **Pick up where you left off.** What you're in the middle of (*Resume · 42 min*, *Resume · S2 E4*) and the next
+  episode of a show you follow (*Next · S2 E5*) come first in each tab; what you've already watched gets a ✓.
 - **No Jellyfin? TMDB.** What's popular in your country on the streaming apps you have (Netflix, Prime Video, Disney+,
   Max, Globoplay…), each opening in its app. Your own free TMDB key, typed once on the TV.
 - **Your apps, in their colors, your way.** Hold OK on an app to move it or take it off the row; hold OK on any app in

@@ -19,6 +19,8 @@ O que acabou de chegar no seu servidor, logo na frente. Seus apps, nas cores del
 - **Sua biblioteca, não um feed de propaganda.** Seis pôsteres do que acabou de entrar no seu Jellyfin, com ano, nota
   e classificação indicativa, mudando a cada meia hora. Filmes e Séries têm abas próprias.
 - **Um clique para assistir.** Escolha um pôster e ele abre o filme ou a série no app do Jellyfin.
+- **Continue de onde parou.** O que você está no meio (*Continuar · 42 min*, *Continuar · T2 E4*) e o próximo episódio
+  de uma série que você acompanha (*Próximo · T2 E5*) vêm primeiro em cada aba; o que você já assistiu ganha um ✓.
 - **Seus apps, nas cores deles, do seu jeito.** Segure OK num app para mover ou tirar da fileira; segure OK em qualquer
   app de Todos os Apps para adicionar. A TV aberta pode ser um deles.
 - **Hora e clima** no topo, e a previsão das próximas horas com um clique para baixo.
