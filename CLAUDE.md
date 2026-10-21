@@ -92,9 +92,12 @@ TVs that don't run Google TV or Android TV (Samsung, LG and others): the way is 
 - The screensaver (`Screensaver` → `DreamView`) is a gallery: the curated works in `assets/gallery.json` (Art
   Institute of Chicago, CC0), fetched through IIIF at screen size and kept in `cache/gallery`. It redraws every 10 s
   and only animates during the fade; keep it that way.
-- `HomeAccess` is the screen reader's view of Home (an `AccessibilityNodeProvider`: one virtual node per thing that can
-  be chosen, from `HomeView.a11yNodes`, with a click and a long click). Whatever is drawn that a person can choose
-  needs a node there, and a state that changes it (a tab, an overlay, new posters) calls `a11yChanged()`. Nothing
+- `HomeAccess` is the screen reader's view of Home and the settings (an `AccessibilityNodeProvider`: one virtual node
+  per thing that can be chosen, from `HomeView.a11yNodes` and `SettingsView.a11yNodes`, with a click and, for apps, a
+  long click; a node with no click is plain text). Whatever is drawn that a person can choose needs a node there, and a
+  state that changes it (a tab, an overlay, a screen, a value) calls `a11yChanged()`. The texts the settings draw
+  and the nodes say come from the same methods (`mainLabels`, `mainValues`, `homeOptions`, `reportLine`…): change
+  one place. Nothing
   runs with the reader off. `tools/emulator_check.sh` reads the tree; Google TV's emulator image has TalkBack
   (`com.google.android.marvin.talkback`): turn it on with `settings put secure enabled_accessibility_services …` on the
   emulator (never a real TV) and drive Home with the arrow keys to see its focus box.

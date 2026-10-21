@@ -12,6 +12,14 @@ and versions follow [Semantic Versioning](https://semver.org/).
   the poster says which (*Continue · 42 min*, *Continue · S2 E4*, *Next · S2 E5*) and selecting it opens it in the
   Jellyfin app, where playing resumes. Titles you have already watched get a ✓.
 
+## [1.15.0] - 2026-10-21
+
+### Added
+
+- The settings work with TalkBack (and other screen readers) too: every row of every screen (the main list, *Home
+  Screen*, *Updates*, *Preferences*, *Factory apps*) is announced by name and value and can be chosen with OK, and
+  *This TV* reads as one block of text. The setup wizard was already readable.
+
 ## [1.14.0] - 2026-10-21
 
 ### Added
