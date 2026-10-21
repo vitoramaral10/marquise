@@ -82,11 +82,11 @@ final class HomeAccess extends AccessibilityNodeProvider {
         info.setEnabled(true);
         info.setVisibleToUser(true);
         info.setFocusable(true);
-        info.setClickable(true);
+        info.setClickable(n.click != null);
         info.setLongClickable(n.longClick != null);
         info.setSelected(n.selected);
         info.setAccessibilityFocused(n.id == accessibilityFocus);
-        info.addAction(AccessibilityNodeInfo.ACTION_CLICK);
+        if (n.click != null) info.addAction(AccessibilityNodeInfo.ACTION_CLICK);
         if (n.longClick != null) info.addAction(AccessibilityNodeInfo.ACTION_LONG_CLICK);
         info.addAction(n.id == accessibilityFocus ? AccessibilityNodeInfo.ACTION_CLEAR_ACCESSIBILITY_FOCUS
                 : AccessibilityNodeInfo.ACTION_ACCESSIBILITY_FOCUS);
