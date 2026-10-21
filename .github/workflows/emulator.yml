@@ -99,7 +99,6 @@ jobs:
         run: PATH="$ANDROID_HOME/platform-tools:$PATH" tools/emulator_check.sh emulator-5560 marquise.apk emulator-check
 
       - uses: actions/upload-artifact@v7
-        if: steps.changes.outputs.app == 'true'
         if: always() && steps.changes.outputs.app == 'true'
         with:
           name: emulator-check
