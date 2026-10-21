@@ -1514,11 +1514,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
                         hold();
                     }
                 } else {
-                    if (okDown && !okLong && !e.isCanceled()) {
-                        if (menuOpen) chooseMenu();
-                        else if (movingIndex >= 0) finishMove();
-                        else activate();
-                    }
+                    if (okDown && !okLong && !e.isCanceled()) ok();
                     okDown = false;
                 }
                 return true;
@@ -1586,6 +1582,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
 
     /** The service's own wish to move onto a node: the view's focus goes there too, so what is drawn follows. */
     private void a11yFocus(int newZone, int index) {
+        if (movingIndex >= 0) return;   // an app is being moved: the focus stays on it until the move is done
         zone = newZone;
         if (newZone == Z_TOP) topIndex = index;
         else if (newZone == Z_CARDS) cardIndex = index;
@@ -1659,7 +1656,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
                 HomeAccess.Node n = a11yNode(A_DRAWER + i, drawerItems.get(i).label, drawerRects[i], drawerLayer);
                 n.click = () -> {
                     a11yFocus(Z_DRAWER, index);
-                    activate();
+                    ok();
                 };
                 n.focus = () -> a11yFocus(Z_DRAWER, index);
                 out.add(n);
@@ -1672,7 +1669,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
             n.selected = i == tab;
             n.click = () -> {
                 a11yFocus(Z_TOP, index);
-                activate();
+                ok();
             };
             n.focus = () -> a11yFocus(Z_TOP, index);
             out.add(n);
@@ -1683,20 +1680,20 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
             HomeAccess.Node n = a11yNode(A_TOP + index, lightButtons.get(j).label, topRects[index], status);
             n.click = () -> {
                 a11yFocus(Z_TOP, index);
-                activate();
+                ok();
             };
             n.focus = () -> a11yFocus(Z_TOP, index);
             out.add(n);
         }
         if (!topRects[CLOCK].isEmpty()) {
             HomeData.Weather wx = data.weather;
-            String text = Ui.tr("Hora e clima", "Time and weather")
+            String text = android.text.format.DateFormat.getTimeFormat(getContext()).format(new java.util.Date())
                     + (Double.isNaN(wx.temp) ? "" : ", " + HomeData.degrees(wx.temp) + " " + HomeData.condition(wx.code, wx.isDay))
                     + Ui.tr(". Abre a previsão.", ". Opens the forecast.");
             HomeAccess.Node n = a11yNode(A_TOP + CLOCK, text, topRects[CLOCK], status);
             n.click = () -> {
                 a11yFocus(Z_TOP, CLOCK);
-                activate();
+                ok();
             };
             n.focus = () -> a11yFocus(Z_TOP, CLOCK);
             out.add(n);
@@ -1708,7 +1705,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
                         cardRects[0], heroLayer);
                 n.click = () -> {
                     a11yFocus(Z_CARDS, 0);
-                    activate();
+                    ok();
                 };
                 n.focus = () -> a11yFocus(Z_CARDS, 0);
                 out.add(n);
@@ -1722,7 +1719,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
             HomeAccess.Node n = a11yNode(A_CARD + i, text, cardRects[i], heroLayer);
             n.click = () -> {
                 a11yFocus(Z_CARDS, index);
-                activate();
+                ok();
             };
             n.focus = () -> a11yFocus(Z_CARDS, index);
             out.add(n);
@@ -1732,7 +1729,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
             HomeAccess.Node n = a11yNode(A_SHELF + i, shelf.get(i).label, tileRects[i], tiles);
             n.click = () -> {
                 a11yFocus(Z_SHELF, index);
-                activate();
+                ok();
             };
             n.focus = () -> a11yFocus(Z_SHELF, index);
             n.longClick = () -> {   // the app's menu: Remove, Uninstall, Restore the default row (Move needs the arrow keys)
@@ -1742,6 +1739,13 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
             out.add(n);
         }
         return out;
+    }
+
+    /** OK, from the remote or from a screen reader's click: the menu's choice, the end of a move, or the focused item. */
+    private void ok() {
+        if (menuOpen) chooseMenu();
+        else if (movingIndex >= 0) finishMove();
+        else activate();
     }
 
     private void arrow(int dx, int dy) {
