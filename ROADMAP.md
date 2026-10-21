@@ -98,8 +98,10 @@ exist.
 
 ## Then: better titles (1.15+)
 
-- **Continue watching (Jellyfin).** A row of what's half-watched and the next episode (`/Users/{id}/Items/Resume`,
-  `/Shows/NextUp`). OK opens the title in the Jellyfin app. What's already watched gets a mark.
+- ~~**Continue watching (Jellyfin).**~~ Done: what is half-watched (`/Users/{id}/Items/Resume`) and the next episode of
+  the shows being followed (`/Shows/NextUp`) come first in each tab, up to three, one poster per show, before what
+  was added lately; OK opens the title in the Jellyfin app. What's already watched gets a ✓. Tried against a real
+  server on the emulator. Not done: a row of its own (with six posters per tab, it shares the first three).
 - **Deep links for every service TMDB lists.** Today only Netflix and Disney+ open on a search for the title. The
   others (Prime Video, Max, Globoplay…) only open the app. Each link is checked on a real app before it ships, with
   the app's home as the fallback.

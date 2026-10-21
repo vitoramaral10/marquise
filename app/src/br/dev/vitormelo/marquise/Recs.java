@@ -46,6 +46,7 @@ final class Recs {
         String poster;          // the card image (2:3)
         String blurhash;        // the poster's color sketch, shown until the image is ready
         String badge = "";      // the short line under the poster: "2025 · ★ 7,2 · 16", "Novo episódio · ★ 8,8"
+        boolean resume;         // half-watched, or the next episode of a show being followed: kept in front of the tabs
     }
 
     interface Listener { void onRecs(); }
@@ -54,8 +55,10 @@ final class Recs {
     private static final long LIST_EVERY = 20 * 60_000L;
     private static final long ROTATE_EVERY = 30 * 60_000L;
     /** Bump when what is saved for each title changes (the saved list is discarded and fetched again). */
-    private static final int CACHE_VERSION = 12;
+    private static final int CACHE_VERSION = 13;
     private static final int MAX = 24;
+    /** Most "continue watching" posters in front of a tab; the rest of its six are what was added lately. */
+    private static final int RESUME_MAX = 3;
     /** Posters per tab on the home screen. */
     static final int PER_TAB = 6;
 
@@ -142,11 +145,20 @@ final class Recs {
     List<Pick> now(String kind) {
         List<Pick> list = new ArrayList<>();
         if (!hasKey(context)) return list;
-        for (Pick p : picks) if ((kind == null || kind.equals(p.kind)) && p.pkg != null) list.add(p);   // no app: none
-        if (list.isEmpty()) return list;
-        long slot = System.currentTimeMillis() / ROTATE_EVERY;
+        List<Pick> pinned = new ArrayList<>();
+        for (Pick p : picks) {
+            if ((kind != null && !kind.equals(p.kind)) || p.pkg == null) continue;   // no app: none
+            if (p.resume) pinned.add(p);
+            else list.add(p);
+        }
         List<Pick> out = new ArrayList<>();
         java.util.Set<String> seen = new java.util.HashSet<>();
+        // What the person is in the middle of comes first, in the order Jellyfin gives (the last one watched first).
+        for (int i = 0; i < pinned.size() && out.size() < RESUME_MAX; i++) {
+            if (seen.add(franchise(pinned.get(i).title))) out.add(pinned.get(i));
+        }
+        if (list.isEmpty()) return out;
+        long slot = System.currentTimeMillis() / ROTATE_EVERY;
         for (int i = 0; i < list.size() && out.size() < PER_TAB; i++) {
             Pick p = list.get((int) ((slot * PER_TAB + i) % list.size()));
             if (seen.add(franchise(p.title))) out.add(p);
@@ -286,12 +298,15 @@ final class Recs {
         }
         String uid = user();
         JSONArray items = new JSONArray(get("/Users/" + uid + "/Items/Latest?IncludeItemTypes=Movie,Episode&GroupItems=true"
-                + "&Limit=" + (MAX + 12) + "&Fields=ProductionYear,ChildCount&EnableImageTypes=Primary&ImageTypeLimit=1"));
+                + "&Limit=" + (MAX + 12) + "&Fields=ProductionYear,ChildCount&EnableImageTypes=Primary&ImageTypeLimit=1"
+                + "&EnableUserData=true"));
         boolean app = HomeApps.launchIntent(context.getPackageManager(), JELLYFIN_PKG) != null;
-        List<Pick> list = new ArrayList<>();
+        List<Pick> list = continueWatching(uid, app);
+        java.util.Set<String> following = new java.util.HashSet<>();
+        for (Pick p : list) following.add(franchise(p.title));
         for (int i = 0; i < items.length() && list.size() < MAX; i++) {
             Pick p = pick(items.getJSONObject(i));
-            if (p == null) continue;
+            if (p == null || following.contains(franchise(p.title))) continue;   // the show is already up front
             if (app) {
                 p.app = "Jellyfin";
                 p.pkg = JELLYFIN_PKG;
@@ -301,6 +316,50 @@ final class Recs {
         if (list.isEmpty()) throw new IOException(Ui.tr("nada novo no Jellyfin", "nothing new on Jellyfin"));
         picks = list;
         listAt = System.currentTimeMillis();
+    }
+
+    /**
+     * What the person is in the middle of (Jellyfin's Resume: movies and episodes with a position), then the next
+     * episode of the shows they follow (NextUp), one poster per show or movie. Each is marked to stay in front of the
+     * tabs. Failing to get them is no reason to fail the list: it is the recently added that matters most.
+     */
+    private List<Pick> continueWatching(String uid, boolean app) {
+        List<Pick> out = new ArrayList<>();
+        java.util.Set<String> shows = new java.util.HashSet<>();
+        try {
+            String fields = "&EnableImageTypes=Primary&ImageTypeLimit=1&Fields=ProductionYear";
+            JSONArray resume = new JSONObject(get("/Users/" + uid + "/Items/Resume?MediaTypes=Video&Limit=8" + fields)).optJSONArray("Items");
+            JSONArray next = new JSONObject(get("/Shows/NextUp?UserId=" + uid + "&Limit=8" + fields)).optJSONArray("Items");
+            for (int pass = 0; pass < 2; pass++) {
+                JSONArray items = pass == 0 ? resume : next;
+                for (int i = 0; items != null && i < items.length() && out.size() < MAX; i++) {
+                    JSONObject o = items.getJSONObject(i);
+                    Pick p = resumePick(o, pass == 1);
+                    // An episode already being watched is also the show's "next up": one poster for the show.
+                    if (p == null || !shows.add(franchise(p.title))) continue;
+                    if (app) {
+                        p.app = "Jellyfin";
+                        p.pkg = JELLYFIN_PKG;
+                    }
+                    out.add(p);
+                }
+            }
+        } catch (Exception e) {
+            AppLog.w("continue watching: " + e.getMessage());
+        }
+        return out;
+    }
+
+    /** A half-watched movie or episode, or the next episode of a show: the poster as usual, a line that says which. */
+    private static Pick resumePick(JSONObject o, boolean next) {
+        Pick p = pick(o);
+        if (p == null) return null;
+        JSONObject data = o.optJSONObject("UserData");
+        int left = Resume.minutesLeft(o.optLong("RunTimeTicks"), data == null ? 0 : data.optLong("PlaybackPositionTicks"));
+        p.badge = Resume.badge(Ui.en, next, o.optString("Type").equals("Episode"),
+                o.optInt("ParentIndexNumber"), o.optInt("IndexNumber"), left);
+        p.resume = true;
+        return p;
     }
 
     /** The configured user ("jellyfin_user"), or the server's first one. */
@@ -359,6 +418,8 @@ final class Recs {
             if (!age.isEmpty()) badge.add(age);
         }
         p.badge = String.join(" · ", badge);
+        JSONObject data = o.optJSONObject("UserData");
+        if (data != null && data.optBoolean("Played")) p.badge = "✓ " + p.badge;   // already watched
         return p;
     }
 
@@ -488,7 +549,8 @@ final class Recs {
             for (Pick p : picks) {
                 a.put(new JSONObject().put("itemId", p.itemId).put("kind", p.kind).put("title", p.title)
                         .put("poster", p.poster)
-                        .put("badge", p.badge).put("blurhash", p.blurhash == null ? "" : p.blurhash).put("app", p.app == null ? "" : p.app)
+                        .put("badge", p.badge).put("resume", p.resume).put("blurhash", p.blurhash == null ? "" : p.blurhash)
+                        .put("app", p.app == null ? "" : p.app)
                         .put("pkg", p.pkg == null ? "" : p.pkg).put("uri", p.uri == null ? "" : p.uri));
             }
             cache.edit().putString("picks", a.toString()).putLong("listAt", listAt)
@@ -508,6 +570,7 @@ final class Recs {
             p.title = o.optString("title");
             p.poster = o.optString("poster").isEmpty() ? null : o.optString("poster");
             p.badge = o.optString("badge");
+            p.resume = o.optBoolean("resume");
             p.blurhash = o.optString("blurhash").isEmpty() ? null : o.optString("blurhash");
             p.app = o.optString("app").isEmpty() ? null : o.optString("app");
             p.pkg = o.optString("pkg").isEmpty() ? null : o.optString("pkg");

@@ -5,6 +5,13 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Jellyfin: *continue watching*. What you're in the middle of (a movie with the minutes left, an episode) and the next
+  episode of the shows you follow now come first in each tab, up to three, before what was added lately; the line under
+  the poster says which (*Continue · 42 min*, *Continue · S2 E4*, *Next · S2 E5*) and selecting it opens it in the
+  Jellyfin app, where playing resumes. Titles you have already watched get a ✓.
+
 ## [1.14.0] - 2026-10-21
 
 ### Added

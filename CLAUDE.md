@@ -84,6 +84,11 @@ TVs that don't run Google TV or Android TV (Samsung, LG and others): the way is 
   in `Prefs.region` on the installed streaming apps (`/discover` with `with_watch_providers`, then each title's
   `/watch/providers`), opening the service's app on its search link where it has one (`Tmdb.SERVICES`). The TMDB key
   is the person's own, typed in `SetupActivity`; TMDB's attribution must stay wherever its data shows.
+  From Jellyfin it also takes what is half-watched (Resume) and the next episodes (NextUp), flagged `Pick.resume` and
+  kept in front of each tab by `now()` (at most `RESUME_MAX`, one per show; the lines come from `Resume`, which has no
+  Android in it so it can be tested). An item is hidden when the Jellyfin app isn't installed, so on an emulator
+  install a stub package named `org.jellyfin.androidtv` (a manifest with `android:hasCode="false"`) and clear the
+  app's data (the list is cached for 20 minutes) before looking for posters.
 - The screensaver (`Screensaver` → `DreamView`) is a gallery: the curated works in `assets/gallery.json` (Art
   Institute of Chicago, CC0), fetched through IIIF at screen size and kept in `cache/gallery`. It redraws every 10 s
   and only animates during the fade; keep it that way.
