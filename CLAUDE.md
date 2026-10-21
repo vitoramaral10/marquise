@@ -118,6 +118,12 @@ TVs that don't run Google TV or Android TV (Samsung, LG and others): the way is 
   untouched. Never bump the version, edit a released CHANGELOG section or push a tag by hand. PRs are
   squash-merged with the PR title as the commit, so the title is a Conventional Commit in English; user-facing
   changes add their line under `[Unreleased]` (left empty, the PR titles are used).
+- CI checks on a PR: `apk` (release script tests, `./build.sh` with the unit tests, the 1 MB budget), `emulator`
+  (`tools/emulator_check.sh` on a Google TV emulator, Home's memory budget) and `title`, all required. `apk` and
+  `emulator` skip their heavy steps for a change that is only docs, the CHANGELOG, `docs/` or another workflow
+  (`.github/scripts/affects.sh` decides from what the commit touched; the job still runs and passes, so the required
+  check reports). If a new file should make them run, add it to the path regex in `build.yml` / `emulator.yml` and
+  to `test_affects.py`. Workflow YAML must have no duplicate keys: GitHub rejects the whole file, Python's loader doesn't.
 - Settings come from `config.properties` through the generated `out/gen/br/dev/vitormelo/marquise/Config.java` (never
   edit that).
 - Art: `python3 tools/make_art.py` draws the icon, the TV banner and the repository images.
