@@ -5,6 +5,8 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.14.0] - 2026-10-21
+
 ### Added
 
 - Home works with TalkBack (and other screen readers): the tabs, the corner buttons, the time and weather, the posters,
