@@ -25,7 +25,9 @@ adb logcat -s Marquise
 ```
 
 `./build.sh` must end with `Built marquise.apk`. It runs the unit tests in `app/test` first and stops if one fails;
-a change to logic that runs without a TV (what gets turned off, links, versions) comes with its test there. CI builds
+a change to logic that runs without a TV (what gets turned off, links, versions) comes with its test there. Marquise
+stays light on purpose: CI fails if the APK goes over 1 MB, or Home's memory over its budget on the emulator
+(`tools/emulator_check.sh`). If a change needs more, say why in the pull request. CI builds
 every push and pull request the same way, and also tests the release script
 (`python3 -m unittest discover -s .github/scripts`).
 

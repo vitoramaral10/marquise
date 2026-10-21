@@ -14,6 +14,9 @@ SERIAL=$1 APK=$2 OUT=$3
 PKG=br.dev.vitormelo.marquise
 GOOGLE_HOME=com.google.android.apps.tv.launcherx/.home.HomeActivity
 PERSONS_DREAM=com.android.dreams.basic/.Colors   # a screensaver "the person" chose, to see it come back
+# Budget for Home's process with the empty posters, on this emulator (~31 MB measured). Real posters on a TV take
+# about 120 MB, so this isn't that number: it catches a change that makes Home itself heavier (a leak, a big cache).
+MAX_HOME_MB=${MAX_HOME_MB:-80}
 mkdir -p "$OUT"
 
 e() { adb -s "$SERIAL" "$@"; }
@@ -109,8 +112,11 @@ key HOME 10
 shot home
 key DPAD_RIGHT 2
 shot home-focus
-run dumpsys meminfo "$PKG:home" | grep -m1 "TOTAL PSS" | awk '{print "Home memory (PSS): " int($3/1024) " MB"}' \
-  | tee "$OUT/memory.txt" || true
+home_kb=$(run dumpsys meminfo "$PKG:home" | grep -m1 "TOTAL PSS" | awk '{print $3}' || true)
+[[ "$home_kb" =~ ^[0-9]+$ ]] || fail "couldn't read Home's memory"
+# Compared in KiB: rounding to MB first would let a process a little over the budget through.
+echo "Home memory (PSS): $(( (home_kb + 1023) / 1024 )) MB (budget $MAX_HOME_MB MB)" | tee "$OUT/memory.txt"
+[ "$home_kb" -le $(( MAX_HOME_MB * 1024 )) ] || fail "Home uses $(( (home_kb + 1023) / 1024 )) MB, over the $MAX_HOME_MB MB budget"
 
 step "back to Original"
 choose DPAD_DOWN
