@@ -5,6 +5,8 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.16.1] - 2026-10-21
+
 ### Changed
 
 - The drawer no longer lifts the app row up with it: the row fades out where it is, and only what the drawer holds
