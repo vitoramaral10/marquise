@@ -28,8 +28,10 @@ adb logcat -s Marquise
 a change to logic that runs without a TV (what gets turned off, links, versions) comes with its test there. Marquise
 stays light on purpose: CI fails if the APK goes over 1 MB, or Home's memory over its budget on the emulator
 (`tools/emulator_check.sh`). If a change needs more, say why in the pull request. CI builds
-every push and pull request the same way, and also tests the release script
-(`python3 -m unittest discover -s .github/scripts`).
+every push and pull request that touches the app or the build the same way, and also tests the release script
+(`python3 -m unittest discover -s .github/scripts`). A change that is only docs, the CHANGELOG, the install page or
+another workflow skips the build and the emulator (`.github/scripts/affects.sh` decides, from what the commit
+touched): the `apk` and `emulator` checks still report, as they are required, and pass in seconds.
 
 ## Rules of the road
 
