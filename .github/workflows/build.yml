@@ -26,6 +26,9 @@ jobs:
 
       - name: Does this change affect the build?
         id: changes
+        env:
+          # On a push, everything since main was last at; on a pull request, empty (the merge's first parent).
+          AFFECTS_BASE: ${{ github.event_name == 'push' && github.event.before || '' }}
         run: .github/scripts/affects.sh '^(app/|build\.sh$|config\.example\.properties$|\.github/scripts/|\.github/workflows/build\.yml$)' | tee -a "$GITHUB_OUTPUT"
 
       - name: Nothing the app is built from changed

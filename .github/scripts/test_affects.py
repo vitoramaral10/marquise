@@ -40,9 +40,13 @@ class Affects(unittest.TestCase):
         self.git("add", "-A")
         self.git("commit", "-q", "-m", message)
 
-    def affects(self, pattern):
-        """What the script prints for the last commit, as True/False."""
-        out = subprocess.run(["bash", SCRIPT, pattern], cwd=self.dir.name, capture_output=True, text=True).stdout.strip()
+    def affects(self, pattern, base=None):
+        """What the script prints for the last commit (or for everything since base, as on a push), as True/False."""
+        env = dict(os.environ)
+        env.pop("AFFECTS_BASE", None)
+        if base:
+            env["AFFECTS_BASE"] = base
+        out = subprocess.run(["bash", SCRIPT, pattern], cwd=self.dir.name, capture_output=True, text=True, env=env).stdout.strip()
         self.assertIn(out, ("app=true", "app=false"))
         return out == "app=true"
 
@@ -135,6 +139,33 @@ class Affects(unittest.TestCase):
         self.commit("lookalikes")
         self.assertFalse(self.affects(BUILD))
         self.assertFalse(self.affects(EMULATOR))
+
+    def test_a_push_of_several_commits_is_seen_whole(self):
+        """An app change followed by a docs-only commit in one push: the last commit alone says docs, the push says app."""
+        before = self.git("rev-parse", "HEAD").strip()
+        self.touch("app/A.java", "x")
+        self.commit("app")
+        self.touch("README.md", "x")
+        self.commit("docs after it")
+        self.assertFalse(self.affects(BUILD))
+        self.assertTrue(self.affects(BUILD, base=before))
+        self.assertTrue(self.affects(EMULATOR, base=before))
+
+    def test_a_docs_only_push_skips_whatever_its_length(self):
+        """Several commits, none of them touching the app."""
+        before = self.git("rev-parse", "HEAD").strip()
+        for i in range(3):
+            self.touch("docs/index.html", str(i))
+            self.commit("docs %d" % i)
+        self.assertFalse(self.affects(BUILD, base=before))
+        self.assertFalse(self.affects(EMULATOR, base=before))
+
+    def test_a_push_whose_before_is_missing_runs(self):
+        """The commit before the push isn't in the checkout (a shallow clone), or there is none: running is safer."""
+        self.touch("README.md", "x")
+        self.commit("docs")
+        self.assertTrue(self.affects(BUILD, base="1" * 40))
+        self.assertTrue(self.affects(BUILD, base="0" * 40))
 
     def test_when_it_cannot_tell_it_runs(self):
         """No parent (a first commit) or an empty diff: running is safer than skipping a check that should have run."""
