@@ -5,6 +5,8 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.15.0] - 2026-10-21
+
 ### Added
 
 - The settings work with TalkBack (and other screen readers) too: every row of every screen (the main list, *Home
