@@ -136,8 +136,9 @@ add its promo apps to `DEBLOAT` and its system pieces to `PROTECTED` in
 commands that tell you what your TV has. Pull requests for more brands are very welcome.
 
 No computer at hand? On the TV, *Marquise → This TV* shows a QR code: point your phone at it and it opens a report of
-the TV on GitHub, already filled in (brand, model, Android, the factory home screen and screensaver, and the apps that
-came with it; nothing personal).
+the TV on GitHub, already filled in (brand, model, Android, the factory home screen and screensaver, the apps that
+came with it and the last errors Marquise saw, with addresses and keys taken out; nothing personal). The same errors
+are listed under the code.
 
 ## How it works
 

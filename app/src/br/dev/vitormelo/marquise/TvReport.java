@@ -51,16 +51,30 @@ final class TvReport {
         home.append("screensaver: ").append(or(s.optString("originalDream"),
                 or(Settings.Secure.getString(c.getContentResolver(), "screensaver_default_component"), "?"))).append('\n');
         home.append("tuner: ").append(or(tuners(c), "none"));
-        return fit(brandModel(), tv, home.toString(), factoryApps(c, s),
+        return fit(brandModel(), tv, home.toString(), factoryApps(c, s), recentErrors(2, 80),
                 Ui.tr("(lista de apps cortada para caber no QR code)", "(app list cut to fit the QR code)"));
     }
 
-    /** The link with these apps, cut from the end (never under three) until it fits MAX_URL: a scannable code over the whole list. */
-    static String fit(String brandModel, String tv, String home, List<String> apps, String cutNote) {
-        String link = link(brandModel, tv, home, String.join("\n", apps), "");
-        while (link.length() > MAX_URL && apps.size() > 3) {
-            apps = apps.subList(0, apps.size() - 1);
-            link = link(brandModel, tv, home, String.join("\n", apps) + "\n…", cutNote);
+    /**
+     * The link until it fits MAX_URL: a scannable code over the whole list. What goes first: the recent problems
+     * (oldest first, down to the latest one), then the apps from the end (never under three), then that last problem.
+     */
+    static String fit(String brandModel, String tv, String home, List<String> apps, List<String> errors, String cutNote) {
+        boolean cut = false;
+        String link = link(brandModel, tv, home, String.join("\n", apps), String.join("\n", errors), "");
+        while (link.length() > MAX_URL) {
+            if (errors.size() > 1) {
+                errors = errors.subList(1, errors.size());
+            } else if (apps.size() > 3) {
+                apps = apps.subList(0, apps.size() - 1);
+                cut = true;
+            } else if (!errors.isEmpty()) {
+                errors = Collections.emptyList();
+            } else {
+                break;
+            }
+            link = link(brandModel, tv, home, String.join("\n", apps) + (cut ? "\n…" : ""), String.join("\n", errors),
+                    cut ? cutNote : "");
         }
         return link;
     }
@@ -86,9 +100,10 @@ final class TvReport {
     }
 
     /** The issue link's URL, with these fields percent-encoded into the form's query parameters. */
-    private static String link(String brandModel, String tv, String home, String packages, String notes) {
+    private static String link(String brandModel, String tv, String home, String packages, String errors, String notes) {
         return NEW_ISSUE + "&title=" + enc("Support for my TV: " + brandModel) + "&tv=" + enc(tv) + "&home=" + enc(home)
-                + "&packages=" + enc(packages) + (notes.isEmpty() ? "" : "&notes=" + enc(notes));
+                + "&packages=" + enc(packages) + (errors.isEmpty() ? "" : "&errors=" + enc(errors))
+                + (notes.isEmpty() ? "" : "&notes=" + enc(notes));
     }
 
     /**
@@ -112,6 +127,13 @@ final class TvReport {
         for (int i = 0; off != null && i < off.length(); i++) disabled.add(off.optString(i) + " (off)");
         Collections.sort(disabled);
         out.addAll(disabled);
+        return out;
+    }
+
+    /** The last n problems AppLog kept (oldest first), each cut to max characters: what the report says went wrong. */
+    static List<String> recentErrors(int n, int max) {
+        List<String> out = new ArrayList<>();
+        for (AppLog.Entry e : AppLog.recent(n)) out.add(e.text.length() > max ? e.text.substring(0, max - 1) + "…" : e.text);
         return out;
     }
 

@@ -87,6 +87,10 @@ TVs that don't run Google TV or Android TV (Samsung, LG and others): the way is 
 - The screensaver (`Screensaver` → `DreamView`) is a gallery: the curated works in `assets/gallery.json` (Art
   Institute of Chicago, CC0), fetched through IIIF at screen size and kept in `cache/gallery`. It redraws every 10 s
   and only animates during the fade; keep it that way.
+- `AppLog.w` writes to logcat and keeps the last problems (not "notice:" lines) in `files/applog.txt`, cleaned of
+  addresses, links and key-like strings (`AppLog.clean`); `App` gives it the folder in every process. *This TV* and
+  the report's QR (`TvReport.fit`, errors dropped before apps) show them. Never put a key or a person's data in a
+  message; `clean` is the last line of defence, not the first.
 - `Updater` asks GitHub for the latest release (or, with Settings → *Updates* → betas, the newest of the recent
   ones, pre-releases included; `newer` orders `X.Y.Z-beta.N` before `X.Y.Z`) and installs `marquise.apk` through `PackageInstaller`;
   `UpdateReceiver` gets the installer's answer. Bump `versionCode` and `versionName` in the manifest for every release.
