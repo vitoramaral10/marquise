@@ -302,11 +302,11 @@ final class Recs {
                 + "&EnableUserData=true"));
         boolean app = HomeApps.launchIntent(context.getPackageManager(), JELLYFIN_PKG) != null;
         List<Pick> list = continueWatching(uid, app);
-        java.util.Set<String> following = new java.util.HashSet<>();
-        for (Pick p : list) following.add(franchise(p.title));
+        // No filter by franchise here: now() already keeps one card per franchise in each tab, and which of the
+        // in-progress ones show is decided there (more than RESUME_MAX can't all be up front).
         for (int i = 0; i < items.length() && list.size() < MAX; i++) {
             Pick p = pick(items.getJSONObject(i));
-            if (p == null || following.contains(franchise(p.title))) continue;   // the show is already up front
+            if (p == null) continue;
             if (app) {
                 p.app = "Jellyfin";
                 p.pkg = JELLYFIN_PKG;
@@ -326,15 +326,15 @@ final class Recs {
     private List<Pick> continueWatching(String uid, boolean app) {
         List<Pick> out = new ArrayList<>();
         java.util.Set<String> shows = new java.util.HashSet<>();
-        try {
-            String fields = "&EnableImageTypes=Primary&ImageTypeLimit=1&Fields=ProductionYear";
-            JSONArray resume = new JSONObject(get("/Users/" + uid + "/Items/Resume?MediaTypes=Video&Limit=8" + fields)).optJSONArray("Items");
-            JSONArray next = new JSONObject(get("/Shows/NextUp?UserId=" + uid + "&Limit=8" + fields)).optJSONArray("Items");
-            for (int pass = 0; pass < 2; pass++) {
-                JSONArray items = pass == 0 ? resume : next;
+        String fields = "&EnableImageTypes=Primary&ImageTypeLimit=1&Fields=ProductionYear";
+        String[] paths = {"/Users/" + uid + "/Items/Resume?MediaTypes=Video&Limit=8" + fields,
+                "/Shows/NextUp?UserId=" + uid + "&Limit=8" + fields};
+        for (int pass = 0; pass < 2; pass++) {
+            // Each on its own: if NextUp fails, what Resume brought is still kept, and the other way round.
+            try {
+                JSONArray items = new JSONObject(get(paths[pass])).optJSONArray("Items");
                 for (int i = 0; items != null && i < items.length() && out.size() < MAX; i++) {
-                    JSONObject o = items.getJSONObject(i);
-                    Pick p = resumePick(o, pass == 1);
+                    Pick p = resumePick(items.getJSONObject(i), pass == 1);
                     // An episode already being watched is also the show's "next up": one poster for the show.
                     if (p == null || !shows.add(franchise(p.title))) continue;
                     if (app) {
@@ -343,9 +343,9 @@ final class Recs {
                     }
                     out.add(p);
                 }
+            } catch (Exception e) {
+                AppLog.w("continue watching: " + e.getMessage());
             }
-        } catch (Exception e) {
-            AppLog.w("continue watching: " + e.getMessage());
         }
         return out;
     }
@@ -358,6 +358,7 @@ final class Recs {
         int left = Resume.minutesLeft(o.optLong("RunTimeTicks"), data == null ? 0 : data.optLong("PlaybackPositionTicks"));
         p.badge = Resume.badge(Ui.en, next, o.optString("Type").equals("Episode"),
                 o.optInt("ParentIndexNumber"), o.optInt("IndexNumber"), left);
+        if (data != null && data.optBoolean("Played")) p.badge = "✓ " + p.badge;   // watched before, started again
         p.resume = true;
         return p;
     }
