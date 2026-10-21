@@ -142,6 +142,7 @@ public class SettingsActivity extends Activity {
         // Factory apps (Preferences' fourth row): the system apps to choose from, built off the UI thread when it opens.
         private String[][] appItems;           // {package, label cut to fit}; null while it is being built
         private final java.util.Set<String> appPicked = new java.util.LinkedHashSet<>();
+        private int appLoadToken;              // which opening of the list a background load belongs to
         private int appScroll;                 // the first row shown
         private String appsTitle = "", appsSummary = "";
         private final Paint qrPaint = new Paint();   // no filtering: the modules stay sharp when scaled up   // the installed streaming apps TMDB titles open in (looked up on resume)
@@ -448,12 +449,14 @@ public class SettingsActivity extends Activity {
             appScroll = 0;
             appPicked.clear();
             appPicked.addAll(Prefs.extraDisable(c));
+            final int token = ++appLoadToken;   // a load of an earlier opening, still running, must not show its list
+            final java.util.Set<String> picked = new java.util.LinkedHashSet<>(appPicked);   // its own copy: the screen edits appPicked
             screen = APPS;
             focus = 0;
             appsTitle = Ui.tr("Apps de fábrica", "Factory apps");
             new Thread(() -> {
                 java.util.TreeSet<String> pkgs = new java.util.TreeSet<>(TvReport.systemApps(c));
-                pkgs.addAll(appPicked);
+                pkgs.addAll(picked);
                 android.content.pm.PackageManager pm = c.getPackageManager();
                 java.util.List<String[]> list = new java.util.ArrayList<>();
                 TextPaint p = new TextPaint(rowLabel);
@@ -470,6 +473,7 @@ public class SettingsActivity extends Activity {
                 list.sort(SettingsView::byLabel);
                 final String[][] items = list.toArray(new String[0][]);
                 post(() -> {
+                    if (token != appLoadToken || screen != APPS) return;
                     appItems = items;
                     updateAppsTitle();
                     invalidate();

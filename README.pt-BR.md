@@ -89,7 +89,7 @@ de onde vêm os pôsteres (*Títulos*: seu servidor e conta do Jellyfin, ou o TM
 Início (Marquise ou Original), uma prévia da tela de descanso e *Atualizações*: a versão nova, quando houver, e só
 versões estáveis (o padrão) ou também betas; e *Preferências*: o idioma (automático, Português ou English), Celsius ou
 Fahrenheit, se o modo Marquise também desliga o Google Assistente, e *Apps de fábrica*: escolha, na lista dos apps da
-próprria TV, os que o modo Marquise também deve desligar.
+própria TV, os que o modo Marquise também deve desligar.
 
 **A fileira de apps:** segure OK num app da fileira para *Mover* (← → e OK), *Remover do Início* ou *Restaurar fileira
 padrão*, e segure OK em qualquer app de *Todos os Apps* para *Adicionar ao Início* (até 8). Apps que você instalou
