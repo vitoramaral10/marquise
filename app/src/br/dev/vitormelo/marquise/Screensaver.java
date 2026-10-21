@@ -14,6 +14,7 @@ public class Screensaver extends DreamService {
         super.onAttachedToWindow();
         Watchdog.install(this);
         Ui.init(this);
+        Prefs.load(this);   // this process may have been up since before a preference changed
         setInteractive(false);
         setFullscreen(true);
         setScreenBright(true);

@@ -58,9 +58,9 @@ final class Ui {
 
     private static final String FONT = "fonts/InterVariable.ttf";
 
-    /** "en"/"pt" in config.properties, or "auto": Portuguese when the TV is set to Portuguese, English otherwise. */
+    /** "en"/"pt" (Settings → Preferences, or config.properties), or "auto": Portuguese when the TV is set to Portuguese, English otherwise. */
     static boolean english() {
-        String lang = Config.LANGUAGE.trim().toLowerCase(Locale.ROOT);
+        String lang = Prefs.language.trim().toLowerCase(Locale.ROOT);
         if (lang.startsWith("pt")) return false;
         if (lang.startsWith("en")) return true;
         return !"pt".equals(Locale.getDefault().getLanguage());

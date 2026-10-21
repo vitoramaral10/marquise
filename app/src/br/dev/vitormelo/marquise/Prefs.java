@@ -130,6 +130,39 @@ final class Prefs {
                 .putString("longitude", String.format(Locale.US, "%.4f", longitude)).putString("city", name).apply();
     }
 
+    // MARK: - Preferences (what only config.properties could set before; its values are the defaults)
+
+    /** "auto" (follows the TV), "en" or "pt". Read at every start of a process and when the person changes it. */
+    static volatile String language = Config.LANGUAGE;
+    /** "auto" (Fahrenheit when the TV is set to the US), "C" or "F". */
+    static volatile String temperature = Config.TEMPERATURE;
+
+    /** Reads the saved preferences into the statics the drawing code uses; every process of the app calls this at start. */
+    static void load(Context c) {
+        language = p(c).getString("language", Config.LANGUAGE);
+        temperature = p(c).getString("temperature", Config.TEMPERATURE);
+        Ui.en = Ui.english();
+    }
+
+    static void setLanguage(Context c, String value) {
+        p(c).edit().putString("language", value).apply();
+        load(c);
+    }
+
+    static void setTemperature(Context c, String value) {
+        p(c).edit().putString("temperature", value).apply();
+        load(c);
+    }
+
+    /** Whether Marquise mode also turns off Google Assistant (the remote's mic button stops). Read at each switch. */
+    static boolean assistantOff(Context c) {
+        return p(c).getBoolean("assistantOff", Config.DISABLE_ASSISTANT);
+    }
+
+    static void setAssistantOff(Context c, boolean off) {
+        p(c).edit().putBoolean("assistantOff", off).apply();
+    }
+
     // MARK: - Updates
 
     /** Whether this TV also takes beta releases (Settings → Updates); off by default. */

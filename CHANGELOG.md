@@ -5,6 +5,12 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Settings → *Preferences*: the language (automatic, Português or English), Celsius or Fahrenheit, and whether Marquise
+  mode also turns off Google Assistant, all from the TV. Until now these needed a build with `config.properties`;
+  it now only sets where they start. The language and the unit change at once, the assistant at the next switch.
+
 ## [1.11.0] - 2026-10-21
 
 ### Added

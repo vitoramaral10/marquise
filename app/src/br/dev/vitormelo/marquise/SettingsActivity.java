@@ -112,11 +112,14 @@ public class SettingsActivity extends Activity {
     }
 
     static final class SettingsView extends View implements Choreographer.FrameCallback {
-        private static final int MAIN = 0, HOME_CHOICE = 1, REPORT = 2, UPDATES = 3;
-        /** The "This TV" row: opens the report screen. "Updates": the update, if any, and stable or beta releases. */
-        private static final int THIS_TV = 4, UPDATES_ROW = 5;
-        private static final float LIST_X = 1000, LIST_R = 1824, LIST_TOP = 150, ROW_H = 70, ROW_GAP = 8, CHOICE_H = 104;
-        private static final int ROWS = 7;
+        private static final int MAIN = 0, HOME_CHOICE = 1, REPORT = 2, UPDATES = 3, PREFS = 4;
+        /**
+         * The "This TV" row: opens the report screen. "Updates": the update, if any, and stable or beta releases.
+         * "Preferences": language, temperature and the assistant (what only config.properties could set before).
+         */
+        private static final int THIS_TV = 4, UPDATES_ROW = 5, PREFS_ROW = 6;
+        private static final float LIST_X = 1000, LIST_R = 1824, LIST_TOP = 150, ROW_H = 64, ROW_GAP = 6, CHOICE_H = 104;
+        private static final int ROWS = 8, PREF_ROWS = 3;
         private static final int AMBER = 0xFFFFC266, INK = 0xFF1C1C1E;
 
         private final SettingsActivity activity;
@@ -135,6 +138,7 @@ public class SettingsActivity extends Activity {
         private Bitmap reportQr;               // made when "This TV" opens (off the UI thread), again if the link changed
         private String reportUrl;              // the link reportQr is of
         private String[] errorLines;           // the last problems AppLog kept, newest first, as lines; null until read
+        private boolean assistantOff;          // Preferences' third row, read when the screen opens
         private final Paint qrPaint = new Paint();   // no filtering: the modules stay sharp when scaled up   // the installed streaming apps TMDB titles open in (looked up on resume)
         private int screen = MAIN, focus;
         /** Whether the Updates screen has had the "Install" row: when it appears, focus moves down with the rows. */
@@ -241,7 +245,7 @@ public class SettingsActivity extends Activity {
 
         private int rowCount() {
             if (screen == UPDATES) syncUpdatesFocus();
-            return screen == MAIN ? ROWS : screen == HOME_CHOICE ? 2 : screen == UPDATES ? (Updater.available.isEmpty() ? 2 : 3) : 0;   // as updateOptions()
+            return screen == MAIN ? ROWS : screen == HOME_CHOICE ? 2 : screen == PREFS ? PREF_ROWS : screen == UPDATES ? (Updater.available.isEmpty() ? 2 : 3) : 0;   // as updateOptions()
         }
 
         /** The "Install" row came or went while the screen is open: the rows moved, so focus follows its option. */
@@ -294,6 +298,7 @@ public class SettingsActivity extends Activity {
             if (screen == MAIN) drawMain(c, seconds);
             else if (screen == HOME_CHOICE) drawHomeChoice(c);
             else if (screen == UPDATES) drawUpdates(c);
+            else if (screen == PREFS) drawPrefs(c);
             else drawReport(c);
         }
 
@@ -308,9 +313,10 @@ public class SettingsActivity extends Activity {
             if (Recs.tmdb(ctx)) jellyfin = Prefs.tmdbReady(ctx) ? "TMDB · " + Prefs.regionName(ctx) : Ui.tr("Configurar", "Set up");
             String city = Prefs.city(ctx);
             String[] labels = {Ui.tr("Início", "Home Screen"), Ui.tr("Títulos", "Titles"), Ui.tr("Cidade", "City"), Ui.tr("Tela de Descanso", "Screensaver"),
-                    Ui.tr("Esta TV", "This TV"), Ui.tr("Atualizações", "Updates"), Ui.tr("Ajustes da TV", "TV Settings")};
+                    Ui.tr("Esta TV", "This TV"), Ui.tr("Atualizações", "Updates"), Ui.tr("Preferências", "Preferences"),
+                    Ui.tr("Ajustes da TV", "TV Settings")};
             String[] values = {working ? "" : mode, jellyfin, city.isEmpty() ? Ui.tr("Escolher", "Choose") : city,
-                    Ui.tr("Ver agora", "Preview"), tvName, updateStatus(), ""};
+                    Ui.tr("Ver agora", "Preview"), tvName, updateStatus(), "", ""};
             for (int i = 0; i < ROWS; i++) {
                 float y = (LIST_TOP + i * (ROW_H + ROW_GAP)) * k;
                 rowRect.set(LIST_X * k, y, LIST_R * k, y + ROW_H * k);
@@ -320,7 +326,7 @@ public class SettingsActivity extends Activity {
                 float base = rowRect.centerY() + Ui.halfCap(rowLabel);
                 c.drawText(labels[i], rowRect.left + 30 * k, base, rowLabel);
                 float right = rowRect.right - 30 * k;
-                if (i == ROWS - 1) {
+                if (i == ROWS - 1 || i == PREFS_ROW) {
                     float cw = Symbols.width(getContext(), "chevron_right", 22 * k);
                     Symbols.draw(getContext(), c, "chevron_right", right - cw / 2, rowRect.centerY(), 22 * k, blend(0x66FFFFFF, 0x991C1C1E, f));
                 } else if (i == 0 && working) {
@@ -353,6 +359,59 @@ public class SettingsActivity extends Activity {
             y = drawJellyfin(c, y + 10 * k);
             y = drawTips(c, y + 50 * k);
             drawNotices(c, y + 50 * k);
+        }
+
+        /** "Preferences": language, temperature and the assistant. OK on a row moves to its next option, saved at once. */
+        private void drawPrefs(Canvas c) {
+            c.drawText(Ui.tr("Preferências", "Preferences"), LIST_X * k + 30 * k, (LIST_TOP - 24) * k, heading);
+            for (int i = 0; i < PREF_ROWS; i++) {
+                float y = (LIST_TOP + 20 + i * (ROW_H + ROW_GAP)) * k;
+                rowRect.set(LIST_X * k, y, LIST_R * k, y + ROW_H * k);
+                float f = drawRowBackground(c, i);
+                rowLabel.setColor(blend(0xF2FFFFFF, INK, f));
+                float base = rowRect.centerY() + Ui.halfCap(rowLabel);
+                c.drawText(prefLabel(i), rowRect.left + 30 * k, base, rowLabel);
+                rowValue.setColor(blend(0x8CFFFFFF, 0x8C1C1C1E, f));
+                c.drawText(prefValue(i), rowRect.right - 30 * k, base, rowValue);
+            }
+            float ny = (LIST_TOP + 20 + PREF_ROWS * (ROW_H + ROW_GAP) + 40) * k;
+            c.drawText(Ui.tr("OK passa para a próxima opção.", "OK moves to the next option."), LIST_X * k + 30 * k, ny, hint);
+            c.drawText(Ui.tr("O Assistente vale na próxima vez que o Marquise for ligado.",
+                    "The assistant takes effect the next time Marquise is switched on."), LIST_X * k + 30 * k, ny + 34 * k, hint);
+            c.drawText(Ui.tr("Desligado, o botão do microfone do controle não funciona.",
+                    "Turned off, the remote's mic button doesn't work."), LIST_X * k + 30 * k, ny + 68 * k, hint);
+        }
+
+        private static String prefLabel(int row) {
+            return row == 0 ? Ui.tr("Idioma", "Language") : row == 1 ? Ui.tr("Temperatura", "Temperature")
+                    : Ui.tr("Google Assistente", "Google Assistant");
+        }
+
+        private String prefValue(int row) {
+            if (row == 0) {
+                String l = Prefs.language.trim().toLowerCase(java.util.Locale.ROOT);
+                return l.startsWith("pt") ? "Português" : l.startsWith("en") ? "English" : Ui.tr("Automático (da TV)", "Automatic (the TV's)");
+            }
+            if (row == 1) {
+                String t = Prefs.temperature.trim().toUpperCase(java.util.Locale.ROOT);
+                return t.startsWith("F") ? "°F" : t.startsWith("C") ? "°C" : Ui.tr("Automático (da TV)", "Automatic (the TV's)");
+            }
+            return assistantOff ? Ui.tr("Desligar com o Marquise", "Turn off with Marquise") : Ui.tr("Manter ligado", "Leave on");
+        }
+
+        /** The next option of a preferences row: Automatic → Português → English, Automatic → °C → °F, on ⇄ off. */
+        private void nextPref(int row) {
+            Context c = getContext();
+            if (row == 0) {
+                String l = Prefs.language.trim().toLowerCase(java.util.Locale.ROOT);
+                Prefs.setLanguage(c, l.startsWith("pt") ? "en" : l.startsWith("en") ? "auto" : "pt");
+            } else if (row == 1) {
+                String t = Prefs.temperature.trim().toUpperCase(java.util.Locale.ROOT);
+                Prefs.setTemperature(c, t.startsWith("F") ? "auto" : t.startsWith("C") ? "F" : "C");
+            } else {
+                assistantOff = !assistantOff;
+                Prefs.setAssistantOff(c, assistantOff);
+            }
         }
 
         /** Whether "Updates" has news: a new version, its download, or what went wrong. */
@@ -673,7 +732,7 @@ public class SettingsActivity extends Activity {
                         if (e.getRepeatCount() == 0) backDown = true;
                     } else {
                         if (backDown && !e.isCanceled()) {
-                            focus = screen == REPORT ? THIS_TV : screen == UPDATES ? UPDATES_ROW : 0;
+                            focus = screen == REPORT ? THIS_TV : screen == UPDATES ? UPDATES_ROW : screen == PREFS ? PREFS_ROW : 0;
                             screen = MAIN;
                         }
                         backDown = false;
@@ -697,6 +756,10 @@ public class SettingsActivity extends Activity {
                 }
                 screen = MAIN;
                 focus = 0;
+            } else if (screen == PREFS) {
+                nextPref(focus);
+                invalidate();
+                return;
             } else if (screen == UPDATES) {
                 syncUpdatesFocus();
                 int first = updateOptions().length - 2;
@@ -719,6 +782,10 @@ public class SettingsActivity extends Activity {
                 screen = UPDATES;
                 updatesHadInstall = !Updater.available.isEmpty();
                 focus = Updater.available.isEmpty() ? (Prefs.betas(c) ? 1 : 0) : 0;
+            } else if (focus == PREFS_ROW) {
+                assistantOff = Prefs.assistantOff(c);
+                screen = PREFS;
+                focus = 0;
             } else if (focus == THIS_TV) {
                 screen = REPORT;
                 loadReport();

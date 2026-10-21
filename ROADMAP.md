@@ -57,9 +57,9 @@ Today a merge goes straight to every TV that accepts the update, and nothing but
 Whoever installs with Downloader has no `config.properties`. For them, anything that only a build can set doesn't
 exist.
 
-- **Every option in the settings.** Today these are build-time only: the language, Celsius or Fahrenheit, the extra
-  apps to turn off (`extra_disable`), Google Assistant (`disable_assistant`) and the default row. Each one becomes a
-  row in the settings. `config.properties` only pre-fills them, as it already does for Jellyfin and the city.
+- **Every option in the settings.** Settings → *Preferences* now has the language, Celsius or Fahrenheit and Google
+  Assistant (`config.properties` only sets where they start, as it does for Jellyfin and the city). Still build-only:
+  the extra apps to turn off (`extra_disable`), which needs a picker of the TV's own apps, and the default app row.
   *Done when* nothing in `config.example.properties` is missing from the TV.
 - **TalkBack.** Home is drawn on a canvas, so a screen reader sees nothing: no posters, no apps, no tabs. An
   `AccessibilityNodeProvider` on `HomeView` and `SettingsActivity` would announce what has focus, with the title,

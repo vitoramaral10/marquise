@@ -206,14 +206,14 @@ final class HomeData {
         return "Chuva";
     }
 
-    /** Celsius or Fahrenheit (config.properties "temperature": C, F, or auto = Fahrenheit in the US). */
+    /** Celsius or Fahrenheit (Settings → Preferences, or config.properties "temperature": C, F, or auto = Fahrenheit in the US). */
     static String degrees(double v) {
         if (Double.isNaN(v)) return "—";
         return Math.round(fahrenheit() ? v * 9 / 5 + 32 : v) + "°";
     }
 
     private static boolean fahrenheit() {
-        String unit = Config.TEMPERATURE.trim().toUpperCase(Locale.ROOT);
+        String unit = Prefs.temperature.trim().toUpperCase(Locale.ROOT);
         if (unit.startsWith("F")) return true;
         if (unit.startsWith("C")) return false;
         return "US".equals(Locale.getDefault().getCountry());

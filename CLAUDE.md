@@ -98,7 +98,10 @@ TVs that don't run Google TV or Android TV (Samsung, LG and others): the way is 
   `Watchdog` goes back to the stock home screen after 3 crashes in 5 minutes.
 - On-screen text is bilingual, `Ui.tr("pt", "en")`: add both. Comments in English, short, only where the why isn't
   obvious.
-- What's chosen on the TV (server, token, user, city) lives in `Prefs`; `config.properties` only gives defaults.
+- What's chosen on the TV (server, token, user, city, language, temperature unit, assistant) lives in `Prefs`;
+  `config.properties` only gives defaults. `Prefs.load` runs at the start of every process (`App`), of the screensaver
+  and of a mode job, and fills `Prefs.language` / `Prefs.temperature` (what `Ui` and `HomeData` read where there is no
+  Context); the assistant is read from `Prefs` at each switch and passed down (`HomeMode.targets` / `mayTurnOff`).
   `SetupActivity` is the first-run wizard (standard views, so the TV keyboard works); `Jellyfin` finds servers and
   signs in (Quick Connect or password).
 - Releases are automatic: every merge to `main` runs `.github/workflows/release.yml`, which reads the commits since

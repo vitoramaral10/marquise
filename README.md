@@ -85,7 +85,8 @@ key.
 **On the TV**, in Marquise's settings (its icon, or the gear at the top of Home): the Jellyfin server and account,
 where the posters come from (*Titles*: your Jellyfin server and account, or TMDB with your key and country), your
 city, the Home screen (Marquise or Original), a screensaver preview, and *Updates*: the new version when there is
-one, and stable releases only (the default) or betas too.
+one, and stable releases only (the default) or betas too; and *Preferences*: the language (automatic, Português or
+English), Celsius or Fahrenheit, and whether Marquise mode also turns off Google Assistant.
 
 **The app row:** hold OK on an app of the row to *Move* it (← →, then OK), *Remove* it or *Restore the default row*,
 and hold OK on any app in *All Apps* to *Add it to Home* (up to 8). Apps you installed also get *Uninstall*, which
@@ -98,9 +99,9 @@ opens Android's own confirmation. All of that is saved on the TV and survives up
 | `jellyfin_url`, `jellyfin_key`, `jellyfin_user` | Pre-fill the server, an API key and the user (skips the setup) | empty |
 | `shelf` | The default app row: `jellyfin`, `live`, `youtube`, `netflix`, `prime`, `disney`, `max`, `appletv`, `hulu`, `paramount`, `peacock`, `globoplay`, `spotify`, `f1tv` | `jellyfin,live,youtube,netflix,prime,disney,max,spotify` |
 | `latitude`, `longitude`, `city` | Pre-fill the city | New York |
-| `language` | `auto` (follows the TV), `en` or `pt` | `auto` |
-| `temperature` | `C`, `F` or `auto` | `auto` |
-| `disable_assistant` | Also turn off Google Assistant (the mic button stops) | `false` |
+| `language` | `auto` (follows the TV), `en` or `pt`; the starting value of *Preferences → Language* | `auto` |
+| `temperature` | `C`, `F` or `auto`; the starting value of *Preferences → Temperature* | `auto` |
+| `disable_assistant` | Also turn off Google Assistant (the mic button stops); the starting value of *Preferences → Google Assistant* | `false` |
 | `extra_disable` | More packages to turn off while Marquise is on, comma-separated | empty |
 
 ## Going back
@@ -118,7 +119,7 @@ To remove it for good, switch to *Original* first, then uninstall Marquise (*Set
   - Google TV's recovery home, Play Games, YouTube Music, Play Auto Installs (sponsored app installs) and feedback
     reports;
   - on TCL TVs, the TCL Channel, messages, store demo, hotel menu, manuals, mirroring, logging and promo apps;
-  - Google Assistant, only with `disable_assistant=true`, and whatever you list in `extra_disable`.
+  - Google Assistant, only when you ask (*Preferences*, or `disable_assistant=true`), and whatever you list in `extra_disable`.
 - Picture, sound, inputs, remote pairing, Google services and the Play Store are on a protected list, checked before
   every change.
 
