@@ -78,11 +78,15 @@ exist.
   Fahrenheit, Google Assistant and *Factory apps* (`config.properties` only sets where they start, as it does for
   Jellyfin and the city). Only the default app row (`shelf`) is still build-only, and the row itself is already
   edited from Home (*Restore the default row* goes back to the build's).
-- **TalkBack.** *In progress.* Home is drawn on a canvas, so a screen reader sees nothing: no posters, no apps, no
-  tabs. The first slice is an `AccessibilityNodeProvider` on `HomeView` (tabs, corner buttons, posters, the app row,
-  the drawer, *All Apps* and the app menu), so a screen reader can move over them and press OK; the settings screens
-  follow in their own slice. It is checked on the emulator through the accessibility tree; *Done when* someone who
-  uses TalkBack has used Home with the screen off.
+- **TalkBack.** *First slice done (Home); the settings screens are next.* Home was drawn on a canvas, so a screen
+  reader saw nothing. `HomeView` now has an `AccessibilityNodeProvider` (`HomeAccess`): the tabs, the corner buttons,
+  the time and weather, the posters, the app row, the drawer, *All Apps* and the app menu are nodes with a name, a
+  place and OK, and an app of the row or of *All Apps* takes a long click (its menu: Remove, Uninstall, Add to Home,
+  Restore the default row). Tried on the emulator with Google's own TalkBack: its focus walks the tabs, the buttons
+  and the row, and OK switches a tab or opens the drawer and *All Apps*; the emulator check on every PR now reads the
+  accessibility tree too. Not covered yet: *Move* in the app menu (it needs the arrow keys), the settings and setup
+  screens, and the audio side (the emulator has none). *Done when* someone who uses TalkBack has used Home and the
+  settings with the screen off.
 - **Compatibility, from the reports.** The *This TV* QR reports (issue template `tv_support`) feed:
   - a compatibility table on the install page, with brand, model, Android version, what works and what was turned
     off;

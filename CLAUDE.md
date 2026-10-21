@@ -87,6 +87,12 @@ TVs that don't run Google TV or Android TV (Samsung, LG and others): the way is 
 - The screensaver (`Screensaver` → `DreamView`) is a gallery: the curated works in `assets/gallery.json` (Art
   Institute of Chicago, CC0), fetched through IIIF at screen size and kept in `cache/gallery`. It redraws every 10 s
   and only animates during the fade; keep it that way.
+- `HomeAccess` is the screen reader's view of Home (an `AccessibilityNodeProvider`: one virtual node per thing that can
+  be chosen, from `HomeView.a11yNodes`, with a click and a long click). Whatever is drawn that a person can choose
+  needs a node there, and a state that changes it (a tab, an overlay, new posters) calls `a11yChanged()`. Nothing
+  runs with the reader off. `tools/emulator_check.sh` reads the tree; Google TV's emulator image has TalkBack
+  (`com.google.android.marvin.talkback`): turn it on with `settings put secure enabled_accessibility_services …` on the
+  emulator (never a real TV) and drive Home with the arrow keys to see its focus box.
 - `AppLog.w` writes to logcat and keeps the last problems (not "notice:" lines) in `files/applog.txt`, cleaned of
   addresses, links and key-like strings (`AppLog.clean`); `App` gives it the folder in every process. *This TV* and
   the report's QR (`TvReport.fit`, errors dropped before apps) show them. Never put a key or a person's data in a

@@ -113,6 +113,16 @@ key HOME 10
 shot home
 key DPAD_RIGHT 2
 shot home-focus
+# What a screen reader (TalkBack) sees of Home: uiautomator reads the same accessibility tree. The tabs, the corner
+# buttons and the app row must be there, named and clickable, and the apps must take a long click (their menu).
+step "Home through the accessibility tree"
+e shell uiautomator dump /sdcard/ui.xml > /dev/null 2>&1 || true
+e exec-out cat /sdcard/ui.xml > "$OUT/accessibility.xml" || true
+for name in "(Explore|Explorar)" "(Movies|Filmes)" "(Settings|Configurações)"; do
+  grep -Eq "text=\"$name\"[^>]*clickable=\"true\"" "$OUT/accessibility.xml" || fail "a screen reader can't find \"$name\" on Home"
+done
+grep -Eq "text=\"(Live TV|TV Aberta|YouTube)\"[^>]*long-clickable=\"true\"" "$OUT/accessibility.xml" \
+  || fail "a screen reader can't long-click an app of the row on Home"
 home_kb=$(run dumpsys meminfo "$PKG:home" | grep -m1 "TOTAL PSS" | awk '{print $3}' || true)
 [[ "$home_kb" =~ ^[0-9]+$ ]] || fail "couldn't read Home's memory"
 # Compared in KiB: rounding to MB first would let a process a little over the budget through.

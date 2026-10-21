@@ -5,6 +5,13 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Home works with TalkBack (and other screen readers): the tabs, the corner buttons, the time and weather, the posters,
+  the app row, the drawer, *All Apps* and the app's menu are announced by name and can be chosen with OK; an app also
+  takes a long click, the way holding OK opens its menu. Moving an app in the row still needs the arrow keys, and the
+  settings screens are not covered yet.
+
 ## [1.13.0] - 2026-10-21
 
 ### Added
