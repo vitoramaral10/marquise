@@ -30,6 +30,8 @@ What just arrived on your server, up front. Your apps, in their own colors. One 
 - **Updates from the TV.** When a new version is out, the settings say so, and OK installs it.
 - **No ads, no sponsored rows, no tracking.** It talks to your Jellyfin server (or TMDB), Open-Meteo for the weather,
   the Art Institute of Chicago for the paintings and GitHub for updates, and nothing else.
+- **Works with a screen reader.** Home speaks to TalkBack: tabs, buttons, posters and apps are named and chosen with
+  OK (the settings screens come next).
 - **Safe.** No root. Nothing is uninstalled. *Original* brings the factory home screen back, and a watchdog does it by
   itself if Marquise ever crashes.
 

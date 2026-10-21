@@ -22,6 +22,7 @@ import android.text.TextUtils;
 import android.view.Choreographer;
 import android.view.KeyEvent;
 import android.view.View;
+import android.view.accessibility.AccessibilityNodeProvider;
 import android.view.ViewGroup;
 
 import org.json.JSONArray;
@@ -87,6 +88,10 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
     private final TvInputManager tvInputs;
     private final Layer sky, heroLayer, status, tiles, drawerLayer, sheetLayer, toastLayer, menuLayer;
     private int zone = Z_SHELF;
+    // For a screen reader (TalkBack): the things on screen that can be chosen, as virtual nodes. Built only when asked.
+    private final HomeAccess access = new HomeAccess(this, this::a11yNodes);
+    private final Runnable a11yNotify = () -> access.changed();
+    private int a11yLast = View.NO_ID;   // the node the view's focus was last announced on
 
     // Night look (like Apple's "Automatic" appearance): darker from sunset to sunrise, with a 2 s transition.
     private static final long NIGHT_MS = 2000;
@@ -297,6 +302,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         ui = a.getSharedPreferences("home-ui", Context.MODE_PRIVATE);
         tvInputs = (TvInputManager) a.getSystemService(Context.TV_INPUT_SERVICE);
         setFocusable(true);
+        setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_YES);
         sky = new Layer(a, SKY);
         heroLayer = new Layer(a, HERO);
         status = new Layer(a, STATUS);
@@ -307,7 +313,10 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         menuLayer = new Layer(a, MENU);
         // Hardware layers on the GPU: only the one that changed is redrawn; moving, fading and scaling stay cheap.
         for (View v : hardwareLayers()) v.setLayerType(LAYER_TYPE_HARDWARE, null);
-        for (View v : new View[] {sky, heroLayer, status, tiles, drawerLayer, sheetLayer, toastLayer, menuLayer}) addView(v);
+        for (View v : new View[] {sky, heroLayer, status, tiles, drawerLayer, sheetLayer, toastLayer, menuLayer}) {
+            addView(v);
+            v.setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_NO);   // drawn pixels: the nodes below say what they are
+        }
         menuLayer.setVisibility(INVISIBLE);
         drawerLayer.setVisibility(INVISIBLE);
         for (int i = 0; i < topFocus.length; i++) {
@@ -838,6 +847,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
     // MARK: - Shelf
 
     private void setShelf(List<HomeApps.Item> list) {
+        a11yChanged();
         boolean same = list.size() == shelf.size();
         for (int i = 0; same && i < list.size(); i++) same = list.get(i).key.equals(shelf.get(i).key);
         shelf = list;
@@ -1102,6 +1112,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
 
     private void openDrawer() {
         if (drawerItems.isEmpty()) return;
+        a11yChanged();
         drawerOpen = true;
         drawer.target = 1;
         zone = Z_DRAWER;
@@ -1111,6 +1122,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
     }
 
     private void closeDrawer() {
+        a11yChanged();
         drawerOpen = false;
         drawer.target = 0;
         zone = Z_SHELF;
@@ -1275,6 +1287,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
     }
 
     private void openSheet() {
+        a11yChanged();
         sheetOpen = true;
         gridIndex = 0;
         scroll.snap(0);
@@ -1285,6 +1298,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
     }
 
     private void closeSheet() {
+        a11yChanged();
         sheetOpen = false;
         sheet.target = 0;
         retarget(false);
@@ -1515,6 +1529,206 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         }
     }
 
+    // MARK: - Screen reader (TalkBack)
+
+    @Override public AccessibilityNodeProvider getAccessibilityNodeProvider() {
+        return access;
+    }
+
+    /** What is on screen changed: the reader asks again, a moment later (several things change together). */
+    private void a11yChanged() {
+        if (!access.on()) return;
+        removeCallbacks(a11yNotify);
+        postDelayed(a11yNotify, 150);
+    }
+
+    /** The view's own focus may have moved (the arrows): say where it is now, if it is somewhere else. */
+    private void a11yMoved() {
+        if (!access.on()) return;
+        int id = a11yId();
+        if (id == a11yLast) return;
+        a11yLast = id;
+        access.focusMoved(id);
+    }
+
+    private static final int A_TOP = 100, A_CARD = 200, A_SHELF = 300, A_DRAWER = 400, A_SHEET = 500, A_MENU = 600;
+
+    /** The node the view's focus is on. */
+    private int a11yId() {
+        if (menuOpen) return A_MENU + menuIndex;
+        if (sheetOpen) return A_SHEET + gridIndex;
+        if (zone == Z_DRAWER) return A_DRAWER + drawerIndex;
+        if (zone == Z_TOP) return A_TOP + topIndex;
+        if (zone == Z_CARDS) return A_CARD + cardIndex;
+        return A_SHELF + shelfIndex;
+    }
+
+    private HomeAccess.Node a11yNode(int id, String text, RectF r, View layer) {
+        RectF where = new RectF(r);
+        where.offset(0, layer.getTranslationY());   // a layer resting in place has none; moving, it carries its rects
+        return new HomeAccess.Node(id, text, where);
+    }
+
+    /** The service's own wish to move onto a node: the view's focus goes there too, so what is drawn follows. */
+    private void a11yFocus(int newZone, int index) {
+        zone = newZone;
+        if (newZone == Z_TOP) topIndex = index;
+        else if (newZone == Z_CARDS) cardIndex = index;
+        else if (newZone == Z_DRAWER) drawerIndex = index;
+        else shelfIndex = index;
+        a11yLast = a11yId();
+        retarget(false);
+    }
+
+    /**
+     * The things that can be chosen now, in reading order: the open menu, or the All Apps sheet, or the drawer, or the
+     * main screen (tabs, the corner buttons, the time and weather, the posters, the app row).
+     */
+    private List<HomeAccess.Node> a11yNodes() {
+        List<HomeAccess.Node> out = new ArrayList<>();
+        if (menuOpen) {
+            float pw = 640 * k, row = 74 * k, pad = 22 * k, head = 84 * k;
+            float ph = head + menuLabels.length * row + pad;
+            float left = (w - pw) / 2, top = (h - ph) / 2;
+            for (int i = 0; i < menuLabels.length; i++) {
+                final int index = i;
+                RectF r = new RectF(left + pad, top + head + i * row, left + pw - pad, top + head + i * row + row - 8 * k);
+                HomeAccess.Node n = new HomeAccess.Node(A_MENU + i, menuLabels[i], r);
+                n.selected = i == menuIndex;
+                n.click = () -> {
+                    menuIndex = index;
+                    chooseMenu();
+                };
+                n.focus = () -> {
+                    menuIndex = index;
+                    menuLayer.invalidate();
+                };
+                out.add(n);
+            }
+            return out;
+        }
+        if (sheetOpen) {
+            float shift = scroll.value * GRID_ROW * k;
+            float gridWidth = COLUMNS * GRID_W + (COLUMNS - 1) * GRID_GAP;
+            float left = (1920 - gridWidth) / 2 * k, gridTop = GRID_TOP * k;
+            for (int i = 0; i < others.size(); i++) {
+                int r = i / COLUMNS, col = i % COLUMNS;
+                float y = gridTop + r * GRID_ROW * k - shift;
+                if (y > h || y + GRID_ROW * k < 0) continue;   // scrolled out of the sheet
+                float x = left + col * (GRID_W + GRID_GAP) * k;
+                final int index = i;
+                final RectF cellRect = new RectF(x, y, x + GRID_W * k, y + GRID_H * k);
+                HomeAccess.Node n = new HomeAccess.Node(A_SHEET + i, others.get(i).label, cellRect);
+                n.click = () -> {
+                    gridIndex = index;
+                    retargetGrid(false);
+                    focusedCell.set(cellRect);
+                    activate();
+                };
+                n.focus = () -> {
+                    gridIndex = index;
+                    retargetGrid(false);
+                };
+                n.longClick = () -> {   // "Add to Home"
+                    gridIndex = index;
+                    retargetGrid(false);
+                    hold();
+                };
+                out.add(n);
+            }
+            return out;
+        }
+        if (zone == Z_DRAWER && drawerOpen) {
+            for (int i = 0; i < drawerItems.size(); i++) {
+                final int index = i;
+                HomeAccess.Node n = a11yNode(A_DRAWER + i, drawerItems.get(i).label, drawerRects[i], drawerLayer);
+                n.click = () -> {
+                    a11yFocus(Z_DRAWER, index);
+                    activate();
+                };
+                n.focus = () -> a11yFocus(Z_DRAWER, index);
+                out.add(n);
+            }
+            return out;
+        }
+        for (int i = 0; i < 3; i++) {
+            final int index = i;
+            HomeAccess.Node n = a11yNode(A_TOP + i, tabs()[i], topRects[i], heroLayer);
+            n.selected = i == tab;
+            n.click = () -> {
+                a11yFocus(Z_TOP, index);
+                activate();
+            };
+            n.focus = () -> a11yFocus(Z_TOP, index);
+            out.add(n);
+        }
+        for (int j = 0; j < lightButtons.size() && j < 3; j++) {
+            if (topRects[3 + j].isEmpty()) continue;
+            final int index = 3 + j;
+            HomeAccess.Node n = a11yNode(A_TOP + index, lightButtons.get(j).label, topRects[index], status);
+            n.click = () -> {
+                a11yFocus(Z_TOP, index);
+                activate();
+            };
+            n.focus = () -> a11yFocus(Z_TOP, index);
+            out.add(n);
+        }
+        if (!topRects[CLOCK].isEmpty()) {
+            HomeData.Weather wx = data.weather;
+            String text = Ui.tr("Hora e clima", "Time and weather")
+                    + (Double.isNaN(wx.temp) ? "" : ", " + HomeData.degrees(wx.temp) + " " + HomeData.condition(wx.code, wx.isDay))
+                    + Ui.tr(". Abre a previsão.", ". Opens the forecast.");
+            HomeAccess.Node n = a11yNode(A_TOP + CLOCK, text, topRects[CLOCK], status);
+            n.click = () -> {
+                a11yFocus(Z_TOP, CLOCK);
+                activate();
+            };
+            n.focus = () -> a11yFocus(Z_TOP, CLOCK);
+            out.add(n);
+        }
+        if (cards.isEmpty()) {
+            // Nothing to show yet and no source chosen: the first placeholder opens the setup, as OK does.
+            if (!(Recs.hasKey(getContext()) && Recs.tmdb(getContext()))) {
+                HomeAccess.Node n = a11yNode(A_CARD, Ui.tr("Escolher de onde vêm os pôsteres", "Choose where the posters come from"),
+                        cardRects[0], heroLayer);
+                n.click = () -> {
+                    a11yFocus(Z_CARDS, 0);
+                    activate();
+                };
+                n.focus = () -> a11yFocus(Z_CARDS, 0);
+                out.add(n);
+            }
+        }
+        for (int i = 0; i < cards.size() && i < CARDS; i++) {
+            final int index = i;
+            Recs.Pick p = cards.get(i);
+            String text = p.title + (p.badge.isEmpty() ? "" : ", " + p.badge)
+                    + (p.app == null || p.app.isEmpty() ? "" : ", " + Ui.tr("no ", "on ") + p.app);
+            HomeAccess.Node n = a11yNode(A_CARD + i, text, cardRects[i], heroLayer);
+            n.click = () -> {
+                a11yFocus(Z_CARDS, index);
+                activate();
+            };
+            n.focus = () -> a11yFocus(Z_CARDS, index);
+            out.add(n);
+        }
+        for (int i = 0; i < shelf.size() && i < tileRects.length; i++) {
+            final int index = i;
+            HomeAccess.Node n = a11yNode(A_SHELF + i, shelf.get(i).label, tileRects[i], tiles);
+            n.click = () -> {
+                a11yFocus(Z_SHELF, index);
+                activate();
+            };
+            n.focus = () -> a11yFocus(Z_SHELF, index);
+            n.longClick = () -> {   // the app's menu: Remove, Uninstall, Restore the default row (Move needs the arrow keys)
+                a11yFocus(Z_SHELF, index);
+                hold();
+            };
+            out.add(n);
+        }
+        return out;
+    }
+
     private void arrow(int dx, int dy) {
         if (menuOpen) {
             int next = Math.max(0, Math.min(menuLabels.length - 1, menuIndex + dy));
@@ -1527,6 +1741,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         } else {
             move(dx, dy);
         }
+        a11yMoved();
     }
 
     /** OK held: the menu for the focused app on the row, or for the focused app in All Apps. */
@@ -1561,6 +1776,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
     }
 
     private void openMenu(String title, String[] labels, Runnable[] actions) {
+        a11yChanged();
         menuTitle = title;
         menuLabels = labels;
         menuActions = actions;
@@ -1572,6 +1788,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
     }
 
     private void closeMenu() {
+        a11yChanged();
         menuOpen = false;
         menuLayer.setVisibility(INVISIBLE);
         click.move();
@@ -1854,12 +2071,14 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         fitCardText();
         prepareEmptyText();
         heroDirty = statusDirty = true;
+        a11yChanged();
     }
 
     /** The three cards of the current tab (Explore, Movies, Shows) and the background taken from the first one. */
     private void updateCards() {
         List<Recs.Pick> list = recs.now(TAB_KIND[tab]);
         if (!samePicks(list, cards)) {
+            a11yChanged();
             cards = list;
             fitCardText();
             cardIndex = Math.min(cardIndex, Math.max(0, list.size() - 1));
@@ -1879,6 +2098,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
 
     private void selectTab(int index) {
         if (index == tab) return;
+        a11yChanged();
         tab = index;
         bgCard = 0;
         tabFadeAt = SystemClock.uptimeMillis();

@@ -30,6 +30,8 @@ O que acabou de chegar no seu servidor, logo na frente. Seus apps, nas cores del
 - **Atualiza pela TV.** Quando sai uma versão nova, as configurações avisam, e o OK instala.
 - **Sem anúncios, sem fileiras patrocinadas, sem rastreamento.** Conversa com o seu Jellyfin (ou o TMDB), com o Open-Meteo
   para o clima, com o Art Institute of Chicago para as pinturas e com o GitHub para atualizações, e nada mais.
+- **Funciona com leitor de tela.** O Início fala com o TalkBack: abas, botões, pôsteres e apps têm nome e se escolhem
+  com o OK (as telas de configurações vêm a seguir).
 - **Seguro.** Sem root. Nada é desinstalado. *Original* traz de volta o Início de fábrica, e um vigia faz isso sozinho
   se o Marquise travar.
 
