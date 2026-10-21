@@ -5,6 +5,8 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.11.0] - 2026-10-21
+
 ### Added
 
 - Settings → *This TV* shows the last errors Marquise saw (the weather that didn't load, a switch that failed, an
