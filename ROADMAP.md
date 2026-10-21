@@ -58,9 +58,9 @@ Whoever installs with Downloader has no `config.properties`. For them, anything 
 exist.
 
 - **Every option in the settings.** Settings → *Preferences* now has the language, Celsius or Fahrenheit and Google
-  Assistant (`config.properties` only sets where they start, as it does for Jellyfin and the city). Still build-only:
-  the extra apps to turn off (`extra_disable`), which needs a picker of the TV's own apps, and the default app row.
-  *Done when* nothing in `config.example.properties` is missing from the TV.
+  Assistant, and *Factory apps* to pick what else to turn off (`config.properties` only sets where they start, as it
+  does for Jellyfin and the city). Still build-only: the default app row (`shelf`), though the row itself is already
+  edited from Home. *Done when* nothing in `config.example.properties` is missing from the TV.
 - **TalkBack.** Home is drawn on a canvas, so a screen reader sees nothing: no posters, no apps, no tabs. An
   `AccessibilityNodeProvider` on `HomeView` and `SettingsActivity` would announce what has focus, with the title,
   year and app. *Done when* Home can be used with TalkBack on and the screen off.

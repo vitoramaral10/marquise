@@ -111,6 +111,17 @@ final class TvReport {
      * off (they no longer have an icon), marked "(off)". Apps the person installed are left out.
      */
     private static List<String> factoryApps(Context c, JSONObject state) {
+        List<String> out = new ArrayList<>(systemApps(c));
+        JSONArray off = state.optJSONArray("disabled");
+        List<String> disabled = new ArrayList<>();
+        for (int i = 0; off != null && i < off.length(); i++) disabled.add(off.optString(i) + " (off)");
+        Collections.sort(disabled);
+        out.addAll(disabled);
+        return out;
+    }
+
+    /** The system apps with an icon on the TV (what came with it), sorted by package; never Marquise. */
+    static TreeSet<String> systemApps(Context c) {
         PackageManager pm = c.getPackageManager();
         TreeSet<String> pkgs = new TreeSet<>();
         Intent launcher = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LEANBACK_LAUNCHER);
@@ -121,13 +132,7 @@ final class TvReport {
                 pkgs.add(ai.packageName);
             }
         }
-        List<String> out = new ArrayList<>(pkgs);
-        JSONArray off = state.optJSONArray("disabled");
-        List<String> disabled = new ArrayList<>();
-        for (int i = 0; off != null && i < off.length(); i++) disabled.add(off.optString(i) + " (off)");
-        Collections.sort(disabled);
-        out.addAll(disabled);
-        return out;
+        return pkgs;
     }
 
     /** The last n problems AppLog kept (oldest first), each cut to max characters: what the report says went wrong. */

@@ -95,14 +95,23 @@ final class HomeMode {
      * on unless it's Google's: on an unknown brand it can live inside an app that does much more, and Marquise only
      * needs to be the chosen screensaver, not to remove the old one.
      */
-    static boolean mayTurnOff(String pkg, String homePkg, String dreamPkg, boolean assistantOff) {
+    static boolean mayTurnOff(String pkg, String homePkg, String dreamPkg, boolean assistantOff, java.util.Collection<String> extra) {
         if (PROTECTED.contains(pkg)) return false;
         if (pkg.equals(homePkg) || pkg.equals(GOOGLE_SETUP) || Arrays.asList(DEBLOAT).contains(pkg)) return true;
-        for (String extra : Config.EXTRA_DISABLE.split(",")) if (pkg.equals(extra.trim())) return true;
+        if (extra.contains(pkg)) return true;
         if (assistantOff && Arrays.asList(ASSISTANT).contains(pkg)) return true;
         if (pkg.equals(dreamPkg) && !GOOGLE_DREAMS.contains(pkg)) return false;
         for (String prefix : MAKER_PREFIXES) if (pkg.startsWith(prefix)) return false;
         return true;
+    }
+
+    /**
+     * Whether the person may pick this package to turn off (Preferences → Factory apps): never a protected one,
+     * Marquise itself, the apps Marquise already turns off by itself, or anything that isn't a package name.
+     */
+    static boolean canPick(String pkg) {
+        return Prefs.parsePackages(pkg).contains(pkg) && !PROTECTED.contains(pkg) && !pkg.equals(GOOGLE_SETUP)
+                && !Arrays.asList(DEBLOAT).contains(pkg) && !Arrays.asList(ASSISTANT).contains(pkg);
     }
 
     /** One switch at a time (jobs can overlap: a boot check and a button press). */
@@ -186,14 +195,15 @@ final class HomeMode {
                     Ui.tr("o Android não aceitou o novo Início", "Android didn't accept the new home screen"));
             adb.shell("settings put secure screensaver_components " + DREAM);
             boolean assistantOff = Prefs.assistantOff(c);
-            List<String> targets = targets(home, dream, assistantOff);
+            java.util.Set<String> extra = Prefs.extraDisable(c);
+            List<String> targets = targets(home, dream, assistantOff, extra);
             Set<String> disabled = new HashSet<>(stringList(state(c), "disabled"));
             Set<String> present = packages(adb, "");
             int done = 0;
             for (String pkg : targets) {
                 done++;
                 busy(c, Ui.tr("Desligando apps (", "Turning off apps (") + done + "/" + targets.size() + ")…");
-                if (!mayTurnOff(pkg, packageOf(home), packageOf(dream), assistantOff) || !present.contains(pkg)) continue;
+                if (!mayTurnOff(pkg, packageOf(home), packageOf(dream), assistantOff, extra) || !present.contains(pkg)) continue;
                 String out = adb.shell("pm disable-user --user 0 " + pkg);
                 if (out.contains("disabled-user")) disabled.add(pkg);
                 else AppLog.w("could not turn off " + pkg + ": " + out.trim());
@@ -218,7 +228,7 @@ final class HomeMode {
             busy(c, Ui.tr("Religando os apps…", "Turning the apps back on…"));
             String home = originalHome(s);
             Set<String> toEnable = new HashSet<>(stringList(s, "disabled"));
-            for (String pkg : targets(home, s.optString("originalDream", ""), true)) {
+            for (String pkg : targets(home, s.optString("originalDream", ""), true, Prefs.extraDisable(c))) {
                 if (!Arrays.asList(DEBLOAT).contains(pkg) && !Arrays.asList(ASSISTANT).contains(pkg)) toEnable.add(pkg);
             }
             Set<String> present = packages(adb, "");
@@ -327,12 +337,13 @@ final class HomeMode {
                 String home = originalHome(s);
                 Set<String> wanted = new HashSet<>(stringList(s, "disabled"));
                 boolean assistantOff = Prefs.assistantOff(app);
-                for (String pkg : targets(home, s.optString("originalDream", ""), assistantOff)) {
+                java.util.Set<String> extra = Prefs.extraDisable(app);
+                for (String pkg : targets(home, s.optString("originalDream", ""), assistantOff, extra)) {
                     if (!reverted || !(pkg.equals(packageOf(home)) || pkg.equals(GOOGLE_SETUP))) wanted.add(pkg);
                 }
                 Set<String> disabled = new HashSet<>(stringList(s, "disabled"));
                 for (String pkg : sorted(wanted)) {
-                    if (!mayTurnOff(pkg, packageOf(home), packageOf(s.optString("originalDream", "")), assistantOff) || !present.contains(pkg)) continue;
+                    if (!mayTurnOff(pkg, packageOf(home), packageOf(s.optString("originalDream", "")), assistantOff, extra) || !present.contains(pkg)) continue;
                     if (disabledNow.contains(pkg)) {
                         disabled.add(pkg);
                         continue;
@@ -367,7 +378,7 @@ final class HomeMode {
     }
 
     /** What to turn off: the TV's own home screen and screensaver, Google TV's recovery home, and the lists above. */
-    static List<String> targets(String home, String dream, boolean assistantOff) {
+    static List<String> targets(String home, String dream, boolean assistantOff, java.util.Collection<String> extra) {
         List<String> out = new ArrayList<>();
         String homePkg = packageOf(home);
         if (homePkg != null && !homePkg.equals(PKG)) out.add(homePkg);
@@ -375,9 +386,7 @@ final class HomeMode {
         String dreamPkg = packageOf(dream);
         if (dreamPkg != null && !dreamPkg.equals(PKG) && !dreamPkg.equals(homePkg)) out.add(dreamPkg);
         out.addAll(Arrays.asList(DEBLOAT));
-        for (String pkg : Config.EXTRA_DISABLE.split(",")) {   // config.properties "extra_disable"
-            if (!pkg.trim().isEmpty()) out.add(pkg.trim());
-        }
+        out.addAll(extra);   // what the person chose on the TV, or config.properties "extra_disable" until they do
         if (assistantOff) out.addAll(Arrays.asList(ASSISTANT));
         return out;
     }

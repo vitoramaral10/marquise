@@ -163,6 +163,32 @@ final class Prefs {
         p(c).edit().putBoolean("assistantOff", off).apply();
     }
 
+    /** A package name as Android writes one: the only thing allowed into a `pm` command. */
+    private static final java.util.regex.Pattern PACKAGE = java.util.regex.Pattern.compile("[A-Za-z][A-Za-z0-9_]*(?:\\.[A-Za-z0-9_]+)+");
+
+    /** "a.b, c.d" → the valid package names in it, in order, without repeats; anything else is dropped. */
+    static java.util.Set<String> parsePackages(String csv) {
+        java.util.Set<String> out = new java.util.LinkedHashSet<>();
+        for (String s : csv == null ? new String[0] : csv.split(",")) {
+            String pkg = s.trim();
+            if (PACKAGE.matcher(pkg).matches()) out.add(pkg);
+        }
+        return out;
+    }
+
+    /**
+     * The packages to turn off besides the built-in lists: what the person chose on the TV (Preferences → Factory
+     * apps) or, until they choose, extra_disable from config.properties.
+     */
+    static java.util.Set<String> extraDisable(Context c) {
+        String saved = p(c).getString("extraDisable", null);
+        return parsePackages(saved != null ? saved : Config.EXTRA_DISABLE);
+    }
+
+    static void setExtraDisable(Context c, java.util.Collection<String> packages) {
+        p(c).edit().putString("extraDisable", String.join(",", parsePackages(String.join(",", packages)))).apply();
+    }
+
     // MARK: - Updates
 
     /** Whether this TV also takes beta releases (Settings → Updates); off by default. */

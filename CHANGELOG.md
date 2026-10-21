@@ -5,6 +5,14 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Settings → *Preferences* → *Factory apps*: pick from the list of the TV's own apps the ones Marquise mode should turn
+  off too (a maker's promo app, say), with the remote. Until now that took `extra_disable` in a build. The list
+  never offers a protected package (picture, sound, inputs, the Play Store, Google services), Marquise, or what
+  Marquise already turns off by itself, and *Original* turns every pick back on. A pick takes effect the next time
+  Marquise is switched on.
+
 ## [1.12.0] - 2026-10-21
 
 ### Added
