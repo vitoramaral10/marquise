@@ -2,7 +2,9 @@ name: Emulator
 
 # Every pull request switches Marquise on and back off on a Google TV emulator (tools/emulator_check.sh): the home
 # screen, the screensaver and the apps turned off, then all three back as they were. The screenshots of Home, the
-# memory it uses and the log are kept as the run's artifact.
+# memory it uses and the log are kept as the run's artifact. A change that touches nothing the app or the check are
+# made of (docs, the CHANGELOG, the install page, other workflows) skips the emulator: the job still runs and passes,
+# because `emulator` is a required check and one that never reports blocks the merge.
 on:
   pull_request:
   push:
@@ -27,26 +29,42 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
+          fetch-depth: 2   # enough to tell what the change touched (.github/scripts/affects.sh)
           persist-credentials: false
 
+      - name: Does this change affect the app or the check?
+        id: changes
+        env:
+          # On a push, everything since main was last at; on a pull request, empty (the merge's first parent).
+          AFFECTS_BASE: ${{ github.event_name == 'push' && github.event.before || '' }}
+        run: .github/scripts/affects.sh '^(app/|build\.sh$|config\.example\.properties$|tools/emulator_check\.sh$|\.github/workflows/emulator\.yml$|\.github/scripts/affects\.sh$)' | tee -a "$GITHUB_OUTPUT"
+
+      - name: Nothing the app or the check is made of changed
+        if: steps.changes.outputs.app != 'true'
+        run: echo "Nothing the app or the check is made of changed, so the emulator is skipped." | tee -a "$GITHUB_STEP_SUMMARY"
+
       - uses: actions/setup-java@v6
+        if: steps.changes.outputs.app == 'true'
         with:
           distribution: temurin
           java-version: "17"
 
       - name: KVM
+        if: steps.changes.outputs.app == 'true'
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm.rules
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
       - name: Google TV image (cached)
+        if: steps.changes.outputs.app == 'true'
         uses: actions/cache@v4
         with:
           path: /usr/local/lib/android/sdk/system-images/android-34/google-tv/x86   # $ANDROID_HOME on GitHub's runners
           key: google-tv-34-x86-r3
 
       - name: Android SDK packages
+        if: steps.changes.outputs.app == 'true'
         run: |
           yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "build-tools;34.0.0" "platforms;android-34" emulator \
@@ -54,12 +72,14 @@ jobs:
 
       # A placeholder Jellyfin (nothing answers there): the setup is skipped, and Home shows its empty posters.
       - name: Build
+        if: steps.changes.outputs.app == 'true'
         run: |
           sed -e 's#^jellyfin_url=.*#jellyfin_url=http://127.0.0.1:8096#' -e 's#^jellyfin_key=.*#jellyfin_key=emulator-check#' \
             config.example.properties > config.properties
           ./build.sh
 
       - name: Start the emulator
+        if: steps.changes.outputs.app == 'true'
         run: |
           mkdir -p "$ANDROID_AVD_HOME"
           echo no | "$ANDROID_HOME/cmdline-tools/latest/bin/avdmanager" create avd -n check -k "$IMAGE" -d tv_1080p
@@ -78,10 +98,11 @@ jobs:
           sleep 30   # Google TV's home and services settle after the boot
 
       - name: Switch on and back
+        if: steps.changes.outputs.app == 'true'
         run: PATH="$ANDROID_HOME/platform-tools:$PATH" tools/emulator_check.sh emulator-5560 marquise.apk emulator-check
 
       - uses: actions/upload-artifact@v7
-        if: always()
+        if: always() && steps.changes.outputs.app == 'true'
         with:
           name: emulator-check
           path: |
