@@ -5,6 +5,8 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.13.0] - 2026-10-21
+
 ### Added
 
 - Settings → *Preferences* → *Factory apps*: pick from the list of the TV's own apps the ones Marquise mode should turn
