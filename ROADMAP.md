@@ -7,6 +7,20 @@ terminal, and only then does it grow.
 This is a plan, not a promise. Items move when the reports from real TVs say they should. Want something here, or
 something that isn't? Open an issue.
 
+**Where it stands (1.13.0):** the safe-releases stretch is done, and "everything from the TV" is well along. What is
+left is TalkBack, Spanish and the compatibility table (which waits for reports from other brands), then the
+"better titles" and "reach" stretches below.
+
+| Version | What it brought |
+|---|---|
+| 1.10.0 | Beta channel: a PR labeled `beta` releases a pre-release, and a TV opts in to betas in Settings → *Updates* |
+| 1.11.0 | The last errors on *This TV* and in the report's QR code |
+| 1.12.0 | Settings → *Preferences*: language, Celsius or Fahrenheit, Google Assistant |
+| 1.13.0 | *Preferences* → *Factory apps*: pick from the TV which apps to turn off |
+
+Not in that table because they don't ship in the app: the unit tests, the emulator check on every PR, the CI budgets,
+the code of conduct and the security policy.
+
 ## What stays the same
 
 These hold for every item below. A feature that breaks one of them doesn't ship.
@@ -15,12 +29,14 @@ These hold for every item below. A feature that breaks one of them doesn't ship.
   Open-Meteo, the Art Institute of Chicago and GitHub.
 - **No root, nothing uninstalled.** *Original* always brings the factory home screen back, and the watchdog does it
   by itself after a crash.
-- **Light.** APK under 1 MB, about 120 MB of memory with Home on screen, and no frame loop while nothing moves.
+- **Light.** APK under 1 MB (780 KB now), Home's process around 80 MB of memory on a real TCL (measured with other
+  apps open; half of it already swapped out), and no frame loop while nothing moves.
 - **Everything with the remote.** Nothing should need a computer after the install.
 
-## Now: safe releases (1.10–1.11)
+## Done: safe releases (1.10–1.11)
 
-Today a merge goes straight to every TV that accepts the update, and nothing but a human checks it first.
+A merge goes straight to every TV that accepts the update, so what checks it first had to be more than a person
+reading a diff. All four items below are in.
 
 - ~~**Unit tests for the logic that can't fail quietly.**~~ Done: `app/test` runs on the JVM in `build.sh` (so in
   the `apk` check), and `.github/scripts/test_release.py` runs in CI. They cover:
@@ -33,37 +49,40 @@ Today a merge goes straight to every TV that accepts the update, and nothing but
 
   Android's classes are stubs on the JVM, so parsing (`org.json`) and anything drawn are covered by the emulator check
   below instead.
-- **An emulator check on every PR.** `tools/emulator_check.sh`, run by the `emulator` workflow on a Google TV
-  emulator (Android 14, KVM):
+- ~~**An emulator check on every PR.**~~ Done: `tools/emulator_check.sh`, run by the `emulator` workflow on a Google
+  TV emulator (Android 14, KVM), and a required check next to `apk` and `title`:
   - it installs the APK and switches Marquise on with the remote's keys, accepting the debugging prompt;
   - it checks the home screen, the screensaver and the packages turned off, with nothing protected among them;
   - it switches back to Original and checks that all three are exactly as they were;
   - it fails on any crash.
 
-  The screenshots of Home, its memory and the log are the run's artifact. *Done when* `emulator` is a required check
-  next to `apk` and `title`.
-  - Still to cover there: the TMDB and Jellyfin parsing, with recorded responses served to the emulator.
+  The screenshots of Home, its memory and the log are the run's artifact.
+  - Still to cover there: the TMDB and Jellyfin parsing, with recorded responses served to the emulator, and the
+    settings screens (the factory apps list, for one, is checked by hand).
 - ~~**A beta channel.**~~ Done: a PR labeled `beta` releases `X.Y.Z-beta.N` as a pre-release. Settings → *Updates*
   lets a TV opt in to betas, and everyone else keeps getting only the latest stable release (`releases/latest`).
 - ~~**Budgets in CI.**~~ Done: the `apk` check fails if `marquise.apk` goes over 1 MB (now ~780 KB), and the
   emulator check fails if Home's process goes over 80 MB with its empty posters (~31 MB measured). Real posters on a
-  TV take ~120 MB, which only a TV can measure, so that number stays a manual check.
+  TV take more: 82 MB measured on a TCL (49 MB of it already swapped out), which only a TV can measure, so that
+  number stays a manual check.
 - ~~**What went wrong, without telemetry.**~~ Done: `AppLog` keeps the last dozen problems in a file on the TV
   (addresses, links and key-like strings taken out), *This TV* lists the latest three, and the QR report carries the
   latest two, dropped before the app list when the link gets long. Nothing leaves the TV unless the person scans it.
 
-## Next: everything from the TV (1.12–1.14)
+## Now: everything from the TV (1.12–)
 
 Whoever installs with Downloader has no `config.properties`. For them, anything that only a build can set doesn't
 exist.
 
-- **Every option in the settings.** Settings → *Preferences* now has the language, Celsius or Fahrenheit and Google
-  Assistant, and *Factory apps* to pick what else to turn off (`config.properties` only sets where they start, as it
-  does for Jellyfin and the city). Still build-only: the default app row (`shelf`), though the row itself is already
-  edited from Home. *Done when* nothing in `config.example.properties` is missing from the TV.
-- **TalkBack.** Home is drawn on a canvas, so a screen reader sees nothing: no posters, no apps, no tabs. An
-  `AccessibilityNodeProvider` on `HomeView` and `SettingsActivity` would announce what has focus, with the title,
-  year and app. *Done when* Home can be used with TalkBack on and the screen off.
+- ~~**Every option in the settings.**~~ Nearly done: Settings → *Preferences* has the language, Celsius or
+  Fahrenheit, Google Assistant and *Factory apps* (`config.properties` only sets where they start, as it does for
+  Jellyfin and the city). Only the default app row (`shelf`) is still build-only, and the row itself is already
+  edited from Home (*Restore the default row* goes back to the build's).
+- **TalkBack.** *In progress.* Home is drawn on a canvas, so a screen reader sees nothing: no posters, no apps, no
+  tabs. The first slice is an `AccessibilityNodeProvider` on `HomeView` (tabs, corner buttons, posters, the app row,
+  the drawer, *All Apps* and the app menu), so a screen reader can move over them and press OK; the settings screens
+  follow in their own slice. It is checked on the emulator through the accessibility tree; *Done when* someone who
+  uses TalkBack has used Home with the screen off.
 - **Compatibility, from the reports.** The *This TV* QR reports (issue template `tv_support`) feed:
   - a compatibility table on the install page, with brand, model, Android version, what works and what was turned
     off;
@@ -105,5 +124,7 @@ exist.
 ## Housekeeping
 
 - Replace the Home screenshot on the install page and in the README: it still shows the old badges. This needs the
-  TV.
+  TV with Marquise on screen.
 - Upload the social preview (`.github/social-preview.png`) in Settings → Social preview on GitHub.
+- The CHANGELOG's 1.3.0 entry still says "~120 MB"; that was Home with real posters before the later work. It is a
+  released entry, so it stays as it was.
