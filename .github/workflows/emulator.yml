@@ -82,16 +82,33 @@ jobs:
         if: steps.changes.outputs.app == 'true'
         run: |
           mkdir -p "$ANDROID_AVD_HOME"
+          adb="$ANDROID_HOME/platform-tools/adb"
+          # The emulator lets this computer's adb key into the device when it starts. If the key doesn't exist yet
+          # (the first adb server makes it), the device answers "unauthorized" for the whole boot and the step times
+          # out: it did, now and then. So the key and the server come first.
+          "$adb" kill-server || true
+          [ -f "$HOME/.android/adbkey" ] || "$adb" keygen "$HOME/.android/adbkey"
+          "$adb" start-server
           echo no | "$ANDROID_HOME/cmdline-tools/latest/bin/avdmanager" create avd -n check -k "$IMAGE" -d tv_1080p
           "$ANDROID_HOME/emulator/emulator" -avd check -no-window -no-audio -no-boot-anim -no-snapshot \
             -gpu swiftshader_indirect -memory 3072 -cores 2 -port 5560 > emulator.log 2>&1 &
           emu=$!
-          adb="$ANDROID_HOME/platform-tools/adb"
           booted=
+          unauthorized=0
           for i in $(seq 1 100); do   # up to ~5 minutes
             if ! kill -0 "$emu" 2>/dev/null; then echo "::error::the emulator quit"; cat emulator.log; exit 1; fi
             booted=$(timeout 5 "$adb" -s emulator-5560 shell getprop sys.boot_completed 2>/dev/null | tr -d '\r') || true
             [ "$booted" = 1 ] && break
+            # Still unauthorized after half a minute: the key was missed, start the server again (it asks anew).
+            if [ "$(timeout 5 "$adb" -s emulator-5560 get-state 2>&1 | grep -c unauthorized)" = 1 ]; then
+              unauthorized=$((unauthorized + 1))
+              if [ "$unauthorized" -ge 10 ]; then
+                echo "::warning::the emulator is unauthorized for adb: restarting the adb server"
+                "$adb" kill-server || true
+                "$adb" start-server
+                unauthorized=0
+              fi
+            fi
             sleep 3
           done
           [ "$booted" = 1 ] || { echo "::error::the emulator didn't boot"; tail -50 emulator.log; exit 1; }
