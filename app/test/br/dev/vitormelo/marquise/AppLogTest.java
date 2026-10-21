@@ -32,6 +32,18 @@ final class AppLogTest {
         eq("at 12:30:45 it failed", AppLog.clean("at 12:30:45 it failed"));
     }
 
+    /** A "::" inside a name is not an address; the short forms that are addresses still go. */
+    static void doubleColonsInNamesStay() {
+        eq("Foo::bar failed", AppLog.clean("Foo::bar failed"));
+        eq("std::abc failed", AppLog.clean("std::abc failed"));
+        eq("Class::method::run", AppLog.clean("Class::method::run"));
+        eq("to <ip>", AppLog.clean("to cafe::beef"));
+        eq("to <ip>", AppLog.clean("to a::b"));
+        eq("to <ip>", AppLog.clean("to ::"));
+        eq("to <ip>", AppLog.clean("to ::1"));
+        eq("to <ip>.", AppLog.clean("to fe80::1."));
+    }
+
     /** A name with a port, a name after "host" and a country domain are taken out. */
     static void moreHostNamesAreTakenOut() {
         eq("connect to <host> failed", AppLog.clean("connect to jf.casa.pt:8096 failed"));

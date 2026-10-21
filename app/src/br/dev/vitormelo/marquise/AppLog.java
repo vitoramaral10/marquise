@@ -120,10 +120,11 @@ final class AppLog {
 
     private static final Pattern URL = Pattern.compile("[a-zA-Z][a-zA-Z0-9+.-]*://\\S+");
     private static final Pattern IP = Pattern.compile("/?\\b\\d{1,3}(?:\\.\\d{1,3}){3}(?::\\d+)?\\b");
-    // IPv6, in the forms an exception prints: fe80::1%wlan0, [2001:db8::1]:8096, a full 8-group address. Not "12:30:45".
+    // IPv6, in the forms an exception prints: fe80::1%wlan0, [2001:db8::1]:8096, a full 8-group address. Not "12:30:45",
+    // and not a "::" inside a name ("Foo::bar", "std::abc"): the address has to stand on its own.
     private static final Pattern IPV6 = Pattern.compile(
-            "/?\\[?(?:[0-9a-fA-F]{0,4}(?::[0-9a-fA-F]{0,4})*::(?:[0-9a-fA-F]{1,4}(?::[0-9a-fA-F]{0,4})*)?"
-                    + "|\\b(?:[0-9a-fA-F]{1,4}:){5,7}[0-9a-fA-F]{1,4}\\b)(?:%[\\w.]+)?\\]?(?::\\d+)?");
+            "/?(?<![\\w.-])\\[?(?:[0-9a-fA-F]{0,4}(?::[0-9a-fA-F]{0,4})*::(?:[0-9a-fA-F]{1,4}(?::[0-9a-fA-F]{0,4})*)?"
+                    + "|\\b(?:[0-9a-fA-F]{1,4}:){5,7}[0-9a-fA-F]{1,4}\\b)(?:%[\\w.]+)?\\]?(?::\\d+)?(?![\\w-]|\\.\\w)");
     // A name ending in a well-known domain ("jf.example.com", "nas.local"), or any name with a port ("nas:8096",
     // "jf.casa.pt:8096"), or the name after "host". Never a package: br.dev.vitormelo, com.sony.dtv.home and
     // org.droidtv.home don't end in one of these, and "home", "app", "me" and "info" are left out for that reason.
