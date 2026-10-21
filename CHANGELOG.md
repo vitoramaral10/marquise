@@ -5,6 +5,8 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.16.0] - 2026-10-21
+
 ### Added
 
 - Jellyfin: *continue watching*. What you're in the middle of (a movie with the minutes left, an episode) and the next
