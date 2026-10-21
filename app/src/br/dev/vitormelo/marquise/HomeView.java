@@ -90,8 +90,18 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
     private int zone = Z_SHELF;
     // For a screen reader (TalkBack): the things on screen that can be chosen, as virtual nodes. Built only when asked.
     private final HomeAccess access = new HomeAccess(this, this::a11yNodes);
-    private final Runnable a11yNotify = () -> access.changed();
     private int a11yLast = View.NO_ID;   // the node the view's focus was last announced on
+    private int a11yOverlaySeen;         // which overlay the reader was last told about (0: none)
+    private final Runnable a11yNotify = () -> {
+        access.changed();
+        // An overlay opened or closed (OK on All Apps, holding OK, Back): say where the focus is now, not only that the
+        // screen changed. Other changes (posters arriving, the shelf reloading) don't move it, and say nothing.
+        int overlay = a11yOverlay();
+        if (overlay != a11yOverlaySeen) {
+            a11yOverlaySeen = overlay;
+            a11yMoved();
+        }
+    };
 
     // Night look (like Apple's "Automatic" appearance): darker from sunset to sunrise, with a 2 s transition.
     private static final long NIGHT_MS = 2000;
@@ -1552,6 +1562,11 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
     }
 
     private static final int A_TOP = 100, A_CARD = 200, A_SHELF = 300, A_DRAWER = 400, A_SHEET = 500, A_MENU = 600;
+
+    /** Which overlay is open: the app menu, the All Apps sheet, the drawer, or none. */
+    private int a11yOverlay() {
+        return menuOpen ? 3 : sheetOpen ? 2 : zone == Z_DRAWER && drawerOpen ? 1 : 0;
+    }
 
     /** The node the view's focus is on. */
     private int a11yId() {
