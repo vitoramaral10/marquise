@@ -5,6 +5,11 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- The drawer no longer lifts the app row up with it: the row fades out where it is, and only what the drawer holds
+  (inputs, shortcuts, weather) is left on screen.
+
 ## [1.16.0] - 2026-10-21
 
 ### Added

@@ -623,7 +623,9 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         float lift = -d * shift;
         show(heroLayer, top, lift);
         show(status, top, lift);
-        show(tiles, home, lift);
+        // The app row doesn't rise with the drawer: it fades out where it is, like the rest, and leaves only what is
+        // in the drawer (inputs, shortcuts, weather: what isn't on Home already).
+        show(tiles, top, 0);
         float da = home * smoothstep(0.1f, 0.6f, dc);
         drawerLayer.setTranslationY((1 - d) * shift);
         drawerLayer.setAlpha(da);
