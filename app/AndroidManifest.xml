@@ -86,6 +86,15 @@
             android:windowSoftInputMode="adjustPan"
             android:theme="@style/Marquise.Home" />
 
+        <!-- Search from Home: standard views, so typing uses the TV's keyboard. -->
+        <activity
+            android:name=".SearchActivity"
+            android:process=":home"
+            android:exported="false"
+            android:screenOrientation="landscape"
+            android:windowSoftInputMode="adjustPan"
+            android:theme="@style/Marquise.Home" />
+
         <!-- The home screen. Its own process (:home): if it ever crashes, the safety net in the main process still
              works. It only becomes the TV's home screen in Marquise mode (cmd package set-home-activity). -->
         <activity
@@ -119,6 +128,19 @@
                 <action android:name="android.service.dreams.DreamService" />
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
+        </service>
+
+        <!-- The remote's shortcut buttons in Marquise mode (HomeMode turns it on and off); in :home, with Prefs. -->
+        <service
+            android:name=".RemoteKeys"
+            android:process=":home"
+            android:exported="true"
+            android:label="Marquise"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data android:name="android.accessibilityservice" android:resource="@xml/remote_keys" />
         </service>
 
         <!-- The switches, as background jobs in the main process. -->

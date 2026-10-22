@@ -13,7 +13,7 @@ declare -A MAP=(
   [partly_cloudy_night]=partly_cloudy_night-fill [cloud]=cloud-fill [foggy]=foggy-fill [rainy]=rainy-fill
   [thunderstorm]=thunderstorm-fill [snowflake]=ac_unit
   [tv]=tv [live_tv]=live_tv-fill [hdmi]=settings_input_hdmi-fill [tv_settings]=display_settings-fill
-  [apps]=apps-fill [settings]=settings-fill [bell]=notifications-fill [check]=check [chevron_right]=chevron_right
+  [apps]=apps-fill [search]=search [settings]=settings-fill [bell]=notifications-fill [check]=check [chevron_right]=chevron_right
 )
 
 render() {   # svg -> white, trimmed PNG (the glyph's 24-unit box drawn at 172 px, the em Symbols.java expects)

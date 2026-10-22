@@ -388,7 +388,7 @@ public class SetupActivity extends Activity {
             io.execute(() -> {
                 try {
                     JSONArray list = new JSONObject(get("https://geocoding-api.open-meteo.com/v1/search?count=5&language="
-                            + (Ui.en ? "en" : "pt") + "&name=" + URLEncoder.encode(q, "UTF-8"))).optJSONArray("results");
+                            + Ui.lang + "&name=" + URLEncoder.encode(q, "UTF-8"))).optJSONArray("results");
                     main.post(() -> {
                         if (t != token) return;
                         if (list == null || list.length() == 0) {

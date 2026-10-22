@@ -179,6 +179,10 @@ final class HomeMode {
                 String found = currentHome(adb);
                 home = found != null ? realHome(found) : "";
             }
+            // The home screen answering Home now: turned off too when it isn't the recorded one (a stale record
+            // would leave it on, and it outranks ours).
+            String answering = currentHome(adb);
+            String nowPkg = answering == null ? null : packageOf(realHome(answering));
             String dream = s.optString("originalDream", "");
             if (dream.isEmpty()) dream = defaultDream(adb);
             // The screensaver the person had chosen ("null" = none, the TV's default), so "original" puts it back.
@@ -194,9 +198,11 @@ final class HomeMode {
             check(adb.shell("cmd package set-home-activity " + HOME_ACTIVITY), "Success",
                     Ui.tr("o Android não aceitou o novo Início", "Android didn't accept the new home screen"));
             adb.shell("settings put secure screensaver_components " + DREAM);
+            adb.shell(RemoteKeys.servicesCommand(adb.shell("settings get secure enabled_accessibility_services"), true));
             boolean assistantOff = Prefs.assistantOff(c);
             java.util.Set<String> extra = Prefs.extraDisable(c);
             List<String> targets = targets(home, dream, assistantOff, extra);
+            if (nowPkg != null && !targets.contains(nowPkg)) targets.add(0, nowPkg);
             Set<String> disabled = new HashSet<>(stringList(state(c), "disabled"));
             Set<String> present = packages(adb, "");
             int done = 0;
@@ -214,7 +220,8 @@ final class HomeMode {
                     .put("disabled", new JSONArray(sorted(disabled)));
             save(c, s);
             notice(c, Ui.tr("Marquise ligado: Início e tela de descanso novos, " + disabled.size() + " apps desligados.",
-                    "Marquise is on: new home screen and screensaver, " + disabled.size() + " apps turned off."));
+                    "Marquise is on: new home screen and screensaver, " + disabled.size() + " apps turned off.",
+                    "Marquise activado: Inicio y protector de pantalla nuevos, " + disabled.size() + " apps desactivadas."));
             done(c, null);
             adb.shell("am start -a android.intent.action.MAIN -c android.intent.category.HOME");
         } catch (Exception e) {
@@ -245,6 +252,7 @@ final class HomeMode {
             busy(c, Ui.tr("Devolvendo o Início original…", "Restoring the original home screen…"));
             boolean homeOk = restoreHome(adb, home);
             adb.shell(restoreDreamCommand(s.optString("originalDreamSetting", "")));
+            adb.shell(RemoteKeys.servicesCommand(adb.shell("settings get secure enabled_accessibility_services"), false));
             s = state(c);
             s.remove("originalDreamSetting");   // back to the person's own: the next switch records it again
             s.put("mode", ORIGINAL).put("since", System.currentTimeMillis()).put("homeReverted", false)
@@ -342,6 +350,13 @@ final class HomeMode {
                     if (!reverted || !(pkg.equals(packageOf(home)) || pkg.equals(GOOGLE_SETUP))) wanted.add(pkg);
                 }
                 Set<String> disabled = new HashSet<>(stringList(s, "disabled"));
+                // The assistant was set to stay on (Preferences) after Marquise turned it off: on again, now.
+                if (!assistantOff) {
+                    wanted.removeAll(Arrays.asList(ASSISTANT));
+                    for (String pkg : ASSISTANT) {
+                        if (disabled.contains(pkg) && adb.shell("pm enable " + pkg).contains("new state: enabled")) disabled.remove(pkg);
+                    }
+                }
                 for (String pkg : sorted(wanted)) {
                     if (!mayTurnOff(pkg, packageOf(home), packageOf(s.optString("originalDream", "")), assistantOff, extra) || !present.contains(pkg)) continue;
                     if (disabledNow.contains(pkg)) {
@@ -361,6 +376,11 @@ final class HomeMode {
                     adb.shell("settings put secure screensaver_components " + DREAM);
                     fixed.add(Ui.tr("a tela de descanso", "the screensaver"));
                 }
+                String services = adb.shell("settings get secure enabled_accessibility_services");
+                if (!services.contains(RemoteKeys.SERVICE)) {
+                    adb.shell(RemoteKeys.servicesCommand(services, true));
+                    fixed.add(Ui.tr("os botões do controle", "the remote's buttons"));
+                }
                 JSONObject latest = state(app);
                 latest.put("disabled", new JSONArray(sorted(disabled)));
                 save(app, latest);
@@ -370,7 +390,7 @@ final class HomeMode {
             }
             if (!fixed.isEmpty()) {
                 notice(app, (updated ? Ui.tr("A atualização da TV religou ", "The TV update turned back on ")
-                        : Ui.tr("Desliguei o que faltava: ", "Turned off what was missing: ")) + String.join(", ", fixed) + ".");
+                        : Ui.tr("Completei o que faltava: ", "Put back what was missing: ")) + String.join(", ", fixed) + ".");
             } else if (updated) {
                 notice(app, Ui.tr("A TV foi atualizada; o Marquise continua igual.", "The TV was updated; Marquise is still on."));
             }

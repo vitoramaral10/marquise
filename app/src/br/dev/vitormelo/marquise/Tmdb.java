@@ -69,6 +69,11 @@ final class Tmdb {
             new Service("Pluto TV", new int[] {300}, null, "tv.pluto.android"),
     };
 
+    /** TMDB's language for titles and country names: English, Brazilian Portuguese or Latin American Spanish. */
+    private static String tmdbLanguage() {
+        return Ui.en ? "en-US" : Ui.es ? "es-MX" : "pt-BR";
+    }
+
     /** The installed app of a service, or null. */
     static String installed(PackageManager pm, Service s) {
         for (String pkg : s.pkgs) if (HomeApps.launchIntent(pm, pkg) != null) return pkg;
@@ -119,7 +124,7 @@ final class Tmdb {
 
     private static List<Recs.Pick> discover(Context c, String key, String region, String kind, String providers,
                                             Map<Integer, Service> services) throws IOException {
-        String lang = Ui.en ? "en-US" : "pt-BR";
+        String lang = tmdbLanguage();
         JSONArray results = json(key, "/discover/" + kind + "?watch_region=" + region + "&with_watch_providers=" + Uri.encode(providers)
                 + "&with_watch_monetization_types=" + Uri.encode("flatrate|free|ads") + "&sort_by=popularity.desc"
                 + "&vote_count.gte=20&include_adult=false&language=" + lang + "&page=1").optJSONArray("results");
@@ -131,23 +136,54 @@ final class Tmdb {
             Service s = provider(key, kind, o.optLong("id"), region, services);
             String pkg = s == null ? null : installed(pm, s);
             if (pkg == null) continue;
-            Recs.Pick p = new Recs.Pick();
-            p.itemId = "tmdb-" + o.optLong("id");
-            p.kind = kind;
-            p.title = o.optString(kind.equals("movie") ? "title" : "name");
-            p.poster = IMAGES + o.optString("poster_path");
-            p.app = s.name;
-            p.pkg = pkg;
-            p.uri = s.search == null ? null : String.format(Locale.ROOT, s.search, Uri.encode(p.title));
-            List<String> badge = new ArrayList<>();
-            badge.add(s.name);   // first: where it plays matters most, and the end of the line is what gets cut
-            String date = o.optString(kind.equals("movie") ? "release_date" : "first_air_date");
-            if (date.length() >= 4) badge.add(date.substring(0, 4));
-            double rating = o.optDouble("vote_average", 0);
-            if (rating > 0) badge.add("★ " + String.format(Ui.en ? Locale.US : Ui.PT, "%.1f", rating));
-            p.badge = String.join(" · ", badge);
-            out.add(p);
+            out.add(pick(o, kind, s, pkg));
         }
+        return out;
+    }
+
+    private static Recs.Pick pick(JSONObject o, String kind, Service s, String pkg) {
+        Recs.Pick p = new Recs.Pick();
+        p.itemId = "tmdb-" + o.optLong("id");
+        p.kind = kind;
+        p.title = o.optString(kind.equals("movie") ? "title" : "name");
+        p.poster = IMAGES + o.optString("poster_path");
+        p.app = s.name;
+        p.pkg = pkg;
+        p.uri = s.search == null ? null : String.format(Locale.ROOT, s.search, Uri.encode(p.title));
+        List<String> badge = new ArrayList<>();
+        badge.add(s.name);   // first: where it plays matters most, and the end of the line is what gets cut
+        String date = o.optString(kind.equals("movie") ? "release_date" : "first_air_date");
+        if (date.length() >= 4) badge.add(date.substring(0, 4));
+        double rating = o.optDouble("vote_average", 0);
+        if (rating > 0) badge.add("★ " + String.format(Ui.local(), "%.1f", rating));
+        p.badge = String.join(" · ", badge);
+        return p;
+    }
+
+    /**
+     * The home screen's search: titles matching the text that play on an installed service in the region (the same
+     * test as the popular list), best match first. Throws with a readable message when none does.
+     */
+    static List<Recs.Pick> search(Context c, String key, String region, String query) throws IOException {
+        Map<Integer, Service> services = installedServices(c);
+        if (services.isEmpty()) {
+            throw new IOException(Ui.tr("nenhum streaming conhecido instalado na TV", "no known streaming app installed on the TV"));
+        }
+        JSONArray results = json(key, "/search/multi?query=" + Uri.encode(query) + "&include_adult=false&language=" + tmdbLanguage()
+                + "&page=1").optJSONArray("results");
+        List<Recs.Pick> out = new ArrayList<>();
+        PackageManager pm = c.getPackageManager();
+        // shortcut: one request per title to see where it plays, so only the first dozen are checked; a long list needs
+        // TMDB's own "watch providers" filter on /discover, which can't search by name.
+        for (int i = 0; results != null && i < Math.min(12, results.length()); i++) {
+            JSONObject o = results.optJSONObject(i);
+            String kind = o == null ? "" : o.optString("media_type");
+            if (!kind.equals("movie") && !kind.equals("tv")) continue;
+            Service s = provider(key, kind, o.optLong("id"), region, services);
+            String pkg = s == null ? null : installed(pm, s);
+            if (pkg != null) out.add(pick(o, kind, s, pkg));
+        }
+        if (out.isEmpty()) throw new IOException(Ui.tr("nada achado nos seus streamings", "nothing found on your streaming apps"));
         return out;
     }
 
@@ -179,7 +215,7 @@ final class Tmdb {
 
     /** The countries TMDB has streaming catalogs for: {code, name}, sorted by name, in the TV's language. */
     static List<String[]> regions(String key) throws IOException {
-        JSONArray results = json(key, "/watch/providers/regions?language=" + (Ui.en ? "en-US" : "pt-BR")).optJSONArray("results");
+        JSONArray results = json(key, "/watch/providers/regions?language=" + tmdbLanguage()).optJSONArray("results");
         List<String[]> out = new ArrayList<>();
         for (int i = 0; results != null && i < results.length(); i++) {
             JSONObject o = results.optJSONObject(i);
@@ -187,7 +223,7 @@ final class Tmdb {
             String name = o.optString("native_name", o.optString("english_name"));
             out.add(new String[] {o.optString("iso_3166_1"), name});
         }
-        final Collator collator = Collator.getInstance(Ui.en ? Locale.US : Ui.PT);
+        final Collator collator = Collator.getInstance(Ui.local());
         Collections.sort(out, (a, b) -> collator.compare(a[1], b[1]));
         return out;
     }

@@ -5,6 +5,30 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Spanish (Latin American). *Español* is a choice in *Preferences → Language*, and it is picked by itself when the TV
+  is set to Spanish: every text, the greeting and the tabs, the weather words, the date and the clock, the title lists
+  from TMDB, and the *Resume / Next* lines under a poster.
+- The remote's shortcut buttons work in Marquise mode, and each one can open what you choose in *Preferences →
+  Remote buttons*: Netflix, Prime Video, YouTube, Globoplay, TCL Channel, Disney+, Settings and TV (codes read on a
+  TCL remote, whose system keeps those buttons for the stock home screen). Marquise turns on its own accessibility
+  service for this when switched on, and Original turns it off.
+
+- An HDMI input can be put on the app row: *All Apps* lists the TV's inputs, and holding OK on one on the row removes it,
+  like an app. An input whose port is gone from the TV stays off the row.
+- Search on Home: a magnifier button in the corner opens a search where you type a title with the TV's keyboard. It
+  lists what matches on your Jellyfin server, or what plays on your streaming apps (TMDB), and OK opens it in its app.
+
+### Changed
+
+- *Preferences → Google Assistant* takes effect at once while Marquise is on, instead of at the next switch.
+
+### Fixed
+
+- Switching Marquise on again could leave Google TV's home screen on and in charge of the Home button, when the home
+  screen Marquise had recorded wasn't the one answering it: the one answering is now turned off too.
+
 ## [1.16.1] - 2026-10-21
 
 ### Changed

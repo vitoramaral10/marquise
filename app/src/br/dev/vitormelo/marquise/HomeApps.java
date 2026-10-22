@@ -57,6 +57,8 @@ final class HomeApps {
     static final int APP = 0, LIVE_TV = 1, INPUT = 2, ALL_APPS = 3, SETTINGS = 4, ANDROID_SETTINGS = 5;
     /** The "HDMI Inputs" button: opens the bottom drawer on the inputs (the home screen handles it). */
     static final int INPUTS = 7;
+    /** The "Search" button: opens the search screen (the home screen handles it). */
+    static final int SEARCH = 8;
     /** Image size of each card (16:9; on screen it shows up to ~330 px wide). */
     static final int TILE_W = 384, TILE_H = 216;
 
@@ -124,8 +126,14 @@ final class HomeApps {
     static List<Item> shelf(Context c, boolean extract) {
         List<Item> items = new ArrayList<>();
         PackageManager pm = c.getPackageManager();
+        List<Item> hdmi = null;   // the TV's inputs, asked for once and only if the row has one
         for (String key : shelfOrder(c)) {
             if (items.size() >= MAX_SHELF) break;
+            if (key.matches("hdmi\\d+")) {   // an input the person put on the row (from All Apps); gone with the device's port
+                if (hdmi == null) hdmi = inputs(c, true);
+                for (Item in : hdmi) if (in.key.equals(key)) items.add(in);
+                continue;
+            }
             if (key.equals("live")) {   // over-the-air TV (the tuner's channels), when the TV has one
                 if (liveTv(c) != null) items.add(shortcut(LIVE_TV, "live", Ui.tr("TV Aberta", "Live TV"), "tv"));
                 continue;
@@ -238,6 +246,14 @@ final class HomeApps {
         return items;
     }
 
+    /** What opens a title: its service's app, on the Jellyfin item or on the service's search link. */
+    static Item pickItem(Recs.Pick p) {
+        Item it = app(p.pkg, Recs.serviceName(p));
+        if (Recs.JELLYFIN_PKG.equals(p.pkg)) it.itemId = p.itemId;
+        it.uri = p.uri;
+        return it;
+    }
+
     /** A streaming service's app (the "Watch" button of the featured pick). */
     static Item app(String pkg, String label) {
         Item it = new Item();
@@ -328,8 +344,21 @@ final class HomeApps {
             it.tile = appTile(c, null, pkg, 0);
             items.add(it);
         }
+        // The HDMI inputs that aren't on the row: a dark card with the input's symbol, added to Home like an app.
+        List<String> onRow = shelfOrder(c);
+        for (Item in : inputs(c, true)) {
+            if (onRow.contains(in.key)) continue;
+            in.tile = inputTile(c);
+            items.add(in);
+        }
         Collections.sort(items, (a, b) -> a.label.toLowerCase(Locale.ROOT).compareTo(b.label.toLowerCase(Locale.ROOT)));
         return items;
+    }
+
+    private static Bitmap inputTile(Context c) {
+        Bitmap b = darkTile();
+        Symbols.draw(c, new Canvas(b), "hdmi", TILE_W / 2f, TILE_H / 2f, TILE_H * 0.4f, 0xF2FFFFFF);
+        return b;
     }
 
     /** Opens the item with the system zoom transition growing out of the card (the app starts opening right away). */

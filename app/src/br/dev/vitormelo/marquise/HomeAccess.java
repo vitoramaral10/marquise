@@ -51,9 +51,17 @@ final class HomeAccess extends AccessibilityNodeProvider {
         this.manager = (AccessibilityManager) host.getContext().getSystemService(android.content.Context.ACCESSIBILITY_SERVICE);
     }
 
-    /** Whether a screen reader (or another accessibility service) is on: nothing is built or sent otherwise. */
+    /**
+     * Whether a screen reader (or another accessibility service) is on: nothing is built or sent otherwise. Marquise's
+     * own RemoteKeys doesn't count: it only takes the remote's buttons.
+     */
     boolean on() {
-        return manager != null && manager.isEnabled();
+        if (manager == null || !manager.isEnabled()) return false;
+        for (android.accessibilityservice.AccessibilityServiceInfo info
+                : manager.getEnabledAccessibilityServiceList(android.accessibilityservice.AccessibilityServiceInfo.FEEDBACK_ALL_MASK)) {
+            if (!RemoteKeys.SERVICE.equals(info.getId()) && !(HomeMode.PKG + "/.RemoteKeys").equals(info.getId())) return true;
+        }
+        return false;
     }
 
     @Override public AccessibilityNodeInfo createAccessibilityNodeInfo(int virtualViewId) {

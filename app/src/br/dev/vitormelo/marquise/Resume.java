@@ -18,11 +18,12 @@ final class Resume {
     }
 
     /**
-     * "Resume · 42 min" for a movie, "Resume · S2 E4" for an episode being watched, "Next · S2 E5" for the episode after
+     * The language is "en", "pt" or "es". "Resume · 42 min" for a movie, "Resume · S2 E4" for an episode being watched, "Next · S2 E5" for the episode after
      * the last one watched. Short on purpose: it is all that fits under a poster. A missing number leaves just the word.
      */
-    static String badge(boolean en, boolean next, boolean episode, int season, int episodeNumber, int minutesLeft) {
-        String word = next ? (en ? "Next" : "Próximo") : (en ? "Resume" : "Continuar");
+    static String badge(String lang, boolean next, boolean episode, int season, int episodeNumber, int minutesLeft) {
+        boolean en = lang.equals("en");
+        String word = next ? (en ? "Next" : lang.equals("es") ? "Siguiente" : "Próximo") : (en ? "Resume" : "Continuar");
         if (episode) {
             return season > 0 && episodeNumber > 0 ? word + " · " + (en ? "S" : "T") + season + " E" + episodeNumber : word;
         }

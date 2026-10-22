@@ -89,8 +89,8 @@ key.
 **On the TV**, in Marquise's settings (its icon, or the gear at the top of Home): the Jellyfin server and account,
 where the posters come from (*Titles*: your Jellyfin server and account, or TMDB with your key and country), your
 city, the Home screen (Marquise or Original), a screensaver preview, and *Updates*: the new version when there is
-one, and stable releases only (the default) or betas too; and *Preferences*: the language (automatic, Português or
-English), Celsius or Fahrenheit, whether Marquise mode also turns off Google Assistant, and *Factory apps*: pick, from
+one, and stable releases only (the default) or betas too; and *Preferences*: the language (automatic, Português,
+English or Español), Celsius or Fahrenheit, whether Marquise mode also turns off Google Assistant, and *Factory apps*: pick, from
 the list of the TV's own apps, the ones Marquise mode should turn off too.
 
 **The app row:** hold OK on an app of the row to *Move* it (← →, then OK), *Remove* it or *Restore the default row*,
@@ -104,7 +104,7 @@ opens Android's own confirmation. All of that is saved on the TV and survives up
 | `jellyfin_url`, `jellyfin_key`, `jellyfin_user` | Pre-fill the server, an API key and the user (skips the setup) | empty |
 | `shelf` | The default app row: `jellyfin`, `live`, `youtube`, `netflix`, `prime`, `disney`, `max`, `appletv`, `hulu`, `paramount`, `peacock`, `globoplay`, `spotify`, `f1tv` | `jellyfin,live,youtube,netflix,prime,disney,max,spotify` |
 | `latitude`, `longitude`, `city` | Pre-fill the city | New York |
-| `language` | `auto` (follows the TV), `en` or `pt`; the starting value of *Preferences → Language* | `auto` |
+| `language` | `auto` (follows the TV), `en`, `pt` or `es`; the starting value of *Preferences → Language* | `auto` |
 | `temperature` | `C`, `F` or `auto`; the starting value of *Preferences → Temperature* | `auto` |
 | `disable_assistant` | Also turn off Google Assistant (the mic button stops); the starting value of *Preferences → Google Assistant* | `false` |
 | `extra_disable` | More packages to turn off while Marquise is on, comma-separated; where *Preferences → Factory apps* starts | empty |

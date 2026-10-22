@@ -9,13 +9,17 @@ import java.util.UUID;
 /**
  * What was chosen on the TV (the setup wizard and the settings screen): where the posters come from (Jellyfin or
  * TMDB), the Jellyfin server and account, the TMDB key and country, and the city. config.properties gives the defaults, so a build made for one TV works without the wizard.
- * Read and written in the :home process only (the home screen, the settings and the wizard all live there).
+ * Written in the :home process only (the home screen, the settings and the wizard all live there); the switches in
+ * the main process read it.
  */
 final class Prefs {
     private Prefs() {}
 
     private static SharedPreferences p(Context c) {
-        return c.getSharedPreferences("settings", Context.MODE_PRIVATE);
+        // shortcut: in the main process, MODE_MULTI_PROCESS (deprecated) re-reads the file :home wrote, so a switch sees
+        // the choice just made; :home, which writes it and reads it while drawing, keeps the plain cache. Move to a
+        // ContentProvider if the file is ever written from both.
+        return c.getSharedPreferences("settings", android.app.Application.getProcessName().endsWith(":home") ? Context.MODE_PRIVATE : Context.MODE_PRIVATE | Context.MODE_MULTI_PROCESS);
     }
 
     // MARK: - Jellyfin
@@ -94,7 +98,7 @@ final class Prefs {
     /** "Brasil", for the settings screen. */
     static String regionName(Context c) {
         String code = region(c);
-        String name = new Locale("", code).getDisplayCountry(Ui.en ? Locale.US : Ui.PT);
+        String name = new Locale("", code).getDisplayCountry(Ui.local());
         return p(c).getString("regionName", name.isEmpty() ? code : name);
     }
 
@@ -132,7 +136,7 @@ final class Prefs {
 
     // MARK: - Preferences (what only config.properties could set before; its values are the defaults)
 
-    /** "auto" (follows the TV), "en" or "pt". Read at every start of a process and when the person changes it. */
+    /** "auto" (follows the TV), "en", "pt" or "es". Read at every start of a process and when the person changes it. */
     static volatile String language = Config.LANGUAGE;
     /** "auto" (Fahrenheit when the TV is set to the US), "C" or "F". */
     static volatile String temperature = Config.TEMPERATURE;
@@ -141,7 +145,7 @@ final class Prefs {
     static void load(Context c) {
         language = p(c).getString("language", Config.LANGUAGE);
         temperature = p(c).getString("temperature", Config.TEMPERATURE);
-        Ui.en = Ui.english();
+        Ui.refreshLanguage();
     }
 
     static void setLanguage(Context c, String value) {
@@ -187,6 +191,17 @@ final class Prefs {
 
     static void setExtraDisable(Context c, java.util.Collection<String> packages) {
         p(c).edit().putString("extraDisable", String.join(",", parsePackages(String.join(",", packages)))).apply();
+    }
+
+    // MARK: - Remote buttons
+
+    /** What a remote button opens (RemoteKeys: a package or one of its targets); fallback until one is chosen. */
+    static String remoteTarget(Context c, String button, String fallback) {
+        return p(c).getString("remote." + button, fallback);
+    }
+
+    static void setRemoteTarget(Context c, String button, String target) {
+        p(c).edit().putString("remote." + button, target).apply();
     }
 
     // MARK: - Updates
