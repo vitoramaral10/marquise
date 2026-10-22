@@ -5,6 +5,8 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.18.0] - 2026-10-22
+
 ### Added
 
 - The search shows each title's poster, and on TMDB it now checks where all 20 matches play (it was the first 12), a few
