@@ -15,6 +15,11 @@ and versions follow [Semantic Versioning](https://semver.org/).
   TCL remote, whose system keeps those buttons for the stock home screen). Marquise turns on its own accessibility
   service for this when switched on, and Original turns it off.
 
+- An HDMI input can be put on the app row: *All Apps* lists the TV's inputs, and holding OK on one on the row removes it,
+  like an app. An input whose port is gone from the TV stays off the row.
+- Search on Home: a magnifier button in the corner opens a search where you type a title with the TV's keyboard. It
+  lists what matches on your Jellyfin server, or what plays on your streaming apps (TMDB), and OK opens it in its app.
+
 ### Changed
 
 - *Preferences → Google Assistant* takes effect at once while Marquise is on, instead of at the next switch.

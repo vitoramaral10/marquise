@@ -4,6 +4,7 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.net.Uri;
 import android.os.Handler;
 import android.os.Looper;
 
@@ -108,6 +109,33 @@ final class Recs {
 
     static boolean hasKey(Context c) {
         return tmdb(c) ? Prefs.tmdbReady(c) : Prefs.jellyfinReady(c);
+    }
+
+    /**
+     * The home screen's search on the person's source: the titles on their Jellyfin server, or those that play on their
+     * streaming apps (TMDB). Throws with a readable message when there is none. Run it off the UI thread.
+     */
+    List<Pick> search(String query) throws Exception {
+        if (tmdb(context)) return Tmdb.search(context, Prefs.tmdbKey(context), Prefs.region(context), query);
+        if (HomeApps.launchIntent(context.getPackageManager(), JELLYFIN_PKG) == null) {
+            throw new IOException(Ui.tr("o app do Jellyfin não está instalado", "the Jellyfin app isn't installed"));
+        }
+        JSONArray items = new JSONObject(get("/Users/" + user() + "/Items?searchTerm=" + Uri.encode(query)
+                + "&IncludeItemTypes=Movie,Series&Recursive=true&Limit=20&Fields=ProductionYear")).getJSONArray("Items");
+        List<Pick> out = new ArrayList<>();
+        for (int i = 0; i < items.length(); i++) {
+            JSONObject o = items.getJSONObject(i);
+            Pick p = new Pick();
+            p.itemId = o.optString("Id");
+            p.kind = o.optString("Type").equals("Movie") ? "movie" : "tv";
+            p.title = o.optString("Name");
+            p.app = "Jellyfin";
+            p.pkg = JELLYFIN_PKG;
+            p.badge = "Jellyfin" + (o.optInt("ProductionYear") > 0 ? " · " + o.optInt("ProductionYear") : "");   // as TMDB's: where first
+            if (!p.itemId.isEmpty()) out.add(p);
+        }
+        if (out.isEmpty()) throw new IOException(Ui.tr("nada achado no Jellyfin", "nothing found on Jellyfin"));
+        return out;
     }
 
     static boolean tmdb(Context c) {

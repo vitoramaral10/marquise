@@ -102,6 +102,10 @@ TVs that don't run Google TV or Android TV (Samsung, LG and others): the way is 
   runs with the reader off. `tools/emulator_check.sh` reads the tree; Google TV's emulator image has TalkBack
   (`com.google.android.marvin.talkback`): turn it on with `settings put secure enabled_accessibility_services …` on the
   emulator (never a real TV) and drive Home with the arrow keys to see its focus box.
+- Search (`SearchActivity`, from the magnifier in Home's corner, shown once a source is set) asks `Recs.search`: the
+  Jellyfin server (`/Users/{id}/Items?searchTerm=`) or `Tmdb.search` (the titles on an installed service, as the
+  popular list). OK opens a result like a poster (`HomeApps.pickItem`). An HDMI input goes on the row with the key
+  `hdmiN` (`HomeApps.shelf` looks it up among the TV's inputs; `others` offers the ones not on the row).
 - `RemoteKeys` is an accessibility service that only filters keys: the remote's shortcut buttons (TCL codes in
   `BUTTONS`, found with `adb logcat` while pressing them: `handleKeyBeforeQueueing ... keyCode=`), opening what
   `Prefs.remoteTarget` says. `HomeMode` adds it to `enabled_accessibility_services` with Marquise, takes it out with

@@ -114,13 +114,13 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
     private boolean nightPair;          // the glass holds both photos (day and night), blended by `night`
     private Shader nightGradient;
 
-    // At the top: tabs (0 to 2) and icon-only buttons (3 to 5); the three cards
+    // At the top: tabs (0 to 2) and icon-only buttons (3 to 6); the three cards
     private int tab, topIndex, cardIndex;
     private List<Recs.Pick> cards = new ArrayList<>();
     // The top row: tabs 0–2, the corner buttons from 3, and the time and weather (CLOCK), which sits between them.
-    private static final int CLOCK = 6;
-    private final Spring[] topFocus = new Spring[7];
-    private final RectF[] topRects = new RectF[7];
+    private static final int BUTTONS = 4, CLOCK = 3 + BUTTONS;
+    private final Spring[] topFocus = new Spring[CLOCK + 1];
+    private final RectF[] topRects = new RectF[CLOCK + 1];
     /** Posters in the row (Recs.PER_TAB per tab). */
     private static final int CARDS = Recs.PER_TAB;
     private static final float L_POSTER_H = 400;
@@ -450,6 +450,8 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         for (HomeApps.Item it : shelf) liveOnRow |= it.kind == HomeApps.LIVE_TV;
         if (!liveOnRow) lightButtons.add(HomeApps.action(HomeApps.LIVE_TV, "live", Ui.tr("TV aberta", "Live TV"), "live_tv"));
         lightButtons.add(HomeApps.action(HomeApps.INPUTS, "inputs", Ui.tr("Entradas HDMI", "HDMI Inputs"), "hdmi"));
+        // Search needs a source to search: the person's Jellyfin or TMDB, once set up.
+        if (Recs.hasKey(getContext())) lightButtons.add(HomeApps.action(HomeApps.SEARCH, "search", Ui.tr("Buscar", "Search"), "search"));
         lightButtons.add(HomeApps.action(HomeApps.SETTINGS, "settings", Ui.tr("Configurações", "Settings"), "settings"));
     }
 
@@ -1677,7 +1679,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
             n.focus = () -> a11yFocus(Z_TOP, index);
             out.add(n);
         }
-        for (int j = 0; j < lightButtons.size() && j < 3; j++) {
+        for (int j = 0; j < lightButtons.size() && j < BUTTONS; j++) {
             if (topRects[3 + j].isEmpty()) continue;
             final int index = 3 + j;
             HomeAccess.Node n = a11yNode(A_TOP + index, lightButtons.get(j).label, topRects[index], status);
@@ -2033,9 +2035,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
             }
             Recs.Pick p = cardIndex < cards.size() ? cards.get(cardIndex) : null;
             if (p == null || p.pkg == null) return;
-            it = HomeApps.app(p.pkg, Recs.serviceName(p));
-            if (Recs.JELLYFIN_PKG.equals(p.pkg)) it.itemId = p.itemId;
-            it.uri = p.uri;
+            it = HomeApps.pickItem(p);
             r = cardRects[cardIndex];
         } else {
             if (shelf.isEmpty()) return;
@@ -2045,6 +2045,10 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         click.open();
         if (it.kind == HomeApps.ALL_APPS) {
             openSheet();
+            return;
+        }
+        if (it.kind == HomeApps.SEARCH) {
+            activity.startActivity(new android.content.Intent(activity, SearchActivity.class));
             return;
         }
         if (it.kind == HomeApps.INPUTS) {
@@ -2076,7 +2080,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
             x = topRects[i].right + 4 * k;
         }
         float b = L_BUTTON * k, right = CONTENT_R * k, cy = L_BUTTON_CY * k;
-        for (int i = 2; i >= 0; i--) {
+        for (int i = BUTTONS - 1; i >= 0; i--) {
             if (i >= lightButtons.size()) {
                 topRects[3 + i].setEmpty();
                 continue;
