@@ -21,6 +21,8 @@ import android.widget.TextView;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  * The home screen's search: type a title (the TV's keyboard), and the titles on the person's Jellyfin server or on
@@ -32,6 +34,8 @@ public class SearchActivity extends Activity {
     private static final int INK = 0xFF1D1D1F, DIM = 0xFF6E6E73, FAINT = 0xFF8E8E93;
 
     private final Handler main = new Handler(Looper.getMainLooper());
+    // One search at a time: a new one waits for the last (the token drops its answer), so repeated sends don't pile up.
+    private final ExecutorService io = Executors.newSingleThreadExecutor();
     private final List<Recs.Pick> found = new ArrayList<>();
     private final List<String> rows = new ArrayList<>();
     private ArrayAdapter<String> adapter;
@@ -92,11 +96,17 @@ public class SearchActivity extends Activity {
         list.setAdapter(adapter);
         list.setOnItemClickListener((parent, view, position, id) -> open(found.get(position), view));
         root.addView(list, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1));
+        // TMDB's terms: this notice wherever its data is shown (as on the settings screen).
+        if (Recs.tmdb(this)) {
+            root.addView(text(Ui.tr("Usa a API do TMDB, sem endosso ou certificação do TMDB.",
+                    "Uses the TMDB API but is not endorsed or certified by TMDB."), 22 * k, Ui.regular, FAINT));
+        }
         setContentView(root);
     }
 
     @Override protected void onDestroy() {
         token++;
+        io.shutdownNow();
         super.onDestroy();
     }
 
@@ -119,7 +129,7 @@ public class SearchActivity extends Activity {
         rows.clear();
         adapter.notifyDataSetChanged();
         status.setText(Ui.tr("Buscando…", "Searching…"));
-        new Thread(() -> {
+        io.execute(() -> {
             List<Recs.Pick> result = null;
             String error = null;
             try {
@@ -142,7 +152,7 @@ public class SearchActivity extends Activity {
                 adapter.notifyDataSetChanged();
                 list.requestFocus();
             });
-        }, "marquise-search").start();
+        });
     }
 
     private void open(Recs.Pick p, View from) {
