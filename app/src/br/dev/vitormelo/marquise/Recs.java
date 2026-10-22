@@ -129,6 +129,7 @@ final class Recs {
             p.itemId = o.optString("Id");
             p.kind = o.optString("Type").equals("Movie") ? "movie" : "tv";
             p.title = o.optString("Name");
+            p.poster = posterPath(o);
             p.app = "Jellyfin";
             p.pkg = JELLYFIN_PKG;
             p.badge = "Jellyfin" + (o.optInt("ProductionYear") > 0 ? " · " + o.optInt("ProductionYear") : "");   // as TMDB's: where first
@@ -504,6 +505,40 @@ final class Recs {
 
     // MARK: - Images (backdrops on disk, up to MAX so the whole list fits; the shown ones kept ready in memory)
 
+    /** The connection to an image: TMDB's public URL, or the Jellyfin server's (a poster, or a wide backdrop). */
+    private HttpURLConnection openImage(String path) throws IOException {
+        if (path.startsWith("https://")) {
+            HttpURLConnection c = (HttpURLConnection) new URL(path).openConnection();
+            c.setConnectTimeout(8000);
+            return c;
+        }
+        boolean poster = path.contains("/Images/Primary");
+        return open(server() + path + (poster ? "&maxHeight=840&quality=92" : "&maxWidth=1920&quality=90"));
+    }
+
+    /**
+     * A small poster for the search list, decoded in memory (nothing is saved, so the home posters on disk stay): null
+     * when the title has none or it can't be had. Run it off the UI thread.
+     */
+    Bitmap thumbnail(Pick p, int height) {
+        if (p.poster == null) return null;
+        try {
+            HttpURLConnection c = openImage(p.poster);
+            c.setReadTimeout(10000);
+            try (InputStream in = c.getInputStream()) {
+                Bitmap b = BitmapFactory.decodeStream(in);
+                if (b == null) return null;
+                Bitmap small = Bitmap.createScaledBitmap(b, Math.max(1, b.getWidth() * height / b.getHeight()), height, true);
+                if (small != b) b.recycle();
+                return small;
+            } finally {
+                c.disconnect();
+            }
+        } catch (IOException | RuntimeException | OutOfMemoryError e) {
+            return null;
+        }
+    }
+
     private void download(String path) throws IOException {
         if (path == null) return;
         File f = imageFile(path);
@@ -511,14 +546,7 @@ final class Recs {
         //noinspection ResultOfMethodCallIgnored
         f.getParentFile().mkdirs();
         File part = new File(f.getPath() + ".part");
-        HttpURLConnection c;
-        if (path.startsWith("https://")) {   // TMDB: a public image URL
-            c = (HttpURLConnection) new URL(path).openConnection();
-            c.setConnectTimeout(8000);
-        } else {
-            boolean poster = path.contains("/Images/Primary");
-            c = open(server() + path + (poster ? "&maxHeight=840&quality=92" : "&maxWidth=1920&quality=90"));
-        }
+        HttpURLConnection c = openImage(path);
         c.setReadTimeout(20000);
         try (InputStream in = c.getInputStream(); FileOutputStream out = new FileOutputStream(part)) {
             byte[] buffer = new byte[16384];

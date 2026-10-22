@@ -104,7 +104,8 @@ TVs that don't run Google TV or Android TV (Samsung, LG and others): the way is 
   emulator (never a real TV) and drive Home with the arrow keys to see its focus box.
 - Search (`SearchActivity`, from the magnifier in Home's corner, shown once a source is set) asks `Recs.search`: the
   Jellyfin server (`/Users/{id}/Items?searchTerm=`) or `Tmdb.search` (the titles on an installed service, as the
-  popular list). OK opens a result like a poster (`HomeApps.pickItem`). An HDMI input goes on the row with the key
+  popular list; the first page, checked six at a time). Each row has its poster (`Recs.thumbnail`, in memory only).
+  OK opens a result like a poster (`HomeApps.pickItem`). An HDMI input goes on the row with the key
   `hdmiN` (`HomeApps.shelf` looks it up among the TV's inputs; `others` offers the ones not on the row).
 - `RemoteKeys` is an accessibility service that only filters keys: the remote's shortcut buttons (TCL codes in
   `BUTTONS`, found with `adb logcat` while pressing them: `handleKeyBeforeQueueing ... keyCode=`), opening what
