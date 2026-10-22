@@ -7,9 +7,10 @@ terminal, and only then does it grow.
 This is a plan, not a promise. Items move when the reports from real TVs say they should. Want something here, or
 something that isn't? Open an issue.
 
-**Where it stands (1.13.0):** the safe-releases stretch is done, and "everything from the TV" is well along. What is
-left is the compatibility table (which waits for reports from other brands), then the
-"better titles" and "reach" stretches below.
+**Where it stands (1.17.0):** the safe-releases stretch and "everything from the TV" are done in the code, and from
+"better titles" the continue-watching row, the HDMI inputs and the search are in. What waits is what needs people:
+TalkBack tried by someone who uses it and the compatibility table (reports from other brands). Then the rest of
+"better titles" (deep links, Emby, Plex) and "reach".
 
 | Version | What it brought |
 |---|---|
@@ -17,6 +18,10 @@ left is the compatibility table (which waits for reports from other brands), the
 | 1.11.0 | The last errors on *This TV* and in the report's QR code |
 | 1.12.0 | Settings → *Preferences*: language, Celsius or Fahrenheit, Google Assistant |
 | 1.13.0 | *Preferences* → *Factory apps*: pick from the TV which apps to turn off |
+| 1.14.0 | Home works with TalkBack (and other screen readers) |
+| 1.15.0 | The settings work with TalkBack |
+| 1.16.0 | Jellyfin: *continue watching* and the next episodes, first in each tab |
+| 1.17.0 | Spanish; the remote's shortcut buttons (TCL) open what you choose; an HDMI input on the row; search on Home |
 
 Not in that table because they don't ship in the app: the unit tests, the emulator check on every PR, the CI budgets,
 the code of conduct and the security policy.
@@ -76,8 +81,12 @@ exist.
 
 - ~~**Every option in the settings.**~~ Nearly done: Settings → *Preferences* has the language, Celsius or
   Fahrenheit, Google Assistant and *Factory apps* (`config.properties` only sets where they start, as it does for
-  Jellyfin and the city). Only the default app row (`shelf`) is still build-only, and the row itself is already
-  edited from Home (*Restore the default row* goes back to the build's).
+  Jellyfin and the city). The default app row (`shelf`) stays a build setting on purpose: the row itself is edited
+  from Home (hold OK on an app), and *Restore the default row* goes back to the build's.
+- ~~**The remote's shortcut buttons.**~~ Done on TCL (1.17.0): their system keeps Netflix, Prime Video, YouTube,
+  Globoplay, TCL Channel, Disney+, Settings and TV for the stock home screen, so Marquise reads them first with an
+  accessibility service (`RemoteKeys`) and each opens what *Preferences → Remote buttons* says. The key codes were
+  read on one TCL TV; another brand's remote sends other codes, which a `This TV` report can bring in.
 - **TalkBack.** *Done in the code, not yet by a person who uses it.* Home and the settings were drawn on a canvas, so
   a screen reader saw nothing. `HomeView` and `SettingsView` now have an `AccessibilityNodeProvider` (`HomeAccess`):
   on Home, the tabs, the corner buttons, the time and weather, the posters, the app row, the drawer, *All Apps* and
