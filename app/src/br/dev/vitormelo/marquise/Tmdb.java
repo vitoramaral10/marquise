@@ -20,6 +20,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 /**
  * The other source of posters, for whoever has no Jellyfin: what's popular in the chosen country on the streaming
@@ -146,7 +149,8 @@ final class Tmdb {
         p.itemId = "tmdb-" + o.optLong("id");
         p.kind = kind;
         p.title = o.optString(kind.equals("movie") ? "title" : "name");
-        p.poster = IMAGES + o.optString("poster_path");
+        String poster = o.optString("poster_path");
+        p.poster = poster.isEmpty() || poster.equals("null") ? null : IMAGES + poster;   // a search can match a title with none
         p.app = s.name;
         p.pkg = pkg;
         p.uri = s.search == null ? null : String.format(Locale.ROOT, s.search, Uri.encode(p.title));
@@ -173,15 +177,30 @@ final class Tmdb {
                 + "&page=1").optJSONArray("results");
         List<Recs.Pick> out = new ArrayList<>();
         PackageManager pm = c.getPackageManager();
-        // shortcut: one request per title to see where it plays, so only the first dozen are checked; a long list needs
-        // TMDB's own "watch providers" filter on /discover, which can't search by name.
-        for (int i = 0; results != null && i < Math.min(12, results.length()); i++) {
-            JSONObject o = results.optJSONObject(i);
-            String kind = o == null ? "" : o.optString("media_type");
-            if (!kind.equals("movie") && !kind.equals("tv")) continue;
-            Service s = provider(key, kind, o.optLong("id"), region, services);
-            String pkg = s == null ? null : installed(pm, s);
-            if (pkg != null) out.add(pick(o, kind, s, pkg));
+        // Where a title plays is one request each: the whole page (20 matches) is checked, a few at a time, in order.
+        ExecutorService pool = Executors.newFixedThreadPool(6);
+        try {
+            List<Future<Recs.Pick>> checks = new ArrayList<>();
+            for (int i = 0; results != null && i < results.length(); i++) {
+                final JSONObject o = results.optJSONObject(i);
+                final String kind = o == null ? "" : o.optString("media_type");
+                if (!kind.equals("movie") && !kind.equals("tv")) continue;
+                checks.add(pool.submit(() -> {
+                    Service s = provider(key, kind, o.optLong("id"), region, services);
+                    String pkg = s == null ? null : installed(pm, s);
+                    return pkg == null ? null : pick(o, kind, s, pkg);
+                }));
+            }
+            for (Future<Recs.Pick> check : checks) {
+                try {
+                    Recs.Pick p = check.get();
+                    if (p != null) out.add(p);
+                } catch (Exception e) {
+                    AppLog.w("tmdb search: " + e.getMessage());
+                }
+            }
+        } finally {
+            pool.shutdown();
         }
         if (out.isEmpty()) throw new IOException(Ui.tr("nada achado nos seus streamings", "nothing found on your streaming apps"));
         return out;

@@ -3,6 +3,8 @@ package br.dev.vitormelo.marquise;
 import android.app.Activity;
 import android.content.Context;
 import android.content.res.ColorStateList;
+import android.graphics.Bitmap;
+import android.graphics.Outline;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
 import android.os.Handler;
@@ -11,16 +13,20 @@ import android.text.InputType;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.ViewOutlineProvider;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.ArrayAdapter;
 import android.widget.EditText;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.TextView;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -37,8 +43,10 @@ public class SearchActivity extends Activity {
     // One search at a time: a new one waits for the last (the token drops its answer), so repeated sends don't pile up.
     private final ExecutorService io = Executors.newSingleThreadExecutor();
     private final List<Recs.Pick> found = new ArrayList<>();
-    private final List<String> rows = new ArrayList<>();
-    private ArrayAdapter<String> adapter;
+    private ArrayAdapter<Recs.Pick> adapter;
+    // The small posters: loaded a few at a time, kept for the screen's life (20 at most per search, a few hundred KB).
+    private final ExecutorService thumbs = Executors.newFixedThreadPool(3);
+    private final Map<String, Bitmap> posters = new HashMap<>();
     private TextView status;
     private ListView list;
     private EditText input;
@@ -84,13 +92,41 @@ public class SearchActivity extends Activity {
         pill.setColor(0xFFFFFFFF);
         pill.setCornerRadius(22 * k);
         list.setSelector(pill);
-        final float size = 32 * k;
-        adapter = new ArrayAdapter<String>(this, 0, rows) {
+        final int posterH = Math.round(150 * k), posterW = posterH * 2 / 3, pad = Math.round(14 * k);
+        final ViewOutlineProvider rounded = new ViewOutlineProvider() {
+            @Override public void getOutline(View v, Outline outline) {
+                outline.setRoundRect(0, 0, v.getWidth(), v.getHeight(), 10 * k);
+            }
+        };
+        adapter = new ArrayAdapter<Recs.Pick>(this, 0, found) {
             @Override public View getView(int position, View convert, ViewGroup parent) {
-                TextView t = convert instanceof TextView ? (TextView) convert : text("", size, Ui.medium, INK);
-                t.setText(getItem(position));
-                t.setPadding(Math.round(24 * k), Math.round(18 * k), Math.round(24 * k), Math.round(18 * k));
-                return t;
+                if (convert == null) {   // the poster, then the title over a grey line (the service and the year)
+                    LinearLayout row = new LinearLayout(SearchActivity.this);
+                    row.setGravity(Gravity.CENTER_VERTICAL);
+                    row.setPadding(Math.round(24 * k), pad, Math.round(24 * k), pad);
+                    ImageView image = new ImageView(SearchActivity.this);
+                    image.setScaleType(ImageView.ScaleType.CENTER_CROP);
+                    image.setBackgroundColor(0xFFDCDCE0);   // the card's grey, until the poster is in
+                    image.setOutlineProvider(rounded);
+                    image.setClipToOutline(true);
+                    row.addView(image, new LinearLayout.LayoutParams(posterW, posterH));
+                    LinearLayout texts = new LinearLayout(SearchActivity.this);
+                    texts.setOrientation(LinearLayout.VERTICAL);
+                    texts.setPadding(Math.round(28 * k), 0, 0, 0);
+                    texts.addView(text("", 32 * k, Ui.medium, INK));
+                    texts.addView(text("", 25 * k, Ui.regular, DIM));
+                    row.addView(texts);
+                    convert = row;
+                }
+                Recs.Pick p = getItem(position);
+                LinearLayout row = (LinearLayout) convert, texts = (LinearLayout) row.getChildAt(1);
+                ((TextView) texts.getChildAt(0)).setText(p.title);
+                ((TextView) texts.getChildAt(1)).setText(p.badge);
+                ImageView image = (ImageView) row.getChildAt(0);
+                image.setTag(p.poster);
+                image.setImageBitmap(posters.get(p.poster));
+                if (p.poster != null && !posters.containsKey(p.poster)) loadPoster(p, image, posterH);
+                return convert;
             }
         };
         list.setAdapter(adapter);
@@ -107,6 +143,7 @@ public class SearchActivity extends Activity {
     @Override protected void onDestroy() {
         token++;
         io.shutdownNow();
+        thumbs.shutdownNow();
         super.onDestroy();
     }
 
@@ -126,7 +163,6 @@ public class SearchActivity extends Activity {
         if (imm != null) imm.hideSoftInputFromWindow(input.getWindowToken(), 0);
         final int mine = ++token;
         found.clear();
-        rows.clear();
         adapter.notifyDataSetChanged();
         status.setText(Ui.tr("Buscando…", "Searching…"));
         io.execute(() -> {
@@ -148,9 +184,21 @@ public class SearchActivity extends Activity {
                 }
                 status.setText("");
                 found.addAll(picks);
-                for (Recs.Pick p : picks) rows.add(p.title + "  ·  " + p.badge);
                 adapter.notifyDataSetChanged();
                 list.requestFocus();
+            });
+        });
+    }
+
+    /** Fetches a poster off the UI thread; if the row still shows that title when it arrives, it is set. */
+    private void loadPoster(final Recs.Pick p, final ImageView image, final int height) {
+        posters.put(p.poster, null);   // asked once: a row drawn again meanwhile doesn't ask again
+        thumbs.execute(() -> {
+            final Bitmap b = Recs.get(this).thumbnail(p, height);
+            main.post(() -> {
+                if (b == null) return;
+                posters.put(p.poster, b);
+                if (p.poster.equals(image.getTag())) image.setImageBitmap(b);
             });
         });
     }
