@@ -1,1 +1,1 @@
-<resources><string name="remote_keys">Makes the remote\'s shortcut buttons (Netflix, YouTube…) open the apps chosen in Marquise. Only reads those buttons.</string></resources>
+<resources><string name="remote_keys">Makes the remote\'s shortcut buttons (Netflix, YouTube…) open the apps chosen in Marquise. It gets the remote\'s key presses but acts only on those buttons; it never reads the screen.</string></resources>

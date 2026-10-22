@@ -150,7 +150,7 @@ public class SettingsActivity extends Activity {
         private int appScroll;                 // the first row shown
         private String appsTitle = "", appsSummary = "";
         // Remote buttons (Preferences' fifth row): what each one opens; the app list above picks one for pickFor.
-        private String[] keyValues = new String[RemoteKeys.BUTTONS.length];
+        private String[] keyValues = java.util.Collections.nCopies(RemoteKeys.BUTTONS.length, "").toArray(new String[0]);
         private int pickFor = -1;              // the button whose app is being chosen; -1 = the list is Factory apps
         private final Paint qrPaint = new Paint();   // no filtering: the modules stay sharp when scaled up   // the installed streaming apps TMDB titles open in (looked up on resume)
         private int screen = MAIN, focus;
@@ -551,6 +551,7 @@ public class SettingsActivity extends Activity {
                 String l = Prefs.language.trim().toLowerCase(java.util.Locale.ROOT);
                 // Automatic → Português → English → Español → Automatic.
                 Prefs.setLanguage(c, l.startsWith("pt") ? "en" : l.startsWith("en") ? "es" : l.startsWith("es") ? "auto" : "pt");
+                updateAppsSummary();   // "3 chosen" is made once: again in the new language
             } else if (row == 1) {
                 String t = Prefs.temperature.trim().toUpperCase(java.util.Locale.ROOT);
                 Prefs.setTemperature(c, t.startsWith("F") ? "auto" : t.startsWith("C") ? "F" : "C");
@@ -667,13 +668,24 @@ public class SettingsActivity extends Activity {
 
         /** Remote buttons: one row per button, with what it opens; focus on the given one. */
         private void openKeys(int at) {
-            Context c = getContext();
-            for (int i = 0; i < keyValues.length; i++) {
-                String[] b = RemoteKeys.BUTTONS[i];
-                keyValues[i] = targetLabel(c, Prefs.remoteTarget(c, b[1], b[3]), i);
-            }
+            final Context c = getContext();
+            final int token = ++appLoadToken;   // also drops a pick list still loading
             screen = KEYS;
             focus = at;
+            // The names come from the package manager: off the UI thread, like the lists.
+            new Thread(() -> {
+                final String[] values = new String[RemoteKeys.BUTTONS.length];
+                for (int i = 0; i < values.length; i++) {
+                    String[] b = RemoteKeys.BUTTONS[i];
+                    values[i] = targetLabel(c, Prefs.remoteTarget(c, b[1], b[3]), i);
+                }
+                post(() -> {
+                    if (token != appLoadToken || screen != KEYS) return;
+                    keyValues = values;
+                    a11yChanged();
+                    invalidate();
+                });
+            }, "marquise-keys").start();
         }
 
         /** What a button's target is called: the app's name, or what a target that isn't an app does. */
@@ -716,8 +728,9 @@ public class SettingsActivity extends Activity {
                 if (HomeApps.liveTv(c) != null) first.add(new String[] {RemoteKeys.LIVE_TV, targetLabel(c, RemoteKeys.LIVE_TV, button)});
                 java.util.Set<String> seen = new java.util.HashSet<>();
                 seen.add(c.getPackageName());
-                if (b[3].contains(".") && HomeApps.launchIntent(pm, b[3]) == null && seen.add(b[3])) {
-                    first.add(new String[] {b[3], b[2] + " · Play Store"});
+                // The button's own app, even without a TV launcher entry (or not installed: then its store page).
+                if (b[3].contains(".") && seen.add(b[3])) {
+                    first.add(new String[] {b[3], HomeApps.launchIntent(pm, b[3]) != null ? targetLabel(c, b[3], button) : b[2] + " · Play Store"});
                 }
                 TextPaint p = new TextPaint(rowLabel);
                 Intent query = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LEANBACK_LAUNCHER);
@@ -1108,7 +1121,6 @@ public class SettingsActivity extends Activity {
                         if (backDown && !e.isCanceled()) {
                             a11yChanged();
                             if (screen == APPS && pickFor >= 0) {
-                                appLoadToken++;   // a list still loading must not show on the buttons' screen
                                 openKeys(pickFor);
                             } else if (screen == APPS || screen == KEYS) {
                                 focus = screen == APPS ? FACTORY_ROW : KEYS_ROW;

@@ -16,9 +16,10 @@ final class Prefs {
     private Prefs() {}
 
     private static SharedPreferences p(Context c) {
-        // shortcut: MODE_MULTI_PROCESS (deprecated) re-reads the file the :home process wrote, so a switch in the main
-        // process sees the choice just made; move to a ContentProvider if the file is ever written from both.
-        return c.getSharedPreferences("settings", Context.MODE_PRIVATE | Context.MODE_MULTI_PROCESS);
+        // shortcut: in the main process, MODE_MULTI_PROCESS (deprecated) re-reads the file :home wrote, so a switch sees
+        // the choice just made; :home, which writes it and reads it while drawing, keeps the plain cache. Move to a
+        // ContentProvider if the file is ever written from both.
+        return c.getSharedPreferences("settings", android.app.Application.getProcessName().endsWith(":home") ? Context.MODE_PRIVATE : Context.MODE_PRIVATE | Context.MODE_MULTI_PROCESS);
     }
 
     // MARK: - Jellyfin
