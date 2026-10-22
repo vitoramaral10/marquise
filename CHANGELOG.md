@@ -5,6 +5,8 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.17.0] - 2026-10-22
+
 ### Added
 
 - Spanish (Latin American). *Español* is a choice in *Preferences → Language*, and it is picked by itself when the TV
