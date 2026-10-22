@@ -15,6 +15,7 @@ final class Es {
     private static final String[][] PAIRS = {
         {" new episodes", " episodios nuevos"},
         {" · by ", " · por "},
+        {" · on the Play Store", " · en Play Store"},
         {"(app list cut to fit the QR code)", "(lista de apps recortada para que quepa en el código QR)"},
         {". Opens the forecast.", ". Abre el pronóstico."},
         {"A maker's apps may hold TV functions. Original mode turns it all back on.", "Las apps del fabricante pueden tener funciones de la TV. Original lo reactiva."},

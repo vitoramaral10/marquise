@@ -730,7 +730,7 @@ public class SettingsActivity extends Activity {
                 seen.add(c.getPackageName());
                 // The button's own app, even without a TV launcher entry (or not installed: then its store page).
                 if (b[3].contains(".") && seen.add(b[3])) {
-                    first.add(new String[] {b[3], HomeApps.launchIntent(pm, b[3]) != null ? targetLabel(c, b[3], button) : b[2] + " · Play Store"});
+                    first.add(new String[] {b[3], HomeApps.launchIntent(pm, b[3]) != null ? targetLabel(c, b[3], button) : b[2] + Ui.tr(" · na Play Store", " · on the Play Store")});
                 }
                 TextPaint p = new TextPaint(rowLabel);
                 Intent query = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LEANBACK_LAUNCHER);
