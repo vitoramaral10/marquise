@@ -8,9 +8,9 @@ This is a plan, not a promise. Items move when the reports from real TVs say the
 something that isn't? Open an issue.
 
 **Where it stands (1.17.0):** the safe-releases stretch and "everything from the TV" are done in the code, and from
-"better titles" the continue-watching row, the HDMI inputs and the search are in. What waits is what needs people:
-TalkBack tried by someone who uses it and the compatibility table (reports from other brands). Then the rest of
-"better titles" (deep links, Emby, Plex) and "reach".
+"better titles" continue watching (in the first posters of each tab, not a row of its own), the HDMI inputs and the
+search are in. What waits is what needs people: TalkBack tried by someone who uses it and the compatibility table
+(reports from other brands). Then the rest of "better titles" (deep links, Emby, Plex) and "reach".
 
 | Version | What it brought |
 |---|---|
