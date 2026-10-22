@@ -116,14 +116,14 @@ public class SettingsActivity extends Activity {
     }
 
     static final class SettingsView extends View implements Choreographer.FrameCallback {
-        private static final int MAIN = 0, HOME_CHOICE = 1, REPORT = 2, UPDATES = 3, PREFS = 4, APPS = 5;
+        private static final int MAIN = 0, HOME_CHOICE = 1, REPORT = 2, UPDATES = 3, PREFS = 4, APPS = 5, KEYS = 6;
         /**
          * The "This TV" row: opens the report screen. "Updates": the update, if any, and stable or beta releases.
          * "Preferences": language, temperature and the assistant (what only config.properties could set before).
          */
         private static final int THIS_TV = 4, UPDATES_ROW = 5, PREFS_ROW = 6;
         private static final float LIST_X = 1000, LIST_R = 1824, LIST_TOP = 150, ROW_H = 64, ROW_GAP = 6, CHOICE_H = 104;
-        private static final int ROWS = 8, PREF_ROWS = 4, APP_ROWS = 8;
+        private static final int ROWS = 8, PREF_ROWS = 5, APP_ROWS = 8, FACTORY_ROW = 3, KEYS_ROW = 4;
         private static final int AMBER = 0xFFFFC266, INK = 0xFF1C1C1E;
 
         private final SettingsActivity activity;
@@ -149,6 +149,9 @@ public class SettingsActivity extends Activity {
         private int appLoadToken;              // which opening of the list a background load belongs to
         private int appScroll;                 // the first row shown
         private String appsTitle = "", appsSummary = "";
+        // Remote buttons (Preferences' fifth row): what each one opens; the app list above picks one for pickFor.
+        private String[] keyValues = new String[RemoteKeys.BUTTONS.length];
+        private int pickFor = -1;              // the button whose app is being chosen; -1 = the list is Factory apps
         private final Paint qrPaint = new Paint();   // no filtering: the modules stay sharp when scaled up   // the installed streaming apps TMDB titles open in (looked up on resume)
         private int screen = MAIN, focus;
         // For a screen reader (TalkBack): the rows of the screen on show, as virtual nodes. Built only when asked.
@@ -276,6 +279,7 @@ public class SettingsActivity extends Activity {
         private int rowCount() {
             if (screen == UPDATES) syncUpdatesFocus();
             if (screen == APPS) return appItems == null ? 0 : appItems.length;
+            if (screen == KEYS) return RemoteKeys.BUTTONS.length;
             return screen == MAIN ? ROWS : screen == HOME_CHOICE ? 2 : screen == PREFS ? PREF_ROWS : screen == UPDATES ? (Updater.available.isEmpty() ? 2 : 3) : 0;   // as updateOptions()
         }
 
@@ -334,6 +338,7 @@ public class SettingsActivity extends Activity {
             else if (screen == UPDATES) drawUpdates(c);
             else if (screen == PREFS) drawPrefs(c);
             else if (screen == APPS) drawApps(c);
+            else if (screen == KEYS) drawKeys(c);
             else drawReport(c);
         }
 
@@ -404,6 +409,10 @@ public class SettingsActivity extends Activity {
             } else if (screen == PREFS) {
                 for (int i = 0; i < PREF_ROWS; i++) {
                     out.add(a11yRow(i, prefLabel(i) + ", " + prefValue(i), a11yRect(LIST_TOP + 20, ROW_H, i), false));
+                }
+            } else if (screen == KEYS) {
+                for (int i = 0; i < RemoteKeys.BUTTONS.length; i++) {
+                    out.add(a11yRow(i, RemoteKeys.name(i) + ", " + keyValues[i], a11yRect(LIST_TOP + 20, ROW_H, i), false));
                 }
             } else if (screen == APPS) {
                 if (appItems == null || appItems.length == 0) {
@@ -510,15 +519,14 @@ public class SettingsActivity extends Activity {
             }
             float ny = (LIST_TOP + 20 + PREF_ROWS * (ROW_H + ROW_GAP) + 40) * k;
             c.drawText(Ui.tr("OK passa para a próxima opção.", "OK moves to the next option."), LIST_X * k + 30 * k, ny, hint);
-            c.drawText(Ui.tr("O Assistente vale na próxima vez que o Marquise for ligado.",
-                    "The assistant takes effect the next time Marquise is switched on."), LIST_X * k + 30 * k, ny + 34 * k, hint);
             c.drawText(Ui.tr("Desligado, o botão do microfone do controle não funciona.",
-                    "Turned off, the remote's mic button doesn't work."), LIST_X * k + 30 * k, ny + 68 * k, hint);
+                    "Turned off, the remote's mic button doesn't work."), LIST_X * k + 30 * k, ny + 34 * k, hint);
         }
 
         private static String prefLabel(int row) {
             return row == 0 ? Ui.tr("Idioma", "Language") : row == 1 ? Ui.tr("Temperatura", "Temperature")
-                    : row == 2 ? Ui.tr("Google Assistente", "Google Assistant") : Ui.tr("Apps de fábrica", "Factory apps");
+                    : row == 2 ? Ui.tr("Google Assistente", "Google Assistant") : row == FACTORY_ROW ? Ui.tr("Apps de fábrica", "Factory apps")
+                    : Ui.tr("Botões do controle", "Remote buttons");
         }
 
         private String prefValue(int row) {
@@ -531,7 +539,8 @@ public class SettingsActivity extends Activity {
                 String t = Prefs.temperature.trim().toUpperCase(java.util.Locale.ROOT);
                 return t.startsWith("F") ? "°F" : t.startsWith("C") ? "°C" : Ui.tr("Automático (da TV)", "Automatic (the TV's)");
             }
-            if (row == 3) return appsSummary;
+            if (row == FACTORY_ROW) return appsSummary;
+            if (row == KEYS_ROW) return Ui.tr("Escolher", "Choose");
             return assistantOff ? Ui.tr("Desligar com o Marquise", "Turn off with Marquise") : Ui.tr("Manter ligado", "Leave on");
         }
 
@@ -548,8 +557,11 @@ public class SettingsActivity extends Activity {
             } else if (row == 2) {
                 assistantOff = !assistantOff;
                 Prefs.setAssistantOff(c, assistantOff);
-            } else {
+                if (freeActive()) HomeMode.verify(c);   // turns it off or back on now, not at the next switch
+            } else if (row == FACTORY_ROW) {
                 openApps();
+            } else {
+                openKeys(0);
             }
         }
 
@@ -571,6 +583,7 @@ public class SettingsActivity extends Activity {
          */
         private void openApps() {
             final Context c = getContext();
+            pickFor = -1;
             appItems = null;
             appScroll = 0;
             appPicked.clear();
@@ -609,7 +622,7 @@ public class SettingsActivity extends Activity {
         }
 
         private void updateAppsTitle() {
-            appsTitle = Ui.tr("Apps de fábrica", "Factory apps")
+            appsTitle = (pickFor >= 0 ? RemoteKeys.name(pickFor) : Ui.tr("Apps de fábrica", "Factory apps"))
                     + (appItems == null || appItems.length == 0 ? "" : " · " + (focus + 1) + "/" + appItems.length);
         }
 
@@ -641,11 +654,110 @@ public class SettingsActivity extends Activity {
                 }
             }
             float ny = (LIST_TOP + 20 + APP_ROWS * (ROW_H + ROW_GAP) + 36) * k;
+            if (pickFor >= 0) {
+                c.drawText(Ui.tr("OK escolhe o que este botão do controle abre.", "OK picks what this remote button opens."), x, ny, hint);
+                return;
+            }
             c.drawText(appItems[focus][0], x, ny, hint);
             c.drawText(Ui.tr("OK escolhe o app para desligar; vale na próxima vez que o Marquise for ligado.",
                     "OK picks the app to turn off; it takes effect the next time Marquise is switched on."), x, ny + 34 * k, hint);
             c.drawText(Ui.tr("Apps do fabricante podem ter funções da TV. O Original liga tudo de volta.",
                     "A maker's apps may hold TV functions. Original mode turns it all back on."), x, ny + 68 * k, hint);
+        }
+
+        /** Remote buttons: one row per button, with what it opens; focus on the given one. */
+        private void openKeys(int at) {
+            Context c = getContext();
+            for (int i = 0; i < keyValues.length; i++) {
+                String[] b = RemoteKeys.BUTTONS[i];
+                keyValues[i] = targetLabel(c, Prefs.remoteTarget(c, b[1], b[3]), i);
+            }
+            screen = KEYS;
+            focus = at;
+        }
+
+        /** What a button's target is called: the app's name, or what a target that isn't an app does. */
+        private static String targetLabel(Context c, String target, int button) {
+            if (RemoteKeys.PASS.equals(target)) return Ui.tr("Como a TV faz", "As the TV does");
+            if (RemoteKeys.NOTHING.equals(target)) return Ui.tr("Nada", "Nothing");
+            if (RemoteKeys.TV_SETTINGS.equals(target)) return Ui.tr("Ajustes da TV", "TV Settings");
+            if (RemoteKeys.LIVE_TV.equals(target)) return Ui.tr("TV ao Vivo", "Live TV");
+            try {
+                android.content.pm.PackageManager pm = c.getPackageManager();
+                return String.valueOf(pm.getApplicationLabel(pm.getApplicationInfo(target, 0)));
+            } catch (android.content.pm.PackageManager.NameNotFoundException e) {
+                // Not installed: the button's own app opens its store page, so it keeps the button's name.
+                return target.equals(RemoteKeys.BUTTONS[button][3]) ? RemoteKeys.BUTTONS[button][2] : target;
+            }
+        }
+
+        /**
+         * The list of what a button can open: the TV's own action, nothing, its settings, live TV, the button's own app (even
+         * when it isn't installed: then its store page) and every TV app. Built off the UI thread, like Factory apps.
+         */
+        private void openPick(final int button) {
+            final Context c = getContext();
+            pickFor = button;
+            appItems = null;
+            appScroll = 0;
+            appPicked.clear();
+            final String[] b = RemoteKeys.BUTTONS[button];
+            appPicked.add(Prefs.remoteTarget(c, b[1], b[3]));
+            final int token = ++appLoadToken;
+            screen = APPS;
+            focus = 0;
+            updateAppsTitle();
+            new Thread(() -> {
+                android.content.pm.PackageManager pm = c.getPackageManager();
+                java.util.List<String[]> first = new java.util.ArrayList<>(), apps = new java.util.ArrayList<>();
+                first.add(new String[] {RemoteKeys.PASS, targetLabel(c, RemoteKeys.PASS, button)});
+                first.add(new String[] {RemoteKeys.NOTHING, targetLabel(c, RemoteKeys.NOTHING, button)});
+                first.add(new String[] {RemoteKeys.TV_SETTINGS, targetLabel(c, RemoteKeys.TV_SETTINGS, button)});
+                if (HomeApps.liveTv(c) != null) first.add(new String[] {RemoteKeys.LIVE_TV, targetLabel(c, RemoteKeys.LIVE_TV, button)});
+                java.util.Set<String> seen = new java.util.HashSet<>();
+                seen.add(c.getPackageName());
+                if (b[3].contains(".") && HomeApps.launchIntent(pm, b[3]) == null && seen.add(b[3])) {
+                    first.add(new String[] {b[3], b[2] + " · Play Store"});
+                }
+                TextPaint p = new TextPaint(rowLabel);
+                Intent query = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LEANBACK_LAUNCHER);
+                for (android.content.pm.ResolveInfo ri : pm.queryIntentActivities(query, 0)) {
+                    String pkg = ri.activityInfo.packageName;
+                    if (!seen.add(pkg)) continue;
+                    apps.add(new String[] {pkg, TextUtils.ellipsize(String.valueOf(ri.loadLabel(pm)), p, 640 * k, TextUtils.TruncateAt.END).toString()});
+                }
+                apps.sort(SettingsView::byLabel);
+                first.addAll(apps);
+                final String[][] items = first.toArray(new String[0][]);
+                post(() -> {
+                    if (token != appLoadToken || screen != APPS) return;
+                    appItems = items;
+                    for (int i = 0; i < items.length; i++) if (appPicked.contains(items[i][0])) focus = i;
+                    scrollToFocus();
+                    updateAppsTitle();
+                    a11yChanged();
+                    invalidate();
+                });
+            }, "marquise-pick").start();
+        }
+
+        private void drawKeys(Canvas c) {
+            c.drawText(Ui.tr("Botões do controle", "Remote buttons"), LIST_X * k + 30 * k, (LIST_TOP - 24) * k, heading);
+            for (int i = 0; i < RemoteKeys.BUTTONS.length; i++) {
+                float y = (LIST_TOP + 20 + i * (ROW_H + ROW_GAP)) * k;
+                rowRect.set(LIST_X * k, y, LIST_R * k, y + ROW_H * k);
+                float f = drawRowBackground(c, i);
+                rowLabel.setColor(blend(0xF2FFFFFF, INK, f));
+                float base = rowRect.centerY() + Ui.halfCap(rowLabel);
+                c.drawText(RemoteKeys.name(i), rowRect.left + 30 * k, base, rowLabel);
+                rowValue.setColor(blend(0x8CFFFFFF, 0x8C1C1C1E, f));
+                c.drawText(keyValues[i], rowRect.right - 30 * k, base, rowValue);
+            }
+            float ny = (LIST_TOP + 20 + RemoteKeys.BUTTONS.length * (ROW_H + ROW_GAP) + 40) * k;
+            c.drawText(Ui.tr("Com o Marquise ligado, cada botão abre o que está aqui.",
+                    "With Marquise on, each button opens what is set here."), LIST_X * k + 30 * k, ny, hint);
+            c.drawText(Ui.tr("No modo Original, os botões voltam a ser da TV.",
+                    "In Original mode, the buttons go back to the TV."), LIST_X * k + 30 * k, ny + 34 * k, hint);
         }
 
         /** Whether "Updates" has news: a new version, its download, or what went wrong. */
@@ -995,9 +1107,12 @@ public class SettingsActivity extends Activity {
                     } else {
                         if (backDown && !e.isCanceled()) {
                             a11yChanged();
-                            if (screen == APPS) {
+                            if (screen == APPS && pickFor >= 0) {
+                                appLoadToken++;   // a list still loading must not show on the buttons' screen
+                                openKeys(pickFor);
+                            } else if (screen == APPS || screen == KEYS) {
+                                focus = screen == APPS ? FACTORY_ROW : KEYS_ROW;
                                 screen = PREFS;
-                                focus = PREF_ROWS - 1;
                             } else {
                                 focus = screen == REPORT ? THIS_TV : screen == UPDATES ? UPDATES_ROW : screen == PREFS ? PREFS_ROW : 0;
                                 screen = MAIN;
@@ -1025,6 +1140,14 @@ public class SettingsActivity extends Activity {
                 }
                 screen = MAIN;
                 focus = 0;
+            } else if (screen == KEYS) {
+                openPick(focus);
+                invalidate();
+                return;
+            } else if (screen == APPS && pickFor >= 0) {
+                if (appItems == null || focus >= appItems.length) return;
+                Prefs.setRemoteTarget(c, RemoteKeys.BUTTONS[pickFor][1], appItems[focus][0]);
+                openKeys(pickFor);
             } else if (screen == APPS) {
                 if (appItems != null && focus < appItems.length) {
                     String pkg = appItems[focus][0];

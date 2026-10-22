@@ -35,8 +35,9 @@ or Jellyfin, city). The steps below are for building it yourself.
    `appops set br.dev.vitormelo.marquise AUTO_START allow` itself, from the app on screen, before switching on. TVs
    without it answer "Unknown operation string": that's fine.
 7. **Tell them what the switch does** before they make it: the home screen and screensaver change, a short list of
-   promo apps is turned off (never uninstalled), and *Original* brings it all back. On some TVs the remote's shortcut
-   buttons belong to the stock home screen (TCL: Netflix, YouTube, Prime), so they rest while Marquise is on.
+   promo apps is turned off (never uninstalled), and *Original* brings it all back. On TCL TVs the system keeps the
+   remote's shortcut buttons for the stock home screen; Marquise takes them back with its accessibility service
+   (`RemoteKeys`), which it turns on itself, and each opens what *Preferences → Remote buttons* says.
 8. **They switch on the TV:** *Marquise* → *Home Screen* → *Marquise*. The app uses the TV's own ADB on 127.0.0.1 with
    its own key, so the TV asks once more to allow debugging. Don't switch modes from the computer.
 9. **Check:** `adb logcat -s Marquise` shows what the switch did.
@@ -101,6 +102,10 @@ TVs that don't run Google TV or Android TV (Samsung, LG and others): the way is 
   runs with the reader off. `tools/emulator_check.sh` reads the tree; Google TV's emulator image has TalkBack
   (`com.google.android.marvin.talkback`): turn it on with `settings put secure enabled_accessibility_services …` on the
   emulator (never a real TV) and drive Home with the arrow keys to see its focus box.
+- `RemoteKeys` is an accessibility service that only filters keys: the remote's shortcut buttons (TCL codes in
+  `BUTTONS`, found with `adb logcat` while pressing them: `handleKeyBeforeQueueing ... keyCode=`), opening what
+  `Prefs.remoteTarget` says. `HomeMode` adds it to `enabled_accessibility_services` with Marquise, takes it out with
+  Original, and `verify` puts it back; `HomeAccess.on()` doesn't count it as a screen reader.
 - `AppLog.w` writes to logcat and keeps the last problems (not "notice:" lines) in `files/applog.txt`, cleaned of
   addresses, links and key-like strings (`AppLog.clean`); `App` gives it the folder in every process. *This TV* and
   the report's QR (`TvReport.fit`, errors dropped before apps) show them. Never put a key or a person's data in a
