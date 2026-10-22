@@ -112,9 +112,11 @@ exist.
   the app's home as the fallback.
 - **More servers.** Emby first, because its API is Jellyfin's ancestor and most of `Jellyfin.java` carries over.
   Then Plex, which needs its own sign-in (plex.tv/link with a code, like Quick Connect).
-- **HDMI inputs on the row.** The TV's inputs (`TvInputManager`) as app tiles, with the names the person gave them.
-  For a TV with a console or a cable box, the factory home is often the only way to get there.
-- **Search.** One button on Home searches the person's server or TMDB and opens the title in its app.
+- ~~**HDMI inputs on the row.**~~ Done: *All Apps* lists the TV's inputs (with the names the person gave them) and one
+  can be added to the row like an app. Not yet seen on a TV with a device plugged in (the emulator has no HDMI ports).
+- ~~**Search.**~~ Done: a magnifier in the corner opens a search (the TV's keyboard) over the person's Jellyfin or TMDB
+  and opens the title in its app. It lists titles as text, no posters; on TMDB it checks where the first dozen
+  matches play.
 
 ## Later: reach
 
