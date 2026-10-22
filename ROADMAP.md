@@ -54,7 +54,6 @@ These hold for every item below. A feature that breaks one of them doesn't ship.
   app's home as the fallback.
 - **More servers.** Emby first, because its API is Jellyfin's ancestor and most of `Jellyfin.java` carries over. Then
   Plex, which needs its own sign-in (plex.tv/link with a code, like Quick Connect).
-- **Posters in the search**, and its TMDB check beyond the first dozen matches (now one request per title).
 - **A row of its own for continue watching**, instead of sharing the first three posters of each tab.
 
 ## Later: reach
