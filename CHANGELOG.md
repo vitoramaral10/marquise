@@ -10,6 +10,19 @@ and versions follow [Semantic Versioning](https://semver.org/).
 - Spanish (Latin American). *Español* is a choice in *Preferences → Language*, and it is picked by itself when the TV
   is set to Spanish: every text, the greeting and the tabs, the weather words, the date and the clock, the title lists
   from TMDB, and the *Resume / Next* lines under a poster.
+- The remote's shortcut buttons work in Marquise mode, and each one can open what you choose in *Preferences →
+  Remote buttons*: Netflix, Prime Video, YouTube, Globoplay, TCL Channel, Disney+, Settings and TV (codes read on a
+  TCL remote, whose system keeps those buttons for the stock home screen). Marquise turns on its own accessibility
+  service for this when switched on, and Original turns it off.
+
+### Changed
+
+- *Preferences → Google Assistant* takes effect at once while Marquise is on, instead of at the next switch.
+
+### Fixed
+
+- Switching Marquise on again could leave Google TV's home screen on and in charge of the Home button, when the home
+  screen Marquise had recorded wasn't the one answering it: the one answering is now turned off too.
 
 ## [1.16.1] - 2026-10-21
 

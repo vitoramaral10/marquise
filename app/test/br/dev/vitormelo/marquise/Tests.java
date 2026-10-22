@@ -16,7 +16,7 @@ public final class Tests {
     private Tests() {}
 
     private static final Class<?>[] SUITES = {
-        HomeModeTest.class, EsTest.class, ResumeTest.class, PrefsTest.class, AppLogTest.class, TvReportTest.class, TmdbTest.class, RecsTest.class, JellyfinTest.class, UpdaterTest.class,
+        HomeModeTest.class, EsTest.class, ResumeTest.class, PrefsTest.class, AppLogTest.class, TvReportTest.class, TmdbTest.class, RecsTest.class, JellyfinTest.class, UpdaterTest.class, RemoteKeysTest.class,
     };
 
     /** Fails with both values shown unless expected and actual are equal (null-safe). */
