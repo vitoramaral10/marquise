@@ -58,7 +58,7 @@ jobs:
 
       - name: Google TV image (cached)
         if: steps.changes.outputs.app == 'true'
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: /usr/local/lib/android/sdk/system-images/android-34/google-tv/x86   # $ANDROID_HOME on GitHub's runners
           key: google-tv-34-x86-r3
