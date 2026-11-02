@@ -7,7 +7,7 @@ it grow.
 This is a plan, not a promise. Items move when the reports from real TVs say they should. Want something here, or
 something that isn't? Open an issue.
 
-**Where it stands (1.17.0):** safe releases and "everything from the TV" are done in the code. What waits is what
+**Where it stands (1.18.0):** safe releases and "everything from the TV" are done in the code. What waits is what
 needs people: TalkBack tried by someone who uses it, and reports from other brands. After that, the rest of "better
 titles" and "reach".
 
@@ -21,6 +21,7 @@ titles" and "reach".
 | 1.15.0 | The settings work with TalkBack |
 | 1.16.0 | Jellyfin: *continue watching* and next episodes, first in each tab |
 | 1.17.0 | Spanish; the remote's shortcut buttons (TCL); an HDMI input on the row; search on Home |
+| 1.18.0 | Posters in the search; on TMDB it checks all 20 matches |
 
 Not in that table because they don't ship in the app: the unit tests, the emulator check and the CI budgets on every
 PR, the code of conduct and the security policy.
@@ -45,7 +46,8 @@ These hold for every item below. A feature that breaks one of them doesn't ship.
   table on the install page and the brand lists in `HomeMode` (`MAKER_PREFIXES`, Live TV apps). *Done when* Sony,
   Hisense, Philips and Xiaomi each have a TV confirmed by someone who has one. The remote's shortcut-button key codes
   (`RemoteKeys`) were read on one TCL TV too; another brand's remote sends other codes.
-- **Seen on a real TV.** The HDMI input on the row (the emulator has no ports) and the search on TMDB.
+- **Seen on a real TV.** The HDMI input on the row (the emulator has no ports) and the search on TMDB, with its
+  posters and the wider check (they need a TMDB key).
 
 ## Next: better titles
 
@@ -54,7 +56,6 @@ These hold for every item below. A feature that breaks one of them doesn't ship.
   app's home as the fallback.
 - **More servers.** Emby first, because its API is Jellyfin's ancestor and most of `Jellyfin.java` carries over. Then
   Plex, which needs its own sign-in (plex.tv/link with a code, like Quick Connect).
-- **Posters in the search**, and its TMDB check beyond the first dozen matches (now one request per title).
 - **A row of its own for continue watching**, instead of sharing the first three posters of each tab.
 
 ## Later: reach
