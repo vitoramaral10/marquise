@@ -40,6 +40,11 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -118,6 +123,9 @@ final class HomeApps {
 
     private static final Map<String, Bitmap> TILES = new HashMap<>();   // key → ready card
     private static final Map<String, Bitmap> LOGOS = new HashMap<>();   // key → colored logo with no background
+    /** The cards are built on every core: on a cold start the row is ready before the first frame. */
+    private static final ExecutorService CARDS = Executors.newFixedThreadPool(
+            Math.max(2, Math.min(4, Runtime.getRuntime().availableProcessors())));
 
     /**
      * Home screen apps. `extract`: also lifts the logos that are not on disk yet (slow: background only); without it,
@@ -125,6 +133,7 @@ final class HomeApps {
      */
     static List<Item> shelf(Context c, boolean extract) {
         List<Item> items = new ArrayList<>();
+        List<Callable<Void>> cards = new ArrayList<>();   // each fills its own Item's images
         PackageManager pm = c.getPackageManager();
         List<Item> hdmi = null;   // the TV's inputs, asked for once and only if the row has one
         for (String key : shelfOrder(c)) {
@@ -140,23 +149,59 @@ final class HomeApps {
             }
             String[] d = known(key);
             if (d == null) {   // any other installed app, added from All Apps: its own TV art
-                if (key.contains(".") && launchIntent(pm, key) != null) items.add(anyApp(c, pm, key));
+                if (key.contains(".") && launchIntent(pm, key) != null) {
+                    final Item it = anyApp(pm, key);
+                    cards.add(() -> {
+                        it.tile = appTile(c, null, it.pkg, 0);
+                        return null;
+                    });
+                    items.add(it);
+                }
                 continue;
             }
             if (launchIntent(pm, d[2]) == null) continue;
-            Item it = new Item();
+            final Item it = new Item();
             it.kind = APP;
             it.key = d[0];
             it.label = d[1];
             it.pkg = d[2];
-            it.tile = appTile(c, d[0], d[2], 0xFF000000 | Integer.parseInt(d[3], 16));
-            it.logo = shelfLogo(c, d[0], d[2], d[4], extract);
-            if (it.logo != null) it.logoInk = ink(it.logo);
-            it.logoDark = ownLogoCached(c, d[0] + "-dark");
             it.logoScale = Float.parseFloat(d[5]);
+            cards.add(() -> {
+                it.tile = appTile(c, d[0], d[2], 0xFF000000 | Integer.parseInt(d[3], 16));
+                it.logo = shelfLogo(c, d[0], d[2], d[4], extract);
+                if (it.logo != null) it.logoInk = ink(it.logo);
+                it.logoDark = ownLogoCached(c, d[0] + "-dark");
+                return null;
+            });
             items.add(it);
         }
+        buildAll(cards);
         return items;
+    }
+
+    /** Runs the jobs on the card workers and waits for all of them (a failure is thrown here, as before). */
+    private static void buildAll(List<Callable<Void>> jobs) {
+        List<Future<Void>> running = new ArrayList<>();
+        for (Callable<Void> job : jobs) running.add(CARDS.submit(job));
+        boolean interrupted = false;
+        try {
+            for (Future<Void> f : running) {
+                while (true) {
+                    try {
+                        f.get();
+                        break;
+                    } catch (InterruptedException e) {
+                        interrupted = true;   // the cards are half built: wait anyway, then pass the interrupt on
+                    } catch (ExecutionException e) {
+                        Throwable cause = e.getCause();
+                        if (cause instanceof Error) throw (Error) cause;
+                        throw cause instanceof RuntimeException ? (RuntimeException) cause : new RuntimeException(cause);
+                    }
+                }
+            }
+        } finally {
+            if (interrupted) Thread.currentThread().interrupt();
+        }
     }
 
     private static String[] known(String key) {
@@ -164,7 +209,8 @@ final class HomeApps {
         return null;
     }
 
-    private static Item anyApp(Context c, PackageManager pm, String pkg) {
+    /** Its card comes from appTile, built with the others in shelf(). */
+    private static Item anyApp(PackageManager pm, String pkg) {
         Item it = new Item();
         it.kind = APP;
         it.key = pkg;
@@ -174,7 +220,6 @@ final class HomeApps {
         } catch (PackageManager.NameNotFoundException e) {
             it.label = pkg;
         }
-        it.tile = appTile(c, null, pkg, 0);
         return it;
     }
 
@@ -460,7 +505,7 @@ final class HomeApps {
         synchronized (LOGOS) {
             if (LOGOS.containsKey(key)) return LOGOS.get(key);
         }
-        Bitmap logo = ownLogo(c, key);
+        Bitmap logo = ownLogoCached(c, key);   // the same image appTile decoded for the card
         File file = logoFile(c, key, pkg), none = new File(file.getPath() + ".none");
         if (logo == null && file.exists()) logo = BitmapFactory.decodeFile(file.getPath());
         if (logo == null) {
@@ -504,9 +549,11 @@ final class HomeApps {
     /** Fraction (0 to 1) of the logo's pixels that have ink, by sampling. */
     private static float ink(Bitmap logo) {
         int w = logo.getWidth(), h = logo.getHeight(), hits = 0, total = 0;
+        int[] row = new int[w];   // one sampled row per call: getPixel per point was thousands of JNI calls
         for (int y = 0; y < h; y += Math.max(1, h / 48)) {
+            logo.getPixels(row, 0, w, 0, y, w, 1);
             for (int x = 0; x < w; x += Math.max(1, w / 96)) {
-                if ((logo.getPixel(x, y) >>> 24) > 128) hits++;
+                if ((row[x] >>> 24) > 128) hits++;
                 total++;
             }
         }
@@ -728,14 +775,22 @@ final class HomeApps {
 
     // MARK: - Cards
 
-    private static synchronized Bitmap appTile(Context c, String key, String pkg, int brand) {
+    /** Locks only the cache, so the row's cards are drawn in parallel; two threads building the same card is harmless. */
+    private static Bitmap appTile(Context c, String key, String pkg, int brand) {
         String cacheKey = key != null ? key : pkg;
-        if (TILES.containsKey(cacheKey)) return TILES.get(cacheKey);
-        Bitmap logo = key == null ? null : ownLogo(c, key);
+        synchronized (TILES) {
+            Bitmap cached = TILES.get(cacheKey);
+            if (cached != null) return cached;
+        }
+        Bitmap logo = key == null ? null : ownLogoCached(c, key);
         Bitmap tile = logo != null ? logoTile(logo, brand) : bannerTile(c, pkg);
         if (tile == null) tile = iconTile(c, pkg);
         tile.setHasMipMap(true);
-        TILES.put(cacheKey, tile);
+        synchronized (TILES) {
+            Bitmap first = TILES.get(cacheKey);
+            if (first != null) return first;
+            TILES.put(cacheKey, tile);
+        }
         return tile;
     }
 

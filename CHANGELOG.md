@@ -5,6 +5,11 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- Home opens faster after the TV starts or Home is closed: the app row's cards are built on all of the TV's cores, and
+  each logo is read once.
+
 ## [1.18.0] - 2026-10-22
 
 ### Added
