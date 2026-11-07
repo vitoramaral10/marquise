@@ -579,7 +579,7 @@ public class SettingsActivity extends Activity {
         /**
          * Factory apps: the TV's system apps with an icon (never a protected one, Marquise, or what Marquise already
          * turns off by itself), and what was picked before even if it has no icon now. OK on one picks it or not,
-         * saved at once; it takes effect the next time Marquise is switched on. Built off the UI thread: it asks the
+         * saved at once; with Marquise on, verify applies it right away. Built off the UI thread: it asks the
          * package manager for every app's name.
          */
         private void openApps() {
@@ -660,8 +660,8 @@ public class SettingsActivity extends Activity {
                 return;
             }
             c.drawText(appItems[focus][0], x, ny, hint);
-            c.drawText(Ui.tr("OK escolhe o app para desligar; vale na próxima vez que o Marquise for ligado.",
-                    "OK picks the app to turn off; it takes effect the next time Marquise is switched on."), x, ny + 34 * k, hint);
+            c.drawText(Ui.tr("OK desliga o app ou religa; com o Marquise ligado, vale na hora.",
+                    "OK turns the app off or back on; with Marquise on, right away."), x, ny + 34 * k, hint);
             c.drawText(Ui.tr("Apps do fabricante podem ter funções da TV. O Original liga tudo de volta.",
                     "A maker's apps may hold TV functions. Original mode turns it all back on."), x, ny + 68 * k, hint);
         }
@@ -1165,6 +1165,7 @@ public class SettingsActivity extends Activity {
                     String pkg = appItems[focus][0];
                     if (!appPicked.remove(pkg)) appPicked.add(pkg);
                     Prefs.setExtraDisable(c, appPicked);
+                    if (freeActive()) HomeMode.verify(c);   // off, or back on, now
                     updateAppsSummary();
                 }
                 invalidate();

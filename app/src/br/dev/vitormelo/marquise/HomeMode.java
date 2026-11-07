@@ -343,19 +343,18 @@ final class HomeMode {
                 Set<String> disabledNow = packages(adb, "-d");
                 boolean reverted = s.optBoolean("homeReverted");
                 String home = originalHome(s);
-                Set<String> wanted = new HashSet<>(stringList(s, "disabled"));
+                Set<String> wanted = new HashSet<>();
                 boolean assistantOff = Prefs.assistantOff(app);
                 java.util.Set<String> extra = Prefs.extraDisable(app);
                 for (String pkg : targets(home, s.optString("originalDream", ""), assistantOff, extra)) {
                     if (!reverted || !(pkg.equals(packageOf(home)) || pkg.equals(GOOGLE_SETUP))) wanted.add(pkg);
                 }
                 Set<String> disabled = new HashSet<>(stringList(s, "disabled"));
-                // The assistant was set to stay on (Preferences) after Marquise turned it off: on again, now.
-                if (!assistantOff) {
-                    wanted.removeAll(Arrays.asList(ASSISTANT));
-                    for (String pkg : ASSISTANT) {
-                        if (disabled.contains(pkg) && adb.shell("pm enable " + pkg).contains("new state: enabled")) disabled.remove(pkg);
-                    }
+                // Unpicked in Factory apps (or dropped from DEBLOAT): on again. A home screen stays off: applyFree turns
+                // off a stray one that isn't a target, and it would outrank ours.
+                for (String pkg : giveBack(disabled, wanted)) {
+                    if (!present.contains(pkg) || adb.shell("dumpsys package " + pkg).contains("android.intent.category.HOME")) continue;
+                    if (adb.shell("pm enable " + pkg).contains("new state: enabled")) disabled.remove(pkg);
                 }
                 for (String pkg : sorted(wanted)) {
                     if (!mayTurnOff(pkg, packageOf(home), packageOf(s.optString("originalDream", "")), assistantOff, extra) || !present.contains(pkg)) continue;
@@ -395,6 +394,13 @@ final class HomeMode {
                 notice(app, Ui.tr("A TV foi atualizada; o Marquise continua igual.", "The TV was updated; Marquise is still on."));
             }
         }
+    }
+
+    /** What Marquise turned off that is no longer asked for (sorted): verify turns it back on. */
+    static List<String> giveBack(java.util.Collection<String> disabled, java.util.Collection<String> wanted) {
+        Set<String> out = new HashSet<>(disabled);
+        out.removeAll(wanted);
+        return sorted(out);
     }
 
     /** What to turn off: the TV's own home screen and screensaver, Google TV's recovery home, and the lists above. */

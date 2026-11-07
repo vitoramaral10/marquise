@@ -134,4 +134,11 @@ final class HomeModeTest {
         yes(!HomeMode.canPick("com.google.android.katniss"), "the assistant has its own switch");
         yes(!HomeMode.canPick("com.x.y; reboot"), "not a package name");
     }
+
+    /** Unpicked after Marquise turned it off: it comes back on; what is still asked for stays off. */
+    static void anUnpickedAppComesBackOn() {
+        List<String> back = HomeMode.giveBack(java.util.Arrays.asList("com.netflix.ninja", "com.tcl.miracast"),
+                java.util.Arrays.asList("com.tcl.miracast", "com.tcl.exhibit"));
+        eq(java.util.Collections.singletonList("com.netflix.ninja"), back);
+    }
 }

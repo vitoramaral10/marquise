@@ -110,7 +110,7 @@ final class Es {
         {"NOTICES", "AVISOS"},
         {"now", "ahora"},
         {"OK moves to the next option.", "OK pasa a la siguiente opción."},
-        {"OK picks the app to turn off; it takes effect the next time Marquise is switched on.", "OK elige la app que se desactivará; vale la próxima vez que se active Marquise."},
+        {"OK turns the app off or back on; with Marquise on, right away.", "OK desactiva la app o la vuelve a activar; con Marquise activo, al instante."},
         {"OK picks what this remote button opens.", "OK elige lo que abre este botón del control."},
         {"on ", "en "},
         {"On the TV: tick “Always allow” and press OK.", "En la TV: marca “Permitir siempre” y presiona OK."},
