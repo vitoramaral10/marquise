@@ -5,6 +5,10 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- An app unpicked in Factory apps comes back on right away; before, Marquise kept turning it off at every boot and update.
+
 ## [1.18.1] - 2026-11-06
 
 ### Changed
